@@ -1,278 +1,186 @@
-# TropiColors - Sistema de E-commerce
+# TropiColors 🌈
+
+> Premium food colorants e-commerce platform built with React, TypeScript, and Tailwind CSS.
 
 <p align="center">
-  <img src="artifacts/tropicolors/public/logo-tropicolors.png" alt="TropicColors Logo" width="200"/>
+  <img src="artifacts/tropicolors/public/logo-tropicolors.png" alt="TropicColors Logo" width="200" />
 </p>
 
-> Tienda en línea para la venta de colorantes alimentarios artesanales con envío a todo México.
+## 📋 Table of Contents
 
----
+- [Description](#description)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
+- [Support](#support)
 
-## 📋 Descripción
+## 🌟 Description
 
-**TropicColors** es un sistema de comercio electrónico completo desarrollado para una tienda de colorantes alimentarios artesanales. El sistema permite a los clientes explorar productos, agregarlos al carrito, realizar pagos en línea y gestionar pedidos desde un panel administrativo.
+**TropiColors** is a modern e-commerce platform specialized in premium food colorants for the Mexican market. The website showcases a wide variety of powder colorants with different concentrations (125g and 250g), organized by color categories.
 
-### ✨ Características Principales
+The platform features a premium UI/UX design with smooth animations, glassmorphism effects, and a responsive mobile-first approach.
 
-- 🛍️ **Catálogo de Productos**: Visualización de colorantes en polvo con múltiples presentaciones (25g, 100g, 500g, 1kg, 5kg)
-- 🛒 **Carrito de Compras**: Sistema de carrito persistente con gestión de cantidades
-- 💳 **Pagos en Línea**: Integración con Stripe para procesamiento de pagos seguros
-- 📱 **WhatsApp**: Botón flotante para contacto directo vía WhatsApp
-- 📊 **Panel Administrativo**: Dashboard para gestión de pedidos, estadísticas y facturas
-- 🎨 **Diseño Responsivo**: Interfaz adaptada para móviles y escritorio
+## ✨ Features
 
----
+### Core Features
+- 🛒 **Shopping Cart** - Add products, manage quantities, checkout
+- 📱 **Responsive Design** - Works perfectly on mobile, tablet, and desktop
+- 🔍 **Product Filtering** - Filter by color category
+- 🎚️ **Concentration Selector** - Toggle between 125g and 250g options
+- 💬 **WhatsApp Integration** - Direct contact for quotes
+- 🏷️ **Price Display** - Shows prices with IVA included
 
-## 🏗️ Arquitectura del Sistema
+### UI/UX Features
+- 🎨 **Premium Design** - Apple/Stripe-inspired interface
+- ✨ **Smooth Animations** - Framer Motion animations throughout
+- 🧊 **Glassmorphism** - Modern frosted glass effects
+- 📱 **Mobile Menu** - Animated hamburger menu
+- 🔔 **Toast Notifications** - Interactive feedback
+- 🛒 **Cart Drawer** - Slide-out cart with item management
+- 🚀 **Scroll Snap** - Smooth section-by-section scrolling
 
-El proyecto utiliza una arquitectura de **monorepo** con múltiples artefactos:
+## 🛠 Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Frontend** | React 18, TypeScript |
+| **Styling** | Tailwind CSS v4 |
+| **Animations** | Framer Motion |
+| **Routing** | Wouter |
+| **Build Tool** | Vite |
+| **Package Manager** | pnpm |
+| **Monorepo** | pnpm Workspace |
+
+## 📁 Project Structure
 
 ```
 TropicColors/
 ├── artifacts/
-│   ├── tropicolors/      # Frontend principal (React + Vite)
-│   ├── api-server/       # Backend API (Express + TypeScript)
-│   └── mockup-sandbox/   # Entorno de pruebas de componentes
-├── package.json          # Configuración del workspace
-└── pnpm-workspace.yaml   # Configuración de pnpm
+│   ├── tropicolors/          # Main frontend application
+│   │   ├── src/
+│   │   │   ├── components/   # React components
+│   │   │   │   ├── ui/       # Reusable UI components
+│   │   │   │   ├── Navbar.tsx
+│   │   │   │   ├── Footer.tsx
+│   │   │   │   ├── HeroLanding.tsx
+│   │   │   │   └── CartDrawer.tsx
+│   │   │   ├── context/       # React context
+│   │   │   │   └── CartContext.tsx
+│   │   │   ├── pages/        # Page components
+│   │   │   │   ├── Home.tsx
+│   │   │   │   └── Admin.tsx
+│   │   │   ├── App.tsx
+│   │   │   └── main.tsx
+│   │   ├── public/           # Static assets
+│   │   │   ├── images/
+│   │   │   ├── logo-tropicolors.png
+│   │   │   └── hero-landing.png
+│   │   └── package.json
+│   │
+│   ├── api-server/           # Backend API (optional)
+│   └── mockup-sandbox/       # UI component testing
+│
+├── package.json              # Root package.json
+├── pnpm-workspace.yaml      # pnpm workspace config
+└── tsconfig.base.json       # Base TypeScript config
 ```
 
-### Tecnologías Utilizadas
+## 🚀 Getting Started
 
-| Capa | Tecnología |
-|------|------------|
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS |
-| **UI Components** | Radix UI, Shadcn UI, Lucide Icons |
-| **Backend** | Express.js, TypeScript, Drizzle ORM |
-| **Base de Datos** | PostgreSQL (via Drizzle) |
-| **Pagos** | Stripe |
-| **Estado** | React Context + React Query |
-| **Enrutamiento** | Wouter |
-| **Paquetes** | pnpm |
+### Prerequisites
 
----
+- **Node.js** >= 18.0.0
+- **pnpm** >= 8.0.0
 
-## 🚀 Instalación y Configuración
+### Installation
 
-### Prerrequisitos
-
-- **Node.js** 18.x o superior
-- **pnpm** 8.x o superior (el proyecto está configurado para usar pnpm)
-- **PostgreSQL** (para el backend en producción)
-
-### Pasos de Instalación
-
-1. **Clonar el repositorio**
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/Richi201012/TropiColorsF.git
+   git clone https://github.com/Richi201012/TropicColorsF.git
    cd TropiColorsF
    ```
 
-2. **Instalar dependencias**
+2. **Install dependencies**
    ```bash
    pnpm install
    ```
 
-3. **Configurar variables de entorno**
-
-   Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
-
-   ```env
-   # Base de datos
-   DATABASE_URL=postgresql://usuario:password@localhost:5432/tropicolors
-
-   # Stripe (Pagos)
-   STRIPE_SECRET_KEY=sk_test_...
-   STRIPE_PUBLISHABLE_KEY=pk_test_...
-
-   # Configuración del servidor
-   PORT=3000
-   BASE_URL=http://localhost:3000
-   ```
-
-4. **Ejecutar el proyecto**
-
-   Para desarrollo (ambos servicios):
+3. **Start development server**
    ```bash
-   # Terminal 1 - API Server
-   cd artifacts/api-server
-   pnpm dev
-
-   # Terminal 2 - Frontend
    cd artifacts/tropicolors
    pnpm dev
    ```
 
-5. **Acceder a la aplicación**
+4. **Open in browser**
+   ```
+   http://localhost:5173
+   ```
 
-   - **Tienda**: http://localhost:5173
-   - **API**: http://localhost:3000
-   - **Admin**: http://localhost:5173/login (contraseña: `tropicolors2024`)
-
----
-
-## 📁 Estructura del Proyecto
-
-```
-TropicColorsF/
-├── artifacts/
-│   ├── tropicolors/                    # Frontend principal
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── ui/                 # Componentes de UI (shadcn)
-│   │   │   │   ├── CartDrawer.tsx      # Carrito lateral
-│   │   │   │   ├── Footer.tsx          # Pie de página
-│   │   │   │   ├── Navbar.tsx          # Navegación principal
-│   │   │   │   └── FloatingWhatsApp.tsx # Botón flotante WhatsApp
-│   │   │   ├── context/
-│   │   │   │   └── CartContext.tsx     # Estado global del carrito
-│   │   │   ├── pages/
-│   │   │   │   ├── Home.tsx            # Página principal
-│   │   │   │   └── Admin.tsx           # Panel de administración
-│   │   │   ├── App.tsx                 # Componente raíz
-│   │   │   └── main.tsx                # Punto de entrada
-│   │   ├── public/
-│   │   │   └── images/                 # Imágenes del producto
-│   │   ├── package.json
-│   │   └── vite.config.ts
-│   │
-│   ├── api-server/                     # Backend API
-│   │   ├── src/
-│   │   │   ├── routes/
-│   │   │   │   ├── products.ts        # Endpoints de productos
-│   │   │   │   ├── orders.ts           # Endpoints de pedidos
-│   │   │   │   ├── invoices.ts         # Endpoints de facturas
-│   │   │   │   ├── contact.ts          # Endpoint de contacto
-│   │   │   │   └── admin.ts            # Endpoints admin
-│   │   │   ├── app.ts                  # Configuración de Express
-│   │   │   └── index.ts                # Punto de entrada
-│   │   └── package.json
-│   │
-│   └── mockup-sandbox/                 # Pruebas de componentes
-│
-├── package.json                        # Workspace raíz
-├── pnpm-workspace.yaml                 # Configuración de workspaces
-└── tsconfig.base.json                 # Configuración base de TypeScript
-```
-
----
-
-## 🔌 API Endpoints
-
-### Productos
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/products` | Obtener todos los productos |
-| GET | `/api/products/:id` | Obtener un producto específico |
-
-### Pedidos
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/api/orders/checkout` | Crear sesión de pago con Stripe |
-| GET | `/api/orders` | Listar todos los pedidos |
-| GET | `/api/orders/:id` | Obtener detalles de un pedido |
-| PATCH | `/api/orders/:id/status` | Actualizar estado del pedido |
-
-### Contacto
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/api/contact` | Enviar mensaje de contacto |
-
----
-
-## 🔧 Configuración de Producción
-
-### Variables de Entorno Requeridas
-
-```env
-# Obligatorias
-DATABASE_URL=postgresql://...
-STRIPE_SECRET_KEY=sk_live_...
-
-# Opcionales (tienen valores por defecto)
-PORT=3000
-BASE_URL=https://tudominio.com
-```
-
-### Despliegue
-
-1. **Backend**: Configura el API en un servicio como Railway, Render, o VPS
-2. **Frontend**: Ejecuta `pnpm build` y despliega la carpeta `dist` en Vercel, Netlify, o cualquier hosting estático
-3. **Base de Datos**: Usa PostgreSQL (Supabase, Railway, Neon)
-
----
-
-## 🛠️ Desarrollo
-
-### Scripts Disponibles
+### Build for Production
 
 ```bash
-# Raíz del proyecto
-pnpm build          # Compilar todos los artefactos
-pnpm typecheck      # Verificar tipos TypeScript
-
-# Frontend
 cd artifacts/tropicolors
-pnpm dev            # Desarrollo
-pnpm build          # Producción
-pnpm typecheck      # Verificar tipos
-
-# Backend
-cd artifacts/api-server
-pnpm dev            # Desarrollo
-pnpm build          # Compilar
+pnpm build
 ```
 
-### Contraseña de Administrador
+The built files will be in `artifacts/tropicolors/dist/`
 
-La contraseña por defecto para el panel administrativo es: `tropicolors2024`
+## 🔑 Environment Variables
 
-> ⚠️ **Nota de Seguridad**: En producción, cambia esta contraseña y considera implementar un sistema de autenticación más robusto.
+The following environment variables are used (already configured in the project):
 
----
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BASE_URL` | Base URL for assets | `/` |
 
-## 📱 Funcionalidades del Frontend
+For production deployment, adjust these based on your hosting platform.
 
-### Página Principal (Home)
-- Hero banner con imagen de marca
-- Catálogo de productos con filtros por categoría
-- Carrusel de productos destacados
-- Información de la empresa
-- Footer con información de contacto
+## 📦 Deployment
 
-### Carrito de Compras
-- Agregar/eliminar productos
-- Seleccionar presentación (peso)
-- Actualizar cantidades
-- Persistencia del estado
+### Option 1: Static Hosting (Recommended)
 
-### Proceso de Checkout
-- Formulario de datos del cliente
-- Dirección de envío
-- Integración con Stripe Checkout
-- Confirmación de pedido por email
+Deploy the `dist/` folder to any static hosting service:
 
-### Panel Administrativo
-- **Resumen**: Estadísticas generales de ventas
-- **Pedidos**: Lista de pedidos con estados (pendiente → pagado → enviado → entregado)
-- **Facturas**: Generación de facturas PDF
+- **Vercel** - `pnpm vercel`
+- **Netlify** - Drag & drop the dist folder
+- **GitHub Pages** - Use GitHub Actions
+- **AWS S3** - Upload the dist folder
 
----
+### Option 2: Docker
 
-## 📄 Licencia
+```dockerfile
+FROM nginx:alpine
+COPY artifacts/tropicolors/dist /usr/share/nginx/html
+EXPOSE 80
+```
 
-Este proyecto es propiedad de TropiColors. Todos los derechos reservados.
+### Option 3: Build and Serve
 
----
+```bash
+cd artifacts/tropicolors
+pnpm build
+pnpm preview
+```
 
-## 📞 Contacto
+## 📞 Support
 
-- **WhatsApp**: [Enviar mensaje](https://wa.me/52XXXXXXXXXX)
-- **Email**: contacto@tropicolors.com
-- **Sitio Web**: https://tropicolors.com
+### Contact Information
+
+- **WhatsApp**: [+52 55 5114 6856](https://wa.me/525551146856)
+- **Toll Free**: 01 800 8 36 74 68
+- **Email**: m_tropicolors@hotmail.com
+- **Address**: Abedules Mz.1 Lt.36, Ejército del Trabajo II, Ecatepec, Edo. Mex. C.P. 55238
+
+### Social Media
+
+- [Facebook](https://www.facebook.com/share/1c23hr7sLP/?mibextid=wwXIfr)
+- [Instagram](https://www.instagram.com/tropicolors_mx?igsh=MTBnZDNmenBjMTRzeA==)
 
 ---
 
 <p align="center">
-  <strong>TropicColors</strong> - Colorantes Alimentarios Artesanales
+  Made with ❤️ by <strong>TropicColors</strong>
 </p>
