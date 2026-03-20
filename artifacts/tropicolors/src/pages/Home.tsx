@@ -115,153 +115,170 @@ export default function Home() {
   const filtered = PRODUCTS.filter(p => activeCategory === "Todos" || p.category === activeCategory);
 
   return (
-    <div className="min-h-screen pt-20" id="inicio">
-
-      {/* ── HERO ── */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img
-            src={`${import.meta.env.BASE_URL}hero-banner.png`}
-            alt="Colorantes Tropicolors"
-            className="w-full h-full object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#001F50]/97 via-[#003F91]/85 to-[#003F91]/30" />
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 w-full py-24">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9 }}
-            className="max-w-2xl text-white"
-          >
-            <span className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-[#FFCD00] text-[#003F91] text-[11px] font-extrabold tracking-widest uppercase mb-8 shadow-lg">
-              <Sparkles size={12} />
-              Calidad Premium · Grado Alimenticio
-            </span>
-            <h1 className="text-5xl md:text-[5.5rem] font-black leading-[1.05] mb-7 tracking-tight">
-              Dale vida y<br />
-              color a tus{" "}
-              <span className="text-[#FFCD00] italic">creaciones</span>
-            </h1>
-            <p className="text-lg md:text-xl text-white/85 mb-12 leading-relaxed max-w-lg font-light">
-              Colorantes artificiales de grado alimenticio. Alta concentración, colores brillantes y la mejor calidad para la industria de alimentos en México.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={() => document.querySelector("#productos")?.scrollIntoView({ behavior: "smooth" })}
-                className="px-9 py-4.5 rounded-full bg-[#FFCD00] text-[#003F91] font-extrabold text-base hover:bg-yellow-300 hover:scale-105 transition-all duration-300 shadow-2xl shadow-[#FFCD00]/30"
-              >
-                Ver Catálogo Completo
-              </button>
-              <a
-                href="https://wa.me/525551146856?text=Hola%20quiero%20cotizar%20colorantes%20Tropicolors"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-9 py-4.5 rounded-full bg-white/10 backdrop-blur-md border border-white/25 text-white font-bold text-base text-center hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <MessageCircle size={19} />
-                Cotizar por WhatsApp
-              </a>
-            </div>
-          </motion.div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-white/40 animate-bounce"
-        >
-          <ChevronDown size={30} />
-        </motion.div>
-      </section>
+    <div id="inicio">
+      {/* El hero ya no está aquí - está en App.tsx como parte del flujo de scroll */}
 
       {/* ── CATÁLOGO ── */}
-      <section id="productos" className="py-28 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <motion.section 
+        id="productos" 
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: false, amount: 0.1 }}
+        transition={{ duration: 0.4 }}
+        className="page-snap-section bg-gradient-to-b from-slate-50 to-white relative overflow-hidden"
+      >
+        {/* Premium subtle background glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-[#003F91]/5 to-transparent blur-3xl pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
           {/* Heading */}
-          <div className="text-center mb-16">
-            <span className="inline-block py-1.5 px-5 rounded-full bg-[#003F91]/8 text-[#003F91] text-[11px] font-bold uppercase tracking-widest mb-5 border border-[#003F91]/12">
-              Lista de Precios 2026
-            </span>
-            <h2 className="text-4xl md:text-6xl font-black text-[#003F91] mb-5 tracking-tight">
-              Colorantes en <span className="text-[#FFCD00]" style={{ WebkitTextStroke: "1px #d4a800" }}>Polvo</span>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="text-center mb-12"
+          >
+           
+            <h2 className="text-4xl md:text-6xl font-black text-[#003F91] mb-4 tracking-tight">
+              Colorantes en <span 
+                className="relative"
+                style={{ 
+                  background: "linear-gradient(135deg, #FFCD00 0%, #FF8C00 50%, #FFCD00 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  filter: "drop-shadow(0 2px 8px rgba(255,205,0,0.3))"
+                }}
+              >Polvo</span>
             </h2>
-            <p className="text-muted-foreground text-sm max-w-xl mx-auto leading-relaxed">
-              Precios + IVA 16% · Solo se venden cajas completas · La mercancía viaja a cuenta del comprador
+            <p className="text-gray-400 text-sm max-w-xl mx-auto leading-relaxed flex flex-wrap justify-center gap-x-3 gap-y-1">
+              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Precios + IVA 16%</span>
+              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Cajas completas</span>
+              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Envío por cuenta del cliente</span>
             </p>
-          </div>
+          </motion.div>
 
           {/* ── Filter Bar ── */}
-          <div className="flex flex-col items-center gap-5 mb-12">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
+            className="flex flex-col items-center gap-6 mb-12"
+          >
 
-            {/* Fila 1: Categorías de color */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {CATEGORY_ORDER.map((cat) => {
+            {/* Fila 1: Categorías de color - Premium Chips */}
+            <div className="flex flex-wrap justify-center gap-2.5">
+              {CATEGORY_ORDER.map((cat, index) => {
                 const isActive = activeCategory === cat;
                 const colors = CATEGORY_COLORS[cat];
                 return (
-                  <button
+                  <motion.button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 border whitespace-nowrap hover:scale-105 active:scale-95"
-                    style={
-                      isActive
-                        ? { backgroundColor: colors.bg, color: colors.text, borderColor: colors.bg, boxShadow: `0 4px 12px ${colors.bg}55` }
-                        : { backgroundColor: "#f3f4f6", color: "#6b7280", borderColor: "#e5e7eb" }
-                    }
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.25, delay: index * 0.04, ease: "easeOut" }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="px-5 py-2.5 rounded-full text-xs font-semibold transition-all duration-300 whitespace-nowrap"
+                    style={{
+                      backgroundColor: isActive ? colors.bg : "rgba(243,244,246,0.8)",
+                      color: isActive ? colors.text : "#6b7280",
+                      boxShadow: isActive ? `0 4px 16px ${colors.bg}40` : "0 1px 3px rgba(0,0,0,0.05)",
+                      border: `1.5px solid ${isActive ? colors.bg : "rgba(229,231,235,0.8)"}`
+                    }}
                   >
                     {cat}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
 
             {/* Separador */}
             <div className="flex items-center gap-3 w-full max-w-xs">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest whitespace-nowrap">Concentración</span>
-              <div className="flex-1 h-px bg-gray-200" />
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+              <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest whitespace-nowrap">Concentración</span>
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
             </div>
 
-            {/* Fila 2: Concentraciones — centradas */}
-            <div className="flex items-center bg-white border border-gray-200 rounded-full p-1.5 gap-1 shadow-sm">
-              {(["125", "250"] as Concentration[]).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setConcentration(c)}
-                  className="px-7 py-2.5 rounded-full text-xs font-extrabold transition-all duration-300 whitespace-nowrap hover:scale-105 active:scale-95"
-                  style={
-                    concentration === c
-                      ? { backgroundColor: "#003F91", color: "#ffffff", boxShadow: "0 2px 8px rgba(0,63,145,0.35)" }
-                      : { backgroundColor: "transparent", color: "#9ca3af" }
-                  }
-                >
-                  Conc. {c}
-                </button>
-              ))}
-            </div>
+            {/* Fila 2: Concentraciones - Premium iOS Segmented Control */}
+            <motion.div 
+              className="flex items-center bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1 gap-0.5"
+              style={{
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03)"
+              }}
+              whileHover={{ boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.06)" }}
+              transition={{ duration: 0.2 }}
+            >
+              {(["125", "250"] as Concentration[]).map((c, index) => {
+                const isActive = concentration === c;
+                return (
+                  <motion.button
+                    key={c}
+                    onClick={() => setConcentration(c)}
+                    className="relative px-10 py-3 rounded-[14px] text-xs font-bold whitespace-nowrap overflow-hidden cursor-pointer"
+                    whileHover={{ 
+                      backgroundColor: isActive ? undefined : "rgba(0,0,0,0.03)"
+                    }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <motion.div
+                      layoutId="concentrationToggle"
+                      className="absolute inset-0"
+                      style={{
+                        backgroundColor: isActive ? "#ffffff" : "transparent",
+                        boxShadow: isActive ? "0 2px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)" : "none",
+                        borderRadius: "12px"
+                      }}
+                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                    />
+                    <span 
+                      className="relative z-10 transition-colors duration-200"
+                      style={{ 
+                        color: isActive ? "#003F91" : "#6b7280",
+                        fontWeight: isActive ? 700 : 500
+                      }}
+                    >
+                      {c}g
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </motion.div>
 
-          </div>
+          </motion.div>
 
           {/* ── Product Grid ── */}
           <motion.div
             layout
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
           >
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="wait">
               {filtered.map((product, idx) => (
-                <ProductCard
+                <motion.div
                   key={product.id}
-                  product={product}
-                  prices={product.prices[concentration]}
-                  concentration={concentration}
-                  addToCart={addToCart}
-                  addFlyingItem={addFlyingItem}
-                  index={idx}
-                />
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                  transition={{ 
+                    duration: 0.4, 
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                    delay: idx * 0.05
+                  }}
+                >
+                  <ProductCard
+                    product={product}
+                    prices={product.prices[concentration]}
+                    concentration={concentration}
+                    addToCart={addToCart}
+                    addFlyingItem={addFlyingItem}
+                    index={idx}
+                  />
+                </motion.div>
               ))}
             </AnimatePresence>
           </motion.div>
@@ -272,10 +289,17 @@ export default function Home() {
             </div>
           )}
         </div>
-      </section>
+      </motion.section>
 
       {/* ── PRÓXIMAMENTE GEL ── */}
-      <section id="gel" className="py-28 bg-white overflow-hidden">
+      <motion.section 
+        id="gel" 
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="page-snap-section bg-white overflow-hidden"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <span className="inline-block py-1.5 px-5 rounded-full bg-[#FF2E63]/10 text-[#FF2E63] text-[11px] font-extrabold uppercase tracking-widest mb-5 border border-[#FF2E63]/20">
@@ -345,10 +369,17 @@ export default function Home() {
             <p className="mt-4 text-sm text-muted-foreground">Escríbenos por WhatsApp y te avisamos al lanzamiento</p>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── NOSOTROS ── */}
-      <section id="nosotros" className="py-28 bg-slate-50 overflow-hidden">
+      <motion.section 
+        id="nosotros" 
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="page-snap-section bg-slate-50 overflow-hidden"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-20">
             <motion.div
@@ -403,10 +434,17 @@ export default function Home() {
             </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── BENEFICIOS ── */}
-      <section id="beneficios" className="py-28 bg-gradient-to-br from-[#00A8B5] via-[#00A8B5] to-[#007B7F] text-white relative overflow-hidden">
+      <motion.section 
+        id="beneficios" 
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="page-snap-section bg-gradient-to-br from-[#00A8B5] via-[#00A8B5] to-[#007B7F] text-white relative overflow-hidden"
+      >
         {/* Elementos decorativos */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3"></div>
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#FFCD00]/20 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3"></div>
@@ -446,10 +484,10 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── WHATSAPP CTA ── */}
-      <section className="py-24 bg-gradient-to-br from-[#8B5CF6] via-[#7C3AED] to-[#6D28D9] text-white relative overflow-hidden">
+      <section className="page-snap-section bg-gradient-to-br from-[#8B5CF6] via-[#7C3AED] to-[#6D28D9] text-white relative overflow-hidden">
         {/* Elementos decorativos */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3"></div>
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#FFCD00]/20 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3"></div>
@@ -474,7 +512,14 @@ export default function Home() {
       </section>
 
       {/* ── CONTACTO ── */}
-      <section id="contacto" className="py-28 bg-white">
+      <motion.section 
+        id="contacto" 
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="page-snap-section bg-white"
+      >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 items-start">
             <div className="lg:col-span-2">
@@ -571,7 +616,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
     </div>
   );
@@ -605,10 +650,6 @@ function ProductCard({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ delay: (index % 8) * 0.04 }}
       className="relative rounded-2xl overflow-hidden flex flex-col group bg-white hover:-translate-y-1 transition-all duration-300"
       style={{
         boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)",

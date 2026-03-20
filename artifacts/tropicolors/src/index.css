@@ -55,11 +55,16 @@
   * {
     border-color: hsl(var(--border));
   }
+  html {
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     font-family: var(--font-sans);
+    overflow-x: hidden;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
@@ -118,4 +123,14 @@
 
 .animate-progress {
   animation: progress linear forwards;
+}
+
+@layer utilities {
+  .page-snap-section {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    scroll-margin-top: 5rem;
+    padding-top: 6rem;
+    padding-bottom: 4rem;
+  }
 }

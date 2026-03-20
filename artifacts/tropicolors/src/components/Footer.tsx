@@ -6,22 +6,32 @@ export function Footer() {
   return (
     <footer className="bg-gray-100 text-gray-700">
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-start">
           {/* Logo + Descripción */}
-          <div className="space-y-4">
+          <div className="flex flex-col">
             <img 
               src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} 
               alt="TropicColors Logo" 
-              className="h-10 w-auto object-contain" 
+              className="h-16 w-auto object-contain mb-4" 
             />
             <p className="text-sm text-gray-500 leading-relaxed">
               Dale vida y color a tus creaciones con los mejores colorantes artificiales de grado alimenticio en México.
             </p>
-            <div className="flex items-center gap-3">
-              <a href="#" className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors">
+            <div className="flex items-center gap-3 mt-4">
+              <a 
+                href="https://www.facebook.com/share/1c23hr7sLP/?mibextid=wwXIfr" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors"
+              >
                 <Facebook size={18} />
               </a>
-              <a href="#" className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors">
+              <a 
+                href="https://www.instagram.com/tropicolors_mx?igsh=MTBnZDNmenBjMTRzeA==" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center hover:bg-pink-600 hover:text-white transition-colors"
+              >
                 <Instagram size={18} />
               </a>
             </div>
