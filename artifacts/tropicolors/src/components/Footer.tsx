@@ -4,79 +4,82 @@ import { Facebook, Instagram, Mail, MapPin, Phone } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-primary pt-16 pb-8 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-          {/* Brand */}
-          <div className="space-y-6">
-            <div className="bg-white inline-block p-4 rounded-2xl">
-               <img src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} alt="TropicColors Logo" className="h-8 w-auto object-contain" />
-            </div>
-            <p className="text-primary-foreground/80 leading-relaxed">
+    <footer className="bg-gray-100 text-gray-700">
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {/* Logo + Descripción */}
+          <div className="space-y-4">
+            <img 
+              src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} 
+              alt="TropicColors Logo" 
+              className="h-10 w-auto object-contain" 
+            />
+            <p className="text-sm text-gray-500 leading-relaxed">
               Dale vida y color a tus creaciones con los mejores colorantes artificiales de grado alimenticio en México.
             </p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-primary transition-colors">
-                <Facebook size={20} />
+            <div className="flex items-center gap-3">
+              <a href="#" className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors">
+                <Facebook size={18} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-primary transition-colors">
-                <Instagram size={20} />
+              <a href="#" className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors">
+                <Instagram size={18} />
               </a>
             </div>
           </div>
 
-          {/* Links */}
+          {/* Enlaces rápidos */}
           <div>
-            <h3 className="text-lg font-display font-bold mb-6 text-accent">Enlaces Rápidos</h3>
-            <ul className="space-y-4">
-              <li><a href="/" className="text-white/80 hover:text-white transition-colors">Inicio</a></li>
-              <li><a href="#productos" className="text-white/80 hover:text-white transition-colors">Nuestros Productos</a></li>
-              <li><a href="#nosotros" className="text-white/80 hover:text-white transition-colors">Sobre Nosotros</a></li>
-              <li><a href="#beneficios" className="text-white/80 hover:text-white transition-colors">Beneficios</a></li>
+            <h3 className="font-semibold text-lg mb-4">Enlaces Rápidos</h3>
+            <ul className="space-y-3">
+              <li><a href="/" className="text-gray-500 hover:text-blue-600 transition-colors text-sm">Inicio</a></li>
+              <li><a href="#productos" className="text-gray-500 hover:text-blue-600 transition-colors text-sm">Nuestros Productos</a></li>
+              <li><a href="#nosotros" className="text-gray-500 hover:text-blue-600 transition-colors text-sm">Sobre Nosotros</a></li>
+              <li><a href="#beneficios" className="text-gray-500 hover:text-blue-600 transition-colors text-sm">Beneficios</a></li>
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Contacto */}
           <div>
-            <h3 className="text-lg font-display font-bold mb-6 text-accent">Contacto</h3>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-3 text-white/80">
-                <MapPin size={20} className="text-secondary shrink-0 mt-1" />
+            <h3 className="font-semibold text-lg mb-4">Contacto</h3>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3 text-gray-500 text-sm">
+                <MapPin size={18} className="shrink-0 mt-0.5 text-blue-600" />
                 <span>Ciudad de México, México</span>
               </li>
-              <li className="flex items-center gap-3 text-white/80">
-                <Phone size={20} className="text-secondary shrink-0" />
+              <li className="flex items-center gap-3 text-gray-500 text-sm">
+                <Phone size={18} className="shrink-0 text-blue-600" />
                 <span>+52 55 5114 6856</span>
               </li>
-              <li className="flex items-center gap-3 text-white/80">
-                <Mail size={20} className="text-secondary shrink-0" />
+              <li className="flex items-center gap-3 text-gray-500 text-sm">
+                <Mail size={18} className="shrink-0 text-blue-600" />
                 <span>ventas@tropicolors.com</span>
               </li>
             </ul>
           </div>
 
-          {/* Newsletter */}
+          {/* Boletín */}
           <div>
-            <h3 className="text-lg font-display font-bold mb-6 text-accent">Boletín</h3>
-            <p className="text-white/80 mb-4">Recibe nuestras ofertas y novedades directamente en tu correo.</p>
+            <h3 className="font-semibold text-lg mb-4">Boletín</h3>
+            <p className="text-gray-500 text-sm mb-4">Recibe nuestras ofertas y novedades directamente en tu correo.</p>
             <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
               <input 
                 type="email" 
                 placeholder="Tu email" 
-                className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all text-sm"
               />
-              <button className="px-4 py-2 bg-accent text-primary font-bold rounded-lg hover:bg-accent/90 transition-colors">
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
                 Unirse
               </button>
             </form>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/10 text-center text-white/60 text-sm flex flex-col md:flex-row justify-between items-center gap-4">
-          <p>© {new Date().getFullYear()} TropicColors. Todos los derechos reservados.</p>
-          <div className="flex gap-6">
-            <Link href="#" className="hover:text-white transition-colors">Términos y Condiciones</Link>
-            <Link href="#" className="hover:text-white transition-colors">Política de Privacidad</Link>
+        {/* Copyright */}
+        <div className="border-t mt-10 pt-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
+          <p>© {new Date().getFullYear()} TropiColors. Todos los derechos reservados.</p>
+          <div className="flex gap-6 mt-4 md:mt-0">
+            <Link href="#" className="hover:text-blue-600 transition-colors">Términos y Condiciones</Link>
+            <Link href="#" className="hover:text-blue-600 transition-colors">Política de Privacidad</Link>
           </div>
         </div>
       </div>
