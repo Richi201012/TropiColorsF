@@ -182,30 +182,36 @@ export default function Home() {
             </p>
           </div>
 
-          {/* ── Filter Bar — todo en una sola fila, concentración en medio ── */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
-            {/* First half of categories: Todos → Negro */}
-            {CATEGORY_ORDER.slice(0, 6).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap ${
-                  activeCategory === cat
-                    ? "bg-[#FFCD00] text-[#003F91] border-[#FFCD00] shadow-md"
-                    : "bg-white border-gray-200 text-gray-500 hover:border-[#003F91]/30 hover:text-[#003F91]"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+          {/* ── Filter Bar ── */}
+          <div className="flex flex-col items-center gap-4 mb-12">
 
-            {/* Concentration toggle — centrado entre los nombres */}
-            <div className="flex items-center bg-white border border-gray-200 rounded-full p-1 gap-1 shadow-sm mx-1">
+            {/* Fila 1: Categorías */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {CATEGORY_ORDER.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-5 py-2 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap ${
+                    activeCategory === cat
+                      ? "bg-[#FFCD00] text-[#003F91] border-[#FFCD00] shadow-md"
+                      : "bg-white border-gray-200 text-gray-500 hover:border-[#003F91]/30 hover:text-[#003F91]"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Separador visual */}
+            <div className="w-16 h-px bg-gray-200" />
+
+            {/* Fila 2: Concentraciones — centradas */}
+            <div className="flex items-center bg-white border border-gray-200 rounded-full p-1 gap-1 shadow-sm">
               {(["125", "250"] as Concentration[]).map((c) => (
                 <button
                   key={c}
                   onClick={() => setConcentration(c)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all duration-200 whitespace-nowrap ${
+                  className={`px-6 py-2 rounded-full text-xs font-extrabold transition-all duration-200 whitespace-nowrap ${
                     concentration === c
                       ? "bg-[#003F91] text-white shadow"
                       : "text-gray-400 hover:text-[#003F91]"
@@ -216,20 +222,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Second half of categories: Rojos → Industriales */}
-            {CATEGORY_ORDER.slice(6).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap ${
-                  activeCategory === cat
-                    ? "bg-[#FFCD00] text-[#003F91] border-[#FFCD00] shadow-md"
-                    : "bg-white border-gray-200 text-gray-500 hover:border-[#003F91]/30 hover:text-[#003F91]"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
           </div>
 
           {/* ── Product Grid ── */}
