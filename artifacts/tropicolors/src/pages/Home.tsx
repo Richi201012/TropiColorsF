@@ -97,8 +97,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export default function Home() {
-  const { addToCart } = useCart();
-  const { toast } = useToast();
+  const { addToCart, addFlyingItem } = useCart();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [concentration, setConcentration] = useState<Concentration>("125");
   const [contactSent, setContactSent] = useState(false);
@@ -260,6 +259,7 @@ export default function Home() {
                   prices={product.prices[concentration]}
                   concentration={concentration}
                   addToCart={addToCart}
+                  addFlyingItem={addFlyingItem}
                   index={idx}
                 />
               ))}
@@ -572,16 +572,17 @@ function ProductCard({
   prices,
   concentration,
   addToCart,
+  addFlyingItem,
   index,
 }: {
   product: Product;
   prices: [number, number, number, number, number] | undefined;
   concentration: Concentration;
   addToCart: (item: any) => void;
+  addFlyingItem: (item: { productId: string; imageUrl?: string; hexCode?: string; startX: number; startY: number }) => void;
   index: number;
 }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const { toast } = useToast();
 
   const availablePresentations = prices
     ? PRESENTATIONS.map((label, i) => ({ label, price: prices[i] })).filter(p => p.price > 0)
@@ -683,7 +684,22 @@ function ProductCard({
             {/* Actions */}
             <div className="flex gap-2">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  // Get click position for fly animation
+                  const rect = (e.target as HTMLElement).getBoundingClientRect();
+                  const startX = rect.left + rect.width / 2;
+                  const startY = rect.top;
+
+                  // Trigger fly animation with product color
+                  addFlyingItem({
+                    productId: product.id,
+                    imageUrl: undefined,
+                    hexCode: product.hex,
+                    startX,
+                    startY,
+                  });
+
+                  // Add to cart
                   addToCart({
                     productId: product.id,
                     productName: `${product.name} C-${concentration}`,
@@ -692,7 +708,6 @@ function ProductCard({
                     quantity: 1,
                     hexCode: product.hex,
                   });
-                  toast({ title: "¡Agregado!", description: `${product.name} añadido al carrito.` });
                 }}
                 className="flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all duration-200 hover:opacity-90 active:scale-95"
                 style={{ background: product.hex, color: product.textColor }}

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { ShoppingBag, Menu, X, MessageCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import { useCart } from "@/context/CartContext";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { setIsCartOpen, cartCount } = useCart();
+  const { setIsCartOpen, cartCount, triggerCartBounce, items } = useCart();
+  // Force re-render when cart items change
+  const [, setTick] = useState(0);
+  useEffect(() => { setTick(t => t + 1); }, [items.length, cartCount, triggerCartBounce]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -64,17 +68,35 @@ export function Navbar() {
                 Cotizar por WhatsApp
               </a>
 
-              <button
+              <motion.button
                 onClick={() => setIsCartOpen(true)}
                 className="relative p-2 text-foreground hover:text-primary transition-colors"
+                animate={triggerCartBounce ? { scale: [1, 1.3, 1] } : {}}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
               >
                 <ShoppingBag size={24} />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-xs font-bold flex items-center justify-center rounded-full">
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "-4px",
+                      right: "-4px",
+                      width: "20px",
+                      height: "20px",
+                      backgroundColor: "#dc2626",
+                      color: "white",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "50%",
+                    }}
+                  >
                     {cartCount}
                   </span>
                 )}
-              </button>
+              </motion.button>
 
               <button onClick={() => setMobileMenuOpen(true)} className="md:hidden p-2 text-foreground">
                 <Menu size={24} />

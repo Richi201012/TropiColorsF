@@ -9,6 +9,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
 import { FloatingWhatsApp } from "@/components/FloatingWhatsApp";
+import { FlyToCart } from "@/components/FlyToCart";
 
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
@@ -31,6 +32,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <Footer />
       <CartDrawer />
       <FloatingWhatsApp />
+      <FlyToCart />
     </div>
   );
 }
