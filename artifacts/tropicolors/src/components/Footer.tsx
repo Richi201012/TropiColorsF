@@ -54,7 +54,7 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-3 text-gray-500 text-sm">
                 <MapPin size={18} className="shrink-0 mt-0.5 text-blue-600" />
-                <span>Ciudad de México, México</span>
+                <span>Ecatepec, Edo. Mex.</span>
               </li>
               <li className="flex items-center gap-3 text-gray-500 text-sm">
                 <Phone size={18} className="shrink-0 text-blue-600" />
@@ -62,7 +62,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3 text-gray-500 text-sm">
                 <Mail size={18} className="shrink-0 text-blue-600" />
-                <span>ventas@tropicolors.com</span>
+                <span>m_tropicolors@hotmail.com</span>
               </li>
             </ul>
           </div>
