@@ -1,176 +1,180 @@
 import React, { useState } from "react";
-import { useGetAdminStats, useUpdateOrderStatus, OrderStatus, UpdateOrderStatusRequestStatus } from "@workspace/api-client-react";
-import { Lock, TrendingUp, Package, Clock, CheckCircle, Search, LayoutDashboard } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { useToast } from "@/hooks/use-toast";
+import { Lock, TrendingUp, Package, Clock, CheckCircle, LayoutDashboard, ShoppingBag, FileText } from "lucide-react";
+
+const ADMIN_PASSWORD = "tropicolors2024";
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setError("");
+    } else {
+      setError("Contraseña incorrecta. Inténtalo de nuevo.");
+    }
+  };
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border border-border text-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
-            <Lock size={32} />
+      <div className="min-h-screen bg-gradient-to-br from-[#003F91] to-[#00A8B5] flex items-center justify-center p-4">
+        <div className="bg-white p-10 rounded-3xl shadow-2xl max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-[#003F91]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock size={36} className="text-[#003F91]" />
           </div>
-          <h1 className="text-2xl font-display font-bold text-foreground mb-2">Acceso Administrador</h1>
-          <p className="text-muted-foreground mb-8">Ingresa la contraseña para acceder al panel de control.</p>
-          
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (password === "tropicolors2024") setIsAuthenticated(true);
-            else alert("Contraseña incorrecta");
-          }}>
-            <input 
+          <img
+            src={`${import.meta.env.BASE_URL}logo-tropicolors.png`}
+            alt="TropicColors"
+            className="h-12 w-auto object-contain mx-auto mb-6"
+          />
+          <h1 className="text-2xl font-extrabold text-[#003F91] mb-1">Panel Administrativo</h1>
+          <p className="text-muted-foreground text-sm mb-8">Ingresa la contraseña de administrador para continuar.</p>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Contraseña..."
-              className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all mb-4 text-center"
+              className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-[#003F91]/20 focus:border-[#003F91] outline-none transition-all text-center text-sm"
+              autoFocus
             />
-            <button type="submit" className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors">
-              Ingresar
+            {error && (
+              <p className="text-red-500 text-xs">{error}</p>
+            )}
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-[#003F91] text-white rounded-xl font-bold hover:bg-[#002d6e] transition-colors shadow-lg text-sm"
+            >
+              Ingresar al Panel
             </button>
           </form>
+
+          <a href="/" className="mt-6 inline-block text-xs text-muted-foreground hover:text-[#003F91] transition-colors">
+            ← Volver al sitio
+          </a>
         </div>
       </div>
     );
   }
 
-  return <AdminDashboard />;
+  return <AdminDashboard onLogout={() => setIsAuthenticated(false)} />;
 }
 
-function AdminDashboard() {
-  const { data: stats, isLoading, isError } = useGetAdminStats();
-  const { mutate: updateStatus } = useUpdateOrderStatus();
-  const { toast } = useToast();
+function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+  const [activeTab, setActiveTab] = useState<"overview" | "orders" | "invoices">("overview");
 
-  const handleStatusChange = (orderId: string, newStatus: UpdateOrderStatusRequestStatus) => {
-    updateStatus({ id: orderId, data: { status: newStatus } }, {
-      onSuccess: () => toast({ title: "Estado actualizado" }),
-      onError: () => toast({ title: "Error al actualizar", variant: "destructive" })
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 pt-24 px-6 flex items-center justify-center">
-        <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  // Provide defensive fallback data if backend is not seeded/running properly
-  const safeStats = stats || {
-    totalRevenue: 0,
-    totalOrders: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
-    recentOrders: [],
-    monthlySales: [
-      { month: "Ene", revenue: 0, orders: 0 },
-      { month: "Feb", revenue: 0, orders: 0 }
-    ]
-  };
+  const stats = [
+    { icon: TrendingUp, label: "Ingresos Totales", value: "$0.00 MXN", color: "text-[#003F91]", bg: "bg-[#003F91]/10" },
+    { icon: ShoppingBag, label: "Pedidos Totales", value: "0", color: "text-[#00A8B5]", bg: "bg-[#00A8B5]/10" },
+    { icon: Clock, label: "Pendientes", value: "0", color: "text-[#FFCD00]", bg: "bg-[#FFCD00]/20" },
+    { icon: CheckCircle, label: "Entregados", value: "0", color: "text-green-600", bg: "bg-green-50" },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-24 pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <div className="flex items-center gap-3 mb-8">
-          <LayoutDashboard className="text-primary" size={32} />
-          <h1 className="text-3xl font-display font-bold text-foreground">Panel de Control</h1>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard title="Ingresos Totales" value={`$${safeStats.totalRevenue.toLocaleString()}`} icon={TrendingUp} color="text-emerald-500" bg="bg-emerald-50" />
-          <StatCard title="Pedidos Totales" value={safeStats.totalOrders} icon={Package} color="text-primary" bg="bg-primary/10" />
-          <StatCard title="Pendientes" value={safeStats.pendingOrders} icon={Clock} color="text-accent" bg="bg-accent/20" />
-          <StatCard title="Completados" value={safeStats.completedOrders} icon={CheckCircle} color="text-secondary" bg="bg-secondary/10" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Chart */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-border">
-            <h2 className="text-xl font-bold mb-6">Ventas Mensuales</h2>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={safeStats.monthlySales}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} tickFormatter={(val) => `$${val}`} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value) => [`$${value}`, 'Ingresos']}
-                  />
-                  <Line type="monotone" dataKey="revenue" stroke="#003F91" strokeWidth={4} dot={{r: 4, fill: '#003F91', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
-                </LineChart>
-              </ResponsiveContainer>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-border sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <img src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} alt="TropicColors" className="h-10 w-auto" />
+            <div>
+              <h1 className="text-lg font-extrabold text-[#003F91]">Panel Administrativo</h1>
+              <p className="text-xs text-muted-foreground">TropicColors · Colorantes para Alimentos</p>
             </div>
           </div>
-
-          {/* Recent Orders List */}
-          <div className="bg-white rounded-3xl shadow-sm border border-border overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-border flex justify-between items-center bg-slate-50/50">
-              <h2 className="text-xl font-bold">Pedidos Recientes</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto p-0">
-              {safeStats.recentOrders.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  <Package size={48} className="mx-auto mb-4 opacity-20" />
-                  <p>No hay pedidos recientes</p>
-                </div>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {safeStats.recentOrders.map((order) => (
-                    <li key={order.id} className="p-6 hover:bg-slate-50 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-bold text-foreground">#{order.orderNumber}</p>
-                          <p className="text-sm text-muted-foreground">{order.customerName}</p>
-                        </div>
-                        <span className="font-bold text-primary">${order.amount}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-4">
-                        <select 
-                          value={order.status}
-                          onChange={(e) => handleStatusChange(order.id, e.target.value as UpdateOrderStatusRequestStatus)}
-                          className={`text-xs font-bold px-3 py-1.5 rounded-full border-0 outline-none cursor-pointer
-                            ${order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 
-                              order.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                              'bg-blue-100 text-blue-700'}`}
-                        >
-                          {Object.values(OrderStatus).map(status => (
-                            <option key={status} value={status}>{status.toUpperCase()}</option>
-                          ))}
-                        </select>
-                        <span className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+          <div className="flex items-center gap-3">
+            <a href="/" className="text-xs text-muted-foreground hover:text-[#003F91] transition-colors">Ver sitio →</a>
+            <button
+              onClick={onLogout}
+              className="px-4 py-2 text-xs font-bold text-[#003F91] border border-[#003F91]/30 rounded-xl hover:bg-[#003F91]/5 transition-colors"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>
+      </header>
 
-      </div>
-    </div>
-  );
-}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tabs */}
+        <div className="flex gap-1 bg-white rounded-2xl p-1 border border-border/50 shadow-sm mb-8 w-fit">
+          {([
+            { key: "overview", label: "Resumen", icon: LayoutDashboard },
+            { key: "orders", label: "Pedidos", icon: Package },
+            { key: "invoices", label: "Facturas", icon: FileText },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab.key ? "bg-[#003F91] text-white shadow" : "text-muted-foreground hover:text-[#003F91]"}`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-function StatCard({ title, value, icon: Icon, color, bg }: any) {
-  return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-border flex items-center gap-4">
-      <div className={`w-14 h-14 rounded-2xl ${bg} ${color} flex items-center justify-center shrink-0`}>
-        <Icon size={28} />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <p className="text-2xl font-bold text-foreground">{value}</p>
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {stats.map((s, i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 border border-border/50 shadow-sm">
+              <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center mb-4`}>
+                <s.icon size={22} className={s.color} />
+              </div>
+              <p className="text-2xl font-extrabold text-foreground">{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-8">
+          {activeTab === "overview" && (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-[#003F91]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <LayoutDashboard size={36} className="text-[#003F91]" />
+              </div>
+              <h2 className="text-xl font-extrabold text-[#003F91] mb-3">Panel listo para conectar</h2>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto leading-relaxed">
+                El panel administrativo está configurado y listo. Una vez que se conecte el backend, aquí aparecerán las estadísticas de ventas, pedidos recientes y gráficas de rendimiento.
+              </p>
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-lg mx-auto">
+                {["Estadísticas de ventas", "Gestión de pedidos", "Generación de facturas"].map((f, i) => (
+                  <div key={i} className="bg-slate-50 border border-border/50 rounded-xl px-4 py-3 text-xs font-semibold text-muted-foreground">
+                    ✓ {f}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "orders" && (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-[#00A8B5]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Package size={36} className="text-[#00A8B5]" />
+              </div>
+              <h2 className="text-xl font-extrabold text-[#003F91] mb-3">Gestión de Pedidos</h2>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                Aquí podrás ver todos los pedidos, actualizar su estado (pendiente → pagado → enviado → entregado) y agregar números de rastreo.
+              </p>
+            </div>
+          )}
+
+          {activeTab === "invoices" && (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-[#FFCD00]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <FileText size={36} className="text-[#003F91]" />
+              </div>
+              <h2 className="text-xl font-extrabold text-[#003F91] mb-3">Facturas</h2>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                Aquí podrás crear, gestionar y enviar facturas a tus clientes en PDF directamente por correo electrónico.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
