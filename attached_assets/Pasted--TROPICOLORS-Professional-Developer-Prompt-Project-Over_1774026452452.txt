@@ -1,0 +1,521 @@
+# 🔵 TROPICOLORS - Professional Developer Prompt
+
+## Project Overview
+
+**Project Name:** TropicColors SPA  
+**Type:** E-commerce Single Page Application  
+**Business:** Mexican company specializing in artificial food colorants  
+**Technology Stack:** React + TypeScript + Express.js + PostgreSQL + Stripe + Firebase
+
+---
+
+## 📋 Project Summary
+
+TropicColors is an e-commerce platform for selling artificial food colorants in Mexico. The application includes:
+
+- **Public Storefront:** Product showcase with cart and checkout
+- **Payment Processing:** Stripe integration for card payments
+- **Order Management:** Admin dashboard with sales analytics
+- **Invoice System:** PDF invoice generation and email delivery
+- **Notifications:** Email notifications for orders (both customer and admin)
+- **WhatsApp Integration:** Quote requests via WhatsApp
+
+---
+
+## 🎨 Design Specifications
+
+### Color Palette (Brand Colors)
+| Color | Hex Code | Usage |
+|-------|----------|-------|
+| Primary Blue | `#003F91` | Main brand color, headers |
+| Turquoise | `#00A8B5` | Accents, secondary elements |
+| Yellow | `#FFCD00` | CTAs, highlights |
+| Magenta | `#FF2E63` | Alerts, important actions |
+| White | `#FFFFFF` | Backgrounds, cards |
+
+### Typography
+- **Font Family:** Poppins or Montserrat (Google Fonts)
+- **Hero Titles:** Large, bold (text-4xl to text-6xl)
+- **Section Headers:** Medium-bold (text-2xl to text-3xl)
+- **Body Text:** Regular weight, readable (text-base)
+
+### Layout Structure
+1. **Header:** Fixed navbar with logo, navigation menu, and WhatsApp CTA button
+2. **Hero Section:** Full-width with animated color splashes, main title, and dual CTAs
+3. **Products Section:** Responsive grid (1/2/3 columns), product cards with images, prices, and WhatsApp quote buttons
+4. **About Section:** Company story with supporting imagery
+5. **Benefits Section:** 7 benefit cards with icons in grid layout
+6. **WhatsApp CTA Section:** Prominent colored block with large WhatsApp button
+7. **Contact Section:** Contact info and optional form
+8. **Footer:** Logo, copyright, social links
+9. **Floating WhatsApp Button:** Fixed position, always visible
+
+### Animations
+- Framer Motion for scroll-triggered entrance animations
+- Smooth hover effects on buttons and cards
+- Floating blob animations in hero section
+
+---
+
+## 🛠️ Technical Architecture
+
+### Frontend (Client)
+```
+client/
+├── src/
+│   ├── components/
+│   │   ├── ui/           # Radix UI components (Button, Card, Dialog, etc.)
+│   │   ├── admin/        # Admin components (Sidebar, SalesChart, OrderModal)
+│   │   ├── invoices/     # Invoice form components
+│   │   ├── ErrorBoundary.tsx
+│   │   └── SEO.tsx
+│   ├── pages/
+│   │   ├── home.tsx      # Main storefront (93KB - comprehensive)
+│   │   ├── admin.tsx     # Admin dashboard (67KB)
+│   │   ├── invoices.tsx  # Invoice management
+│   │   ├── order-tracking.tsx
+│   │   └── not-found.tsx
+│   ├── hooks/
+│   │   ├── use-mobile.tsx
+│   │   ├── use-performance.ts
+│   │   └── use-toast.ts
+│   ├── lib/
+│   │   ├── animations.tsx
+│   │   ├── queryClient.ts
+│   │   ├── stripe.ts
+│   │   └── utils.ts
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css         # Tailwind + custom styles
+├── public/
+│   ├── favicon.png
+│   └── logo-tropicolors.png
+└── index.html
+```
+
+### Backend (Server)
+```
+server/
+├── index.ts              # Express server entry point
+├── routes.ts             # Main API routes (invoices, checkout)
+├── payments.ts           # Stripe + email integration (39KB)
+├── env.ts                # Environment validation
+├── db.ts                 # Database connection
+├── cors.ts               # CORS configuration
+├── rateLimit.ts          # Rate limiting middleware
+├── firebase.ts           # Firebase Admin SDK
+├── storage.ts            # Storage abstraction layer
+├── storage-firebase.ts   # Firebase storage implementation
+├── storage-simple.ts     # Simple in-memory storage fallback
+├── vite.ts               # Vite dev server config
+├── services/
+│   ├── email.service.ts         # Email sending logic
+│   ├── invoice-firebase.service.ts  # Firebase invoice CRUD
+│   ├── invoice.service.ts       # Invoice business logic
+│   └── pdf.service.ts           # PDF generation (jspdf)
+```
+
+### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/checkout` | Create Stripe checkout session |
+| POST | `/api/contact` | Submit contact form |
+| POST | `/api/create-invoice` | Create new invoice |
+| GET | `/api/invoices` | List all invoices |
+| GET | `/api/orders` | Get all orders |
+| POST | `/api/payment-webhook` | Stripe webhook handler |
+| POST | `/api/send-invoice` | Send invoice via email |
+| PATCH | `/api/update-order-status` | Update order status |
+| POST | `/api/send-invoice` | Email invoice to customer |
+
+### Database Schema (PostgreSQL with Drizzle ORM)
+
+```typescript
+// Users table
+users: {
+  id: string (UUID)
+  username: string (unique)
+  password: string (hashed)
+}
+
+// Contact messages
+contactMessages: {
+  id: string (UUID)
+  name: string
+  email: string
+  phone: string (optional)
+  message: string
+  createdAt: timestamp
+}
+
+// Orders
+orders: {
+  id: string (UUID)
+  orderNumber: string (unique)
+  paymentIntentId: string (unique)
+  status: 'pending' | 'paid' | 'failed' | 'sent' | 'delivered'
+  amount: integer (cents)
+  currency: string (default: 'mxn')
+  paymentMethod: string
+  customerName: string
+  customerEmail: string
+  customerPhone: string (optional)
+  customerRfc: string (optional - for invoices)
+  shippingAddress: string (optional)
+  shippingCity: string (optional)
+  shippingState: string (optional)
+  shippingPostalCode: string (optional)
+  shippingCountry: string (optional)
+  trackingNumber: string (optional)
+  shippingCompany: string (optional)
+  shippedAt: timestamp (optional)
+  deliveredAt: timestamp (optional)
+  notes: string (optional)
+  receiptUrl: string (optional)
+  items: JSON (array of line items)
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+
+// Invoice concepts
+invoiceConcepts: {
+  id: string (UUID)
+  invoiceId: string
+  description: string
+  quantity: integer
+  unitPrice: integer (cents)
+  amount: integer (cents)
+  createdAt: timestamp
+}
+```
+
+---
+
+## 📧 Email Configuration
+
+### Current Setup
+- **Provider:** Brevo (SMTP relay)
+- **Host:** smtp-relay.brevo.com
+- **Port:** 587 (TLS) / 465 (SSL)
+- **From:** tropicolors20@outlook.es or noreply@tropicolors.mx
+
+### Email Templates Required
+1. **Order Confirmation** - Sent to customer after successful payment
+2. **Order Status Notification** - Updates on shipping/delivery
+3. **Invoice Email** - Invoice PDF attachment
+4. **Admin Notification** - **CRITICAL: Must send to admin email when new order placed**
+
+### Admin Email Requirement
+**The owner (you) must receive an email notification for EVERY new order.**
+
+Configuration needed:
+```
+EMAIL_TO=your-personal-email@example.com
+```
+
+---
+
+## 💳 Payment Configuration
+
+### Stripe Integration
+- **Secret Key:** STRIPE_SECRET_KEY (sk_test_... / sk_live_...)
+- **Webhook Secret:** STRIPE_WEBHOOK_SECRET (whsec_...)
+- **Currency:** MXN (Mexican Pesos)
+- **Webhook Events:** checkout.session.completed, payment_intent.succeeded
+
+### Environment Variables Required
+```env
+# Database
+DATABASE_URL=postgresql://...
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Email (Brevo/SMTP)
+EMAIL_SMTP_HOST=smtp-relay.brevo.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USER=your-brevo-key
+EMAIL_SMTP_PASS=your-brevo-password
+EMAIL_FROM=noreply@tropicolors.mx
+EMAIL_TO=admin@tropicolors.mx  # Your personal email for order notifications
+
+# Twilio (Optional - for SMS)
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_PHONE_NUMBER=...
+
+# Security
+SESSION_SECRET=random-32-character-string
+ALLOWED_ORIGINS=https://yourdomain.com
+
+# App
+NODE_ENV=production
+PORT=3000
+BASE_URL=https://yourdomain.com
+```
+
+---
+
+## 📱 WhatsApp Integration
+
+### ✅ Ya Implementado (Cotizaciones)
+- Todos los botones "Cotizar" enlazan a: `https://wa.me/525551146856?text=Hola%20quiero%20cotizar%20colorantes%20Tropicolors`
+- Teléfono: +52 55 5114 6856
+- Botón flotante siempre visible en la esquina inferior derecha
+
+### ⏳ Pendiente: WhatsApp Automático para Pedidos
+Para implementar mensajes automáticos de WhatsApp cuando se hace un pedido, se necesita:
+1. Configurar Twilio (ya hay código preparado en `server/payments.ts`)
+2. Obtener credenciales de Twilio
+3. Descomentar y configurar las variables en `.env`:
+
+```env
+TWILIO_ACCOUNT_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_twilio_token
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+WHATSAPP_ADMIN_NUMBER=whatsapp:+525551146856
+```
+
+---
+
+## 👨‍💼 Admin Dashboard Features
+
+### Sales Analytics
+- Sales chart (line/bar chart with Recharts)
+- Total revenue display
+- Order count
+- Recent orders list
+
+### Order Management
+- View all orders
+- Update order status (pending → paid → sent → delivered)
+- Add tracking number
+- Order details modal
+
+### Invoice Management
+- Create invoices from orders
+- Generate PDF invoices
+- Send invoices via email
+- Track invoice status
+
+### Security
+- Admin login required
+- Session-based authentication
+- Protected routes
+
+---
+
+## 🚀 Deployment Instructions
+
+### Vercel Deployment (Recommended)
+1. Connect GitHub repository to Vercel
+2. Configure environment variables in Vercel dashboard
+3. Deploy command: `npm run build`
+4. Output directory: `dist`
+
+### Required Vercel Configuration (vercel.json)
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+### Database Setup (Neon - Recommended)
+1. Create Neon database project
+2. Get connection string
+3. Run migrations: `npm run db:push`
+4. Add DATABASE_URL to environment
+
+---
+
+## ✅ Estado Actual del Código
+
+### Ya Implementado (Funcionando en el código)
+
+| Módulo | Estado | Archivo principal |
+|--------|--------|-------------------|
+| **Stripe Checkout** | ✅ Implementado | `server/payments.ts`, `api/checkout.ts` |
+| **Email (SMTP/Brevo)** | ✅ Implementado | `server/services/email.service.ts` |
+| **Facturas PDF** | ✅ Implementado | `server/services/pdf.service.ts` |
+| **Base de Datos (Drizzle)** | ✅ Schema listo | `shared/schema.ts` |
+| **WhatsApp para cotizaciones** | ✅ Ya funciona | Links en `client/src/pages/home.tsx` |
+| **Panel de Admin** | ✅ Implementado | `client/src/pages/admin.tsx` |
+| **Webhook de Pagos** | ✅ Implementado | `api/payment-webhook.ts` |
+| **Firebase Storage** | ✅ Implementado | `server/storage-firebase.ts` |
+
+### ❌ Problemas Identificados
+
+1. **API Key de Brevo inválida** - La clave actual genera error "Key not found"
+2. **Stripe envía recibos automáticos** - Sobrescribe los correos HTML personalizados
+3. **Base de datos no configurada** - DATABASE_URL no está definida
+4. **EMAIL_TO no configurado** - No llega notificación al admin
+
+---
+
+## 🔧 Configuración Requerida (Debes hacer esto)
+
+### Paso 1: Obtener API Key correcta de Brevo
+
+1. Ve a https://app.brevo.com
+2. Inicia sesión
+3. Ve a **Configuración → Claves API**
+4. Crea una nueva clave (comienza con `xkeysib-`)
+5. Agrega al archivo `.env`:
+
+```env
+EMAIL_SMTP_HOST=smtp-relay.brevo.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USER=xkeysib-tu-clave-aqui
+EMAIL_SMTP_PASS=tu-password-smtp
+```
+
+### Paso 2: Desactivar recibos automáticos de Stripe
+
+1. Ve a https://dashboard.stripe.com/settings/emails
+2. Desactiva "Enviar correos electrónicos de recibo"
+3. Esto permitirá que tu correo HTML personalizado llegue al cliente
+
+### Paso 3: Configurar tu correo para recibir notificaciones
+
+En tu archivo `.env`:
+
+```env
+# Tu correo personal para recibir notificaciones de pedidos
+EMAIL_TO=tu-correo-personal@gmail.com
+
+# Correo del negocio
+EMAIL_FROM=noreply@tropicolors.mx
+```
+
+### Paso 4: Configurar Base de Datos (Opcional - ya funciona con Firebase)
+
+Si quieres usar PostgreSQL en lugar de Firebase:
+
+1. Crea una cuenta en https://neon.tech
+2. Crea un nuevo proyecto
+3. Copia la URL de conexión
+4. Agrega al `.env`:
+
+```env
+DATABASE_URL=postgresql://usuario:password@host.neon.tech/db?sslmode=require
+```
+
+### Paso 5: Variables de entorno completas
+
+```env
+# ================================================
+# STRIPE (Pagos)
+# ================================================
+STRIPE_SECRET_KEY=sk_test_...   # Obtén en https://dashboard.stripe.com/apikeys
+STRIPE_WEBHOOK_SECRET=whsec_...  # Obtén en https://dashboard.stripe.com/webhooks
+
+# ================================================
+# EMAIL (Brevo SMTP)
+# ================================================
+EMAIL_SMTP_HOST=smtp-relay.brevo.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USER=xkeysib-tu-api-key
+EMAIL_SMTP_PASS=tu-password
+EMAIL_FROM=noreply@tropicolors.mx
+EMAIL_TO=tu-correo-personal@gmail.com  # <-- IMPORTANTE: Tu correo para pedidos
+
+# ================================================
+# SEGURIDAD
+# ================================================
+SESSION_SECRET=cadena-random-de-32-caracteres
+ALLOWED_ORIGINS=https://tu-dominio.com
+
+# ================================================
+# APP
+# ================================================
+NODE_ENV=production
+PORT=3000
+BASE_URL=https://tu-dominio.com
+```
+
+---
+
+## 📝 Estado de Implementación
+
+### ✅ Fase 1: Funcionalidad Principal (COMPLETO)
+- [x] Frontend React con todas las páginas (home, admin, invoices, order-tracking)
+- [x] Backend Express con API routes
+- [x] Integración de pagos Stripe (checkout, webhooks)
+- [x] Generación de facturas PDF
+- [x] Sistema de envío de emails (Nodemailer + Brevo)
+- [x] Panel de administración con gráficos de ventas
+- [x] WhatsApp para cotizaciones (botones y link flotante)
+- [x] Sistema de facturas con Firebase Storage
+
+### ⚠️ Fase 2: Configuración Requerida
+- [ ] Obtener API key válida de Brevo
+- [ ] Configurar EMAIL_TO con tu correo personal
+- [ ] Desactivar recibos automáticos en Stripe Dashboard
+- [ ] (Opcional) Configurar base de datos PostgreSQL con Neon
+
+### ⏳ Fase 3: WhatsApp Automático (Pendiente)
+- [ ] Obtener credenciales de Twilio
+- [ ] Configurar variables de WhatsApp en .env
+- [ ] Probar mensajes automáticos de pedidos
+
+### 🚀 Fase 4: Despliegue
+- [ ] Desplegar a Vercel
+- [ ] Configurar variables de entorno en producción
+- [ ] Probar todo en producción
+
+---
+
+## 📞 Contact Information (Hardcoded)
+
+- **Phone/WhatsApp:** +52 55 5114 6856
+- **Email:** tropicolors@hotmail.com
+- **Facebook:** TropicColors
+- **Business Hours:** 9:00 – 18:00 (Mexico City time)
+
+---
+
+## 🎯 Pasos Inmediatos (Haz esto ahora)
+
+### 1️⃣ Obtener API Key de Brevo (5 minutos)
+Ve a https://app.brevo.com → Configuración → API Keys → Crea una nueva
+Copia la clave (comienza con `xkeysib-`)
+
+### 2️⃣ Configurar tu correo en .env
+```env
+EMAIL_TO=tu-correo-real@gmail.com
+```
+
+### 3️⃣ Desactivar recibos de Stripe
+Ve a https://dashboard.stripe.com/settings/emails
+Desactiva "Enviar correos electrónicos de recibo"
+
+### 4️⃣ Probar
+Haz un pedido de prueba y verifica que:
+- ✅ El cliente reciba el correo de confirmación
+- ✅ Tú recibas la notificación del nuevo pedido
+
+### 5️⃣ Desplegar (cuando esté listo)
+Conecta tu repositorio a Vercel y configura las variables de entorno
+
+---
+
+## 💬 ¿Qué sigue?
+
+¿Te ayudo a:
+1. **Corregir la API key de Brevo** para que funcione el email?
+2. **Configurar la base de datos** con Neon?
+3. **Implementar WhatsApp automático** para pedidos con Twilio?
+4. **Desplegar a producción** en Vercel?
+
+Dime qué prefieres y comenzamos.
+
+---
+
+*Documento generado para el proyecto TropicColors E-commerce*
+*Última actualización: Marzo 2026*

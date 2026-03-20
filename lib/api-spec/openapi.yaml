@@ -1,15 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: TropicColors API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: products
+    description: Product catalog
+  - name: orders
+    description: Order management
+  - name: contact
+    description: Contact and quotes
+  - name: invoices
+    description: Invoice management
+  - name: admin
+    description: Admin dashboard
 paths:
   /healthz:
     get:
@@ -24,6 +33,166 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /products:
+    get:
+      operationId: getProducts
+      tags: [products]
+      summary: Get all products
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  /orders:
+    get:
+      operationId: getOrders
+      tags: [orders]
+      summary: Get all orders (admin)
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get order by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Order not found
+
+  /orders/{id}/status:
+    patch:
+      operationId: updateOrderStatus
+      tags: [orders]
+      summary: Update order status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderStatusRequest"
+      responses:
+        "200":
+          description: Order updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /checkout:
+    post:
+      operationId: createCheckout
+      tags: [orders]
+      summary: Create Stripe checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "200":
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+
+  /contact:
+    post:
+      operationId: submitContact
+      tags: [contact]
+      summary: Submit contact/quote form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactRequest"
+      responses:
+        "200":
+          description: Contact submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /invoices:
+    get:
+      operationId: getInvoices
+      tags: [invoices]
+      summary: Get all invoices
+      responses:
+        "200":
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create a new invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceRequest"
+      responses:
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +203,311 @@ components:
       required:
         - status
 
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        priceUnit:
+          type: string
+        category:
+          type: string
+        colors:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: string
+        inStock:
+          type: boolean
+        featured:
+          type: boolean
+      required:
+        - id
+        - name
+        - description
+        - price
+        - priceUnit
+        - category
+        - colors
+        - inStock
+        - featured
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        orderNumber:
+          type: string
+        status:
+          type: string
+          enum: [pending, paid, failed, sent, delivered]
+        amount:
+          type: number
+        currency:
+          type: string
+        customerName:
+          type: string
+        customerEmail:
+          type: string
+        customerPhone:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        trackingNumber:
+          type: string
+        shippingAddress:
+          type: string
+        notes:
+          type: string
+      required:
+        - id
+        - orderNumber
+        - status
+        - amount
+        - currency
+        - customerName
+        - customerEmail
+        - items
+        - createdAt
+        - updatedAt
+
+    OrderItem:
+      type: object
+      properties:
+        productId:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        totalPrice:
+          type: number
+      required:
+        - productId
+        - productName
+        - quantity
+        - unitPrice
+        - totalPrice
+
+    UpdateOrderStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, paid, failed, sent, delivered]
+        trackingNumber:
+          type: string
+        notes:
+          type: string
+      required:
+        - status
+
+    CheckoutRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        customerName:
+          type: string
+        customerEmail:
+          type: string
+        customerPhone:
+          type: string
+        shippingAddress:
+          type: string
+        shippingCity:
+          type: string
+        shippingState:
+          type: string
+        shippingPostalCode:
+          type: string
+      required:
+        - items
+        - customerName
+        - customerEmail
+
+    CartItem:
+      type: object
+      properties:
+        productId:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+      required:
+        - productId
+        - productName
+        - quantity
+        - unitPrice
+
+    CheckoutResponse:
+      type: object
+      properties:
+        sessionUrl:
+          type: string
+        sessionId:
+          type: string
+      required:
+        - sessionUrl
+        - sessionId
+
+    ContactRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        message:
+          type: string
+        productInterest:
+          type: string
+      required:
+        - name
+        - email
+        - message
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+        invoiceNumber:
+          type: string
+        orderId:
+          type: string
+        customerName:
+          type: string
+        customerEmail:
+          type: string
+        customerRfc:
+          type: string
+        amount:
+          type: number
+        status:
+          type: string
+          enum: [draft, sent, paid]
+        pdfUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - invoiceNumber
+        - customerName
+        - customerEmail
+        - amount
+        - status
+        - createdAt
+
+    CreateInvoiceRequest:
+      type: object
+      properties:
+        orderId:
+          type: string
+        customerName:
+          type: string
+        customerEmail:
+          type: string
+        customerRfc:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceItem"
+      required:
+        - customerName
+        - customerEmail
+        - items
+
+    InvoiceItem:
+      type: object
+      properties:
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+      required:
+        - description
+        - quantity
+        - unitPrice
+
+    AdminStats:
+      type: object
+      properties:
+        totalRevenue:
+          type: number
+        totalOrders:
+          type: number
+        pendingOrders:
+          type: number
+        completedOrders:
+          type: number
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        monthlySales:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlySales"
+      required:
+        - totalRevenue
+        - totalOrders
+        - pendingOrders
+        - completedOrders
+        - recentOrders
+        - monthlySales
+
+    MonthlySales:
+      type: object
+      properties:
+        month:
+          type: string
+        revenue:
+          type: number
+        orders:
+          type: number
+      required:
+        - month
+        - revenue
+        - orders
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message

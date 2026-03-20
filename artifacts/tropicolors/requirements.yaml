@@ -1,0 +1,21 @@
+packages:
+  "framer-motion": "For premium scroll animations and page transitions"
+  "recharts": "For the admin dashboard monthly sales charts"
+  "react-hook-form": "For robust contact and checkout form state management"
+  "@hookform/resolvers": "Zod integration for form validation"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+  "zod": "Schema validation for forms"
+
+images:
+  - path: "artifacts/tropicolors/public/images/color-splash.png"
+    description: "Vibrant high-quality splashing liquid of multiple bright colors (magenta, cyan, yellow) against a pure white background, 3d render, hyper-realistic, food coloring concept"
+    aspect_ratio: "16:9"
+  - path: "artifacts/tropicolors/public/images/macarons.png"
+    description: "Beautifully arranged colorful french macarons on a pristine surface, bright lighting, premium food photography, showcasing vibrant food coloring"
+    aspect_ratio: "4:3"
+
+notes:
+  - Assumes @workspace/api-client-react is available for generated React Query hooks
+  - In-memory cart state will be handled via React Context
+  - Admin protected via simple hardcoded password as requested

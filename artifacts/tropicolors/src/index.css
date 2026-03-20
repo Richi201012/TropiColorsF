@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'DM Sans', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+
+  /* TropicColors Brand Palette */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  
+  /* Primary: Blue #003F91 */
+  --color-primary: hsl(214 100% 28%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  
+  /* Secondary: Turquoise #00A8B5 */
+  --color-secondary: hsl(184 100% 35%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  
+  /* Accent: Yellow #FFCD00 */
+  --color-accent: hsl(48 100% 50%);
+  --color-accent-foreground: hsl(214 100% 28%); /* Blue text on yellow */
+  
+  /* Destructive/Alert: Magenta #FF2E63 */
+  --color-destructive: hsl(345 100% 59%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-muted: hsl(210 40% 96%);
+  --color-muted-foreground: hsl(215 16% 47%);
+
+  --color-border: hsl(214 32% 91%);
+  --color-input: hsl(214 32% 91%);
+  --color-ring: hsl(214 100% 28%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222 47% 11%);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+}
+
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 0 0% 100%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply font-bold tracking-tight;
+  }
+}
+
+/* Custom Utilities for stunning glassmorphism and shadows */
+@layer utilities {
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
+  }
+  .glass-dark {
+    @apply bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-primary;
+  }
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
