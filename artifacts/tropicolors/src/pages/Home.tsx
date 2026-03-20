@@ -83,6 +83,19 @@ const GEL_COLORS = [
 
 const CATEGORY_ORDER = ["Todos", "Amarillos", "Azul", "Cafés", "Naranja", "Negro", "Rojos", "Verdes", "Especiales", "Industriales"];
 
+const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
+  "Todos":        { bg: "#FFCD00", text: "#003F91" },
+  "Amarillos":    { bg: "#FFD700", text: "#1a1a1a" },
+  "Azul":         { bg: "#003F91", text: "#ffffff" },
+  "Cafés":        { bg: "#7B4A2D", text: "#ffffff" },
+  "Naranja":      { bg: "#FF7000", text: "#ffffff" },
+  "Negro":        { bg: "#1A1A1A", text: "#ffffff" },
+  "Rojos":        { bg: "#E01B3C", text: "#ffffff" },
+  "Verdes":       { bg: "#1E8A44", text: "#ffffff" },
+  "Especiales":   { bg: "#7B00E0", text: "#ffffff" },
+  "Industriales": { bg: "#4A4A8A", text: "#ffffff" },
+};
+
 export default function Home() {
   const { addToCart } = useCart();
   const { toast } = useToast();
@@ -183,39 +196,49 @@ export default function Home() {
           </div>
 
           {/* ── Filter Bar ── */}
-          <div className="flex flex-col items-center gap-4 mb-12">
+          <div className="flex flex-col items-center gap-5 mb-12">
 
-            {/* Fila 1: Categorías */}
+            {/* Fila 1: Categorías de color */}
             <div className="flex flex-wrap justify-center gap-2">
-              {CATEGORY_ORDER.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-5 py-2 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap ${
-                    activeCategory === cat
-                      ? "bg-[#FFCD00] text-[#003F91] border-[#FFCD00] shadow-md"
-                      : "bg-white border-gray-200 text-gray-500 hover:border-[#003F91]/30 hover:text-[#003F91]"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+              {CATEGORY_ORDER.map((cat) => {
+                const isActive = activeCategory === cat;
+                const colors = CATEGORY_COLORS[cat];
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 border whitespace-nowrap hover:scale-105 active:scale-95"
+                    style={
+                      isActive
+                        ? { backgroundColor: colors.bg, color: colors.text, borderColor: colors.bg, boxShadow: `0 4px 12px ${colors.bg}55` }
+                        : { backgroundColor: "#f3f4f6", color: "#6b7280", borderColor: "#e5e7eb" }
+                    }
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Separador visual */}
-            <div className="w-16 h-px bg-gray-200" />
+            {/* Separador */}
+            <div className="flex items-center gap-3 w-full max-w-xs">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest whitespace-nowrap">Concentración</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
 
             {/* Fila 2: Concentraciones — centradas */}
-            <div className="flex items-center bg-white border border-gray-200 rounded-full p-1 gap-1 shadow-sm">
+            <div className="flex items-center bg-white border border-gray-200 rounded-full p-1.5 gap-1 shadow-sm">
               {(["125", "250"] as Concentration[]).map((c) => (
                 <button
                   key={c}
                   onClick={() => setConcentration(c)}
-                  className={`px-6 py-2 rounded-full text-xs font-extrabold transition-all duration-200 whitespace-nowrap ${
+                  className="px-7 py-2.5 rounded-full text-xs font-extrabold transition-all duration-300 whitespace-nowrap hover:scale-105 active:scale-95"
+                  style={
                     concentration === c
-                      ? "bg-[#003F91] text-white shadow"
-                      : "text-gray-400 hover:text-[#003F91]"
-                  }`}
+                      ? { backgroundColor: "#003F91", color: "#ffffff", boxShadow: "0 2px 8px rgba(0,63,145,0.35)" }
+                      : { backgroundColor: "transparent", color: "#9ca3af" }
+                  }
                 >
                   Conc. {c}
                 </button>
@@ -601,13 +624,21 @@ function ProductCard({
               boxShadow: `0 4px 12px ${product.hex}55`,
             }}
           />
-          <div>
+          <div className="min-w-0">
             <h3 className="text-sm font-extrabold text-[#003F91] leading-tight">{product.name}</h3>
-            {(product.industrial || product.note) && (
-              <span className="text-[10px] text-gray-400 font-semibold">
-                {product.industrial ? "Uso Industrial" : product.note}
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span
+                className="text-[10px] font-extrabold px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: "#003F91", color: "#fff" }}
+              >
+                Conc. {concentration}
               </span>
-            )}
+              {(product.industrial || product.note) && (
+                <span className="text-[10px] text-gray-400 font-semibold">
+                  {product.industrial ? "Industrial" : product.note}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
