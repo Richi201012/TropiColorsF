@@ -166,42 +166,49 @@ export default function Home() {
       </section>
 
       {/* ── CATÁLOGO ── */}
-      <section
-        id="productos"
-        className="relative py-28 overflow-hidden"
-        style={{ background: "linear-gradient(145deg, #001233 0%, #002060 40%, #003F91 75%, #00539B 100%)" }}
-      >
-        {/* Soft decorative blobs */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-[#0051C8]/20 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-[#00A8B5]/15 blur-[100px] pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="productos" className="py-28 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Heading */}
           <div className="text-center mb-16">
-            <span className="inline-block py-1.5 px-5 rounded-full bg-white/10 text-white/70 text-[11px] font-bold uppercase tracking-widest mb-5 border border-white/10 backdrop-blur-md">
+            <span className="inline-block py-1.5 px-5 rounded-full bg-[#003F91]/8 text-[#003F91] text-[11px] font-bold uppercase tracking-widest mb-5 border border-[#003F91]/12">
               Lista de Precios 2026
             </span>
-            <h2 className="text-4xl md:text-6xl font-black text-white mb-5 tracking-tight">
-              Colorantes en <span className="text-[#FFCD00]">Polvo</span>
+            <h2 className="text-4xl md:text-6xl font-black text-[#003F91] mb-5 tracking-tight">
+              Colorantes en <span className="text-[#FFCD00]" style={{ WebkitTextStroke: "1px #d4a800" }}>Polvo</span>
             </h2>
-            <p className="text-white/55 text-sm max-w-xl mx-auto leading-relaxed">
+            <p className="text-muted-foreground text-sm max-w-xl mx-auto leading-relaxed">
               Precios + IVA 16% · Solo se venden cajas completas · La mercancía viaja a cuenta del comprador
             </p>
           </div>
 
-          {/* ── Filter Bar (single row) ── */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-12">
-            {/* Concentration toggle */}
-            <div className="flex-shrink-0 flex items-center bg-white/8 backdrop-blur-md border border-white/12 rounded-2xl p-1 gap-1">
+          {/* ── Filter Bar — todo en una sola fila, concentración en medio ── */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
+            {/* First half of categories: Todos → Negro */}
+            {CATEGORY_ORDER.slice(0, 6).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap ${
+                  activeCategory === cat
+                    ? "bg-[#FFCD00] text-[#003F91] border-[#FFCD00] shadow-md"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-[#003F91]/30 hover:text-[#003F91]"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+
+            {/* Concentration toggle — centrado entre los nombres */}
+            <div className="flex items-center bg-white border border-gray-200 rounded-full p-1 gap-1 shadow-sm mx-1">
               {(["125", "250"] as Concentration[]).map((c) => (
                 <button
                   key={c}
                   onClick={() => setConcentration(c)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-extrabold transition-all duration-200 whitespace-nowrap ${
+                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all duration-200 whitespace-nowrap ${
                     concentration === c
-                      ? "bg-[#003F91] text-white shadow-lg shadow-[#003F91]/50"
-                      : "text-white/50 hover:text-white"
+                      ? "bg-[#003F91] text-white shadow"
+                      : "text-gray-400 hover:text-[#003F91]"
                   }`}
                 >
                   Conc. {c}
@@ -209,22 +216,20 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Category pills — horizontal scroll on mobile */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 scrollbar-none">
-              {CATEGORY_ORDER.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap ${
-                    activeCategory === cat
-                      ? "bg-[#FFCD00] text-[#003F91] border-transparent shadow-lg shadow-[#FFCD00]/30"
-                      : "bg-white/8 border-white/12 text-white/60 hover:text-white hover:border-white/25 backdrop-blur-md"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {/* Second half of categories: Rojos → Industriales */}
+            {CATEGORY_ORDER.slice(6).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap ${
+                  activeCategory === cat
+                    ? "bg-[#FFCD00] text-[#003F91] border-[#FFCD00] shadow-md"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-[#003F91]/30 hover:text-[#003F91]"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
 
           {/* ── Product Grid ── */}
@@ -247,7 +252,7 @@ export default function Home() {
           </motion.div>
 
           {filtered.length === 0 && (
-            <div className="text-center py-20 text-white/40">
+            <div className="text-center py-20 text-muted-foreground">
               No hay productos disponibles en esta categoría con concentración {concentration}.
             </div>
           )}
@@ -577,37 +582,37 @@ function ProductCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ delay: (index % 8) * 0.04 }}
-      className="relative rounded-2xl overflow-hidden flex flex-col group"
+      className="relative rounded-2xl overflow-hidden flex flex-col group bg-white hover:-translate-y-1 transition-all duration-300"
       style={{
-        background: "rgba(255,255,255,0.07)",
-        backdropFilter: "blur(16px)",
-        border: "1px solid rgba(255,255,255,0.14)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)",
       }}
     >
-      {/* Color glow circle top */}
+      {/* Subtle color glow */}
       <div
-        className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-40 blur-2xl pointer-events-none"
+        className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-15 blur-3xl pointer-events-none"
         style={{ backgroundColor: product.hex }}
       />
 
       {/* Top color stripe */}
       <div
-        className="h-2 w-full"
+        className="h-[5px] w-full"
         style={{ background: `linear-gradient(90deg, ${product.hex}, ${product.hex2 ?? product.hex})` }}
       />
 
-      <div className="p-6 flex-1 flex flex-col gap-4 relative">
+      <div className="p-5 flex-1 flex flex-col gap-4 relative">
         {/* Color dot + name */}
         <div className="flex items-center gap-3">
           <div
-            className="w-11 h-11 rounded-full flex-shrink-0 shadow-lg ring-2 ring-white/20"
-            style={{ background: `linear-gradient(135deg, ${product.hex}, ${product.hex2 ?? product.hex})` }}
+            className="w-12 h-12 rounded-full flex-shrink-0 shadow-md"
+            style={{
+              background: `linear-gradient(135deg, ${product.hex}, ${product.hex2 ?? product.hex})`,
+              boxShadow: `0 4px 12px ${product.hex}55`,
+            }}
           />
           <div>
-            <h3 className="text-sm font-extrabold text-white leading-tight">{product.name}</h3>
+            <h3 className="text-sm font-extrabold text-[#003F91] leading-tight">{product.name}</h3>
             {(product.industrial || product.note) && (
-              <span className="text-[10px] text-white/40 font-semibold">
+              <span className="text-[10px] text-gray-400 font-semibold">
                 {product.industrial ? "Uso Industrial" : product.note}
               </span>
             )}
@@ -616,7 +621,7 @@ function ProductCard({
 
         {notAvailable ? (
           <div className="flex-1 flex items-center py-2">
-            <p className="text-xs text-white/35 leading-relaxed">
+            <p className="text-xs text-gray-400 leading-relaxed">
               No disponible en concentración {concentration}. Consulta la otra concentración.
             </p>
           </div>
@@ -624,43 +629,36 @@ function ProductCard({
           <>
             {/* Presentation select */}
             <div>
-              <label className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-1.5 block">
+              <label className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5 block">
                 Presentación
               </label>
               <div className="relative">
                 <select
-                  className="w-full appearance-none rounded-xl px-3 py-2.5 pr-8 text-xs font-semibold text-white focus:outline-none transition-all"
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.14)",
-                  }}
+                  className="w-full appearance-none bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 pr-8 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15 focus:border-[#003F91]/30 transition-all"
                   value={selectedIdx}
                   onChange={(e) => setSelectedIdx(Number(e.target.value))}
                 >
                   {availablePresentations.map((p, i) => (
-                    <option key={i} value={i} style={{ background: "#002060", color: "#fff" }}>
+                    <option key={i} value={i}>
                       {p.label}
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             </div>
 
             {/* Price */}
-            <div
-              className="flex items-center justify-between rounded-xl px-4 py-3"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Precio + IVA</span>
-              <span className="text-xl font-black text-white">
+            <div className="flex items-center justify-between rounded-xl px-4 py-3 bg-slate-50 border border-gray-100">
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Precio + IVA</span>
+              <span className="text-xl font-black text-[#003F91]">
                 ${selected?.price.toLocaleString("es-MX")}{" "}
-                <span className="text-[10px] font-normal text-white/40">MXN</span>
+                <span className="text-[10px] font-normal text-gray-400">MXN</span>
               </span>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2">
               <button
                 onClick={() => {
                   addToCart({
@@ -673,7 +671,7 @@ function ProductCard({
                   });
                   toast({ title: "¡Agregado!", description: `${product.name} añadido al carrito.` });
                 }}
-                className="flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                className="flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all duration-200 hover:opacity-90 active:scale-95"
                 style={{ background: product.hex, color: product.textColor }}
               >
                 <ShoppingCart size={13} />
@@ -683,11 +681,10 @@ function ProductCard({
                 href={`https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20${encodeURIComponent(product.name)}%20Conc.%20${concentration}%20-%20${encodeURIComponent(selected?.label ?? "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-11 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-[1.05] active:scale-95"
-                style={{ background: "rgba(255,205,0,0.15)", border: "1px solid rgba(255,205,0,0.3)" }}
+                className="w-11 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-[1.05] active:scale-95 bg-[#FFCD00]/15 border border-[#FFCD00]/40 hover:bg-[#FFCD00]/25"
                 title="Cotizar por WhatsApp"
               >
-                <MessageCircle size={15} className="text-[#FFCD00]" />
+                <MessageCircle size={15} className="text-[#003F91]" />
               </a>
             </div>
           </>
