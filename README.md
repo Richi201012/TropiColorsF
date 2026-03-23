@@ -171,7 +171,7 @@ pnpm preview
 
 - **WhatsApp**: [+52 55 5114 6856](https://wa.me/525551146856)
 - **Toll Free**: 01 800 8 36 74 68
-- **Email**: m_tropicolors@hotmail.com
+- **Email**: m_tropicolors1@hotmail.com
 - **Address**: Abedules Mz.1 Lt.36, Ejército del Trabajo II, Ecatepec, Edo. Mex. C.P. 55238
 
 ### Social Media

@@ -27,18 +27,43 @@ import {
   BarChart3,
   X,
   MapPin,
-  ClipboardList
+  ClipboardList,
+  Settings,
+  Phone,
+  Shield
 } from "lucide-react";
-import { useLocation } from "wouter";
 import jsPDF from "jspdf";
+import { Invoice } from "@/components/Invoice";
+import type { InvoiceData } from "@/types/invoice";
+import { useInvoicePDF } from "@/hooks/useInvoicePDF";
+import type { User as FirebaseUser } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateEmail,
+  updatePassword,
+  updateProfile,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 // Auth Context for session management
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  user: FirebaseUser | null;
+  userProfile: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  saveUserProfile: (input: { name: string; email: string; phone: string }) => Promise<void>;
+  changeUserPassword: (newPassword: string) => Promise<void>;
   isLoading: boolean;
   isLoggingOut: boolean;
+  authReady: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -51,50 +76,120 @@ const useAuth = () => {
   return context;
 };
 
-// Auth provider - replace with real backend integration
 const useAuthProvider = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('tropic_admin_auth') === 'true';
-    }
-    return false;
-  });
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [userProfile, setUserProfile] = useState({ name: "", email: "", phone: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      setUser(nextUser);
+
+      if (!nextUser) {
+        setUserProfile({ name: "", email: "", phone: "" });
+        setAuthReady(true);
+        return;
+      }
+
+      const userRef = doc(db, "users", nextUser.uid);
+      const userSnapshot = await getDoc(userRef);
+      const firestoreData = userSnapshot.exists() ? userSnapshot.data() : {};
+
+      setUserProfile({
+        name: String(firestoreData?.name || nextUser.displayName || ""),
+        email: String(firestoreData?.email || nextUser.email || ""),
+        phone: String(firestoreData?.phone || ""),
+      });
+      setAuthReady(true);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
-    // Simulate API call - replace with real backend
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Demo: accept any non-empty credentials
-    if (email && password) {
-      localStorage.setItem('tropic_admin_auth', 'true');
-      localStorage.setItem('tropic_admin_email', email);
-      setIsAuthenticated(true);
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      const authError = error as { code?: string };
+      if (authError.code === "auth/user-not-found" || authError.code === "auth/invalid-credential") {
+        throw new Error("Usuario no encontrado.");
+      }
+      if (authError.code === "auth/wrong-password") {
+        throw new Error("Contraseña incorrecta.");
+      }
+      if (authError.code === "auth/invalid-email") {
+        throw new Error("Correo electrónico inválido.");
+      }
+      throw new Error("No se pudo iniciar sesión. Intenta nuevamente.");
+    } finally {
       setIsLoading(false);
-      return true;
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
   const logout = async (): Promise<void> => {
     setIsLoggingOut(true);
-    // Simulate API call - replace with real backend logout
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Clear session data
-    localStorage.removeItem('tropic_admin_auth');
-    localStorage.removeItem('tropic_admin_email');
-    sessionStorage.clear();
-    
-    setIsAuthenticated(false);
-    setIsLoggingOut(false);
+
+    try {
+      await signOut(auth);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
-  return { isAuthenticated, login, logout, isLoading, isLoggingOut };
+  const saveUserProfile = async (input: { name: string; email: string; phone: string }) => {
+    if (!auth.currentUser) {
+      throw new Error("No hay una sesión activa.");
+    }
+
+    const currentUser = auth.currentUser;
+
+    if (input.name !== (currentUser.displayName || "")) {
+      await updateProfile(currentUser, { displayName: input.name });
+    }
+
+    if (input.email !== (currentUser.email || "")) {
+      await updateEmail(currentUser, input.email);
+    }
+
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      {
+        uid: currentUser.uid,
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+
+    setUserProfile(input);
+  };
+
+  const changeUserPassword = async (newPassword: string) => {
+    if (!auth.currentUser) {
+      throw new Error("No hay una sesión activa.");
+    }
+
+    await updatePassword(auth.currentUser, newPassword);
+  };
+
+  return {
+    isAuthenticated: Boolean(user),
+    user,
+    userProfile,
+    login,
+    logout,
+    saveUserProfile,
+    changeUserPassword,
+    isLoading,
+    isLoggingOut,
+    authReady,
+  };
 };
 
 // Premium Input Component
@@ -288,19 +383,28 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
       setError("Por favor ingresa tu correo electrónico");
       return;
     }
-    
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Ingresa un correo electrónico válido.");
+      return;
+    }
+
     if (!password.trim()) {
       setError("Por favor ingresa tu contraseña");
       return;
     }
 
+    if (password.trim().length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
     setIsLoading(true);
-    const success = await login(email, password);
-    
-    if (success) {
+    try {
+      await login(email.trim(), password);
       onLoginSuccess();
-    } else {
-      setError("Credenciales inválidas. Intenta de nuevo.");
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "No se pudo iniciar sesión.");
     }
     setIsLoading(false);
   };
@@ -590,7 +694,7 @@ function EmptyState({
   );
 }
 
-type DashboardView = "resumen" | "pedidos" | "facturas" | "clientes" | "estadisticas";
+type DashboardView = "resumen" | "pedidos" | "facturas" | "clientes" | "estadisticas" | "configuracion";
 type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado";
 type ModalActivo = null | "detallePedido" | "crearFactura" | "verFactura" | "nuevoPedido" | "cliente";
 
@@ -1060,6 +1164,197 @@ function StatisticsView({ orders }: { orders: AdminOrder[] }) {
   );
 }
 
+function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
+  const { userProfile, saveUserProfile, changeUserPassword, isLoggingOut } = useAuth();
+  const [profileForm, setProfileForm] = useState(userProfile);
+  const [passwordForm, setPasswordForm] = useState({ password: "", confirmPassword: "" });
+  const [profileMessage, setProfileMessage] = useState<string>("");
+  const [securityMessage, setSecurityMessage] = useState<string>("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+  useEffect(() => {
+    setProfileForm(userProfile);
+  }, [userProfile]);
+
+  const handleSaveProfile = async () => {
+    setProfileMessage("");
+
+    if (!profileForm.name.trim()) {
+      setProfileMessage("El nombre es obligatorio.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileForm.email.trim())) {
+      setProfileMessage("Ingresa un correo electrónico válido.");
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      await saveUserProfile({
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+        phone: profileForm.phone.trim(),
+      });
+      setProfileMessage("Cambios guardados correctamente.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo guardar el perfil.";
+      setProfileMessage(message);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setSecurityMessage("");
+
+    if (passwordForm.password.length < 6) {
+      setSecurityMessage("La nueva contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
+    if (passwordForm.password !== passwordForm.confirmPassword) {
+      setSecurityMessage("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setIsSavingPassword(true);
+    try {
+      await changeUserPassword(passwordForm.password);
+      setSecurityMessage("Contraseña actualizada correctamente.");
+      setPasswordForm({ password: "", confirmPassword: "" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo cambiar la contraseña.";
+      setSecurityMessage(message);
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  return (
+    <DashboardSection
+      title="Configuración"
+      subtitle="Administra tus datos de acceso, seguridad y sesión desde el mismo dashboard."
+      action={
+        <button
+          type="button"
+          onClick={onLogout}
+          disabled={isLoggingOut}
+          className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+        >
+          <LogOut size={16} />
+          {isLoggingOut ? "Cerrando..." : "Cerrar sesión"}
+        </button>
+      }
+    >
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-3xl border border-border/50 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Settings size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-bold text-slate-950">Datos del usuario</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Actualiza tu información base del panel.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <PremiumInput
+              icon={User}
+              type="text"
+              placeholder="Nombre completo"
+              value={profileForm.name}
+              onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))}
+              disabled={isSavingProfile}
+            />
+            <PremiumInput
+              icon={Mail}
+              type="email"
+              placeholder="Correo electrónico"
+              value={profileForm.email}
+              onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))}
+              disabled={isSavingProfile}
+            />
+            <PremiumInput
+              icon={Phone}
+              type="text"
+              placeholder="Teléfono (opcional)"
+              value={profileForm.phone}
+              onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))}
+              disabled={isSavingProfile}
+            />
+          </div>
+
+          {profileMessage ? (
+            <p className={`mt-4 text-sm ${profileMessage.includes("correctamente") ? "text-emerald-600" : "text-destructive"}`}>
+              {profileMessage}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={handleSaveProfile}
+            disabled={isSavingProfile}
+            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-secondary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
+          >
+            {isSavingProfile ? <Loader2 size={16} className="animate-spin" /> : <Settings size={16} />}
+            Guardar cambios
+          </button>
+        </div>
+
+        <div className="rounded-3xl border border-border/50 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+              <Shield size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-bold text-slate-950">Seguridad</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Cambia tu contraseña para reforzar el acceso.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <PremiumInput
+              icon={Lock}
+              type="password"
+              placeholder="Nueva contraseña"
+              value={passwordForm.password}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, password: event.target.value }))}
+              disabled={isSavingPassword}
+            />
+            <PremiumInput
+              icon={Lock}
+              type="password"
+              placeholder="Confirmar contraseña"
+              value={passwordForm.confirmPassword}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+              disabled={isSavingPassword}
+            />
+          </div>
+
+          {securityMessage ? (
+            <p className={`mt-4 text-sm ${securityMessage.includes("correctamente") ? "text-emerald-600" : "text-destructive"}`}>
+              {securityMessage}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={handleChangePassword}
+            disabled={isSavingPassword}
+            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            {isSavingPassword ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+            Guardar nueva contraseña
+          </button>
+        </div>
+      </div>
+    </DashboardSection>
+  );
+}
+
 // Dashboard Component
 function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [vistaActiva, setVistaActiva] = useState<DashboardView>("resumen");
@@ -1069,7 +1364,6 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
-  const [, setLocation] = useLocation();
   const [pedidos, setPedidos] = useState<AdminOrder[]>([
     {
       id: "ORD-8F4A91C2",
@@ -1211,26 +1505,33 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setModalActivo("verFactura");
   };
 
-  const downloadInvoicePdf = (invoiceId: string) => {
+  // Hook para generar PDF de facturas
+  const { downloadPDF: generateInvoicePDF } = useInvoicePDF();
+
+  // Datos de la empresa centralizados
+  const empresa = {
+    nombre: 'Tropicolors',
+    direccion: 'Ecatepec, Edo. Mex.',
+    telefono: '+52 55 5114 6856',
+    email: 'm_tropicolors1@hotmail.com',
+    rfc: 'TCO20240315ABC',
+  };
+
+  const downloadInvoicePdf = async (invoiceId: string) => {
     const invoice = facturas.find((entry) => entry.id === invoiceId);
     if (!invoice) return;
 
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Factura Tropicolors", 14, 18);
-    doc.setFontSize(11);
-    doc.text(`Folio: ${invoice.id}`, 14, 30);
-    doc.text(`Pedido: ${invoice.orderId}`, 14, 38);
-    doc.text(`Cliente: ${invoice.customer}`, 14, 46);
-    doc.text(`Fecha: ${invoice.createdAt}`, 14, 54);
-    let y = 70;
-    invoice.items.forEach((item, index) => {
-      doc.text(`${index + 1}. ${item.name} x${item.quantity} - $${item.price.toLocaleString("es-MX")}`, 14, y);
-      y += 8;
-    });
-    doc.setFontSize(13);
-    doc.text(`Total: $${invoice.total.toLocaleString("es-MX")}`, 14, y + 8);
-    doc.save(`${invoice.id}.pdf`);
+    // El PDF se genera capturando el DOM visible - no necesita datos aquí
+    // Solo pasamos el nombre del archivo
+    try {
+      await generateInvoicePDF({
+        invoiceNumber: invoice.id,
+        invoiceNumberFormatted: invoice.id,
+      });
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      alert('Error al generar el PDF. Intenta de nuevo.');
+    }
   };
 
   const createOrderFromModal = () => {
@@ -1278,10 +1579,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setIsLoggingOut(true);
     try {
       await onLogout();
-      // Smooth transition to login
-      setLocation('/login');
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
       setIsLoggingOut(false);
     }
   };
@@ -1411,6 +1711,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             { key: "resumen", label: "Resumen", icon: LayoutDashboard },
             { key: "pedidos", label: "Pedidos", icon: Package },
             { key: "facturas", label: "Facturas", icon: FileText },
+            { key: "configuracion", label: "Configuración", icon: Settings },
           ] as const).map((tab) => (
             <button
               key={tab.key}
@@ -1468,7 +1769,11 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   setSelectedInvoiceId(invoiceId);
                   setModalActivo("verFactura");
                 }}
-                onDownloadInvoice={downloadInvoicePdf}
+                onDownloadInvoice={(invoiceId) => {
+                  // Abrir modal primero para renderizar el componente Invoice
+                  setSelectedInvoiceId(invoiceId);
+                  setModalActivo("verFactura");
+                }}
               />
             )}
             {vistaActiva === "clientes" && (
@@ -1481,6 +1786,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               />
             )}
             {vistaActiva === "estadisticas" && <StatisticsView orders={pedidos} />}
+            {vistaActiva === "configuracion" && <SettingsView onLogout={handleLogout} />}
           </div>
         </div>
 
@@ -1676,50 +1982,41 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         onClose={() => setModalActivo(null)}
       >
         {selectedInvoice && (
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-border/50 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 text-white">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Tropicolors</p>
-              <h3 className="mt-2 text-2xl font-display font-bold">{selectedInvoice.id}</h3>
-              <p className="mt-2 text-sm text-white/70">Cliente: {selectedInvoice.customer}</p>
-              <p className="mt-1 text-sm text-white/70">Pedido: {selectedInvoice.orderId}</p>
-              <p className="mt-1 text-sm text-white/70">Fecha: {selectedInvoice.createdAt}</p>
-            </div>
-
-            <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
-              <div className="space-y-3">
-                {selectedInvoice.items.map((item, index) => (
-                  <div key={`${item.name}-${index}`} className="flex items-center justify-between border-b border-border/40 pb-3 last:border-b-0 last:pb-0">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">{item.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
-                    </div>
-                    <p className="text-sm font-bold text-slate-950">${item.price.toLocaleString("es-MX")}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-muted/20 px-5 py-4">
-              <span className="text-sm font-semibold text-slate-700">Total</span>
-              <span className="text-2xl font-display font-bold text-slate-950">${selectedInvoice.total.toLocaleString("es-MX")}</span>
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setModalActivo(null)}
-                className="rounded-2xl border border-border/60 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-muted/30"
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadInvoicePdf(selectedInvoice.id)}
-                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Descargar PDF
-              </button>
-            </div>
+          <div className="max-h-[80vh] overflow-y-auto">
+            <Invoice 
+              data={{
+                invoiceNumber: selectedInvoice.id,
+                invoiceNumberFormatted: selectedInvoice.id,
+                issueDate: selectedInvoice.createdAt,
+                paymentMethod: 'transferencia',
+                status: selectedInvoice.status === 'pagada' ? 'paid' : 'pending',
+                company: {
+                  name: empresa.nombre,
+                  address: empresa.direccion,
+                  phone: empresa.telefono,
+                  email: empresa.email,
+                  rfc: empresa.rfc,
+                },
+                customer: {
+                  name: selectedInvoice.customer,
+                  email: '',
+                },
+                items: selectedInvoice.items.map((item, index) => ({
+                  id: `item-${index}`,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unitPrice: item.price,
+                  subtotal: item.price * item.quantity,
+                })),
+                subtotal: selectedInvoice.total / 1.16,
+                taxRate: 0.16,
+                taxAmount: selectedInvoice.total - (selectedInvoice.total / 1.16),
+                total: selectedInvoice.total,
+                orderId: selectedInvoice.orderId,
+              }}
+              showActions={true}
+              onDownloadPDF={undefined}
+            />
           </div>
         )}
       </ModalShell>
@@ -1831,7 +2128,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
 // Main Admin Component with Auth
 export default function Admin() {
-  const { isAuthenticated, login, logout, isLoading, isLoggingOut } = useAuthProvider();
+  const authState = useAuthProvider();
+  const { isAuthenticated, login, logout, isLoading, isLoggingOut, authReady } = authState;
   const [showDashboard, setShowDashboard] = useState(false);
 
   useEffect(() => {
@@ -1845,13 +2143,12 @@ export default function Admin() {
     return undefined;
   }, [isAuthenticated]);
 
-  // Redirect if already authenticated
-  if (isAuthenticated && !showDashboard) {
+  if (!authReady || (isAuthenticated && !showDashboard)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 size={32} className="text-primary animate-spin" />
-          <p className="text-muted-foreground text-sm">Cargando dashboard...</p>
+          <p className="text-muted-foreground text-sm">{authReady ? "Cargando dashboard..." : "Verificando sesión..."}</p>
         </div>
       </div>
     );
@@ -1859,14 +2156,14 @@ export default function Admin() {
 
   if (!isAuthenticated) {
     return (
-      <AuthContext.Provider value={{ isAuthenticated, login, logout, isLoading, isLoggingOut }}>
+      <AuthContext.Provider value={authState}>
         <LoginPage onLoginSuccess={() => setShowDashboard(true)} />
       </AuthContext.Provider>
     );
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, isLoading, isLoggingOut }}>
+    <AuthContext.Provider value={authState}>
       <div className={`
         transition-all duration-500
         ${showDashboard ? 'opacity-100' : 'opacity-0'}
