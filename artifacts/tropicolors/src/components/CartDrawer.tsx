@@ -1,9 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { z } from "zod";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { X, ShoppingBag, Plus, Minus, Trash2, Loader2, ArrowRight } from "lucide-react";
+import {
+  X,
+  ShoppingBag,
+  Plus,
+  Minus,
+  Trash2,
+  Loader2,
+  ArrowRight,
+  Package2,
+  Truck,
+  ShieldCheck,
+  UserRound,
+  Mail,
+  Phone,
+  MapPinHouse,
+  MapPinned,
+  Building2,
+  Landmark,
+} from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
@@ -121,29 +136,153 @@ const fakeCheckout = () => {
   });
 };
 
-const checkoutSchema = z.object({
-  customerName: z.string().min(2, "Nombre es requerido"),
-  customerEmail: z.string().email("Correo electronico invalido"),
-  customerPhone: z.string().min(10, "Telefono es requerido"),
-  shippingAddress: z.string().min(5, "Direccion es requerida"),
-  shippingPostalCode: z.string().regex(/^\d{5}$/, "El codigo postal debe tener 5 digitos"),
-  shippingNeighborhood: z.string().min(2, "Colonia es requerida"),
-  shippingMunicipality: z.string().min(2, "Municipio es requerido"),
-  shippingState: z.string().min(2, "Estado es requerido"),
-});
+type CheckoutFormData = {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  shippingPostalCode: string;
+  shippingNeighborhood: string;
+  shippingMunicipality: string;
+  shippingState: string;
+};
 
-type CheckoutFormData = z.infer<typeof checkoutSchema>;
+type CheckoutFieldName = keyof CheckoutFormData;
+type CheckoutFormErrors = Partial<Record<CheckoutFieldName, string>>;
+type CheckoutValidationContext = {
+  hasPostalCodeData: boolean;
+  modeManual: boolean;
+};
+
+const initialCheckoutValues: CheckoutFormData = {
+  customerName: "",
+  customerEmail: "",
+  customerPhone: "",
+  shippingAddress: "",
+  shippingPostalCode: "",
+  shippingNeighborhood: "",
+  shippingMunicipality: "",
+  shippingState: "",
+};
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateCheckoutField(
+  field: CheckoutFieldName,
+  values: CheckoutFormData,
+  context: CheckoutValidationContext,
+): string | null {
+  switch (field) {
+    case "customerName":
+      if (!values.customerName.trim()) return "Ingresa tu nombre.";
+      if (values.customerName.trim().length < 3) return "El nombre debe tener al menos 3 caracteres.";
+      return null;
+    case "customerEmail":
+      if (!values.customerEmail.trim()) return "Ingresa tu correo electronico.";
+      if (!emailRegex.test(values.customerEmail.trim())) return "Ingresa un correo electronico valido.";
+      return null;
+    case "customerPhone":
+      if (!values.customerPhone.trim()) return "Ingresa tu telefono.";
+      if (!/^\d+$/.test(values.customerPhone)) return "El telefono solo debe contener numeros.";
+      if (values.customerPhone.length !== 10) return "El telefono debe tener exactamente 10 digitos.";
+      return null;
+    case "shippingAddress":
+      if (!values.shippingAddress.trim()) return "Ingresa tu direccion.";
+      if (values.shippingAddress.trim().length < 10) return "La direccion debe tener al menos 10 caracteres.";
+      return null;
+    case "shippingPostalCode":
+      if (!values.shippingPostalCode.trim()) return "Ingresa tu codigo postal.";
+      if (!/^\d+$/.test(values.shippingPostalCode)) return "El codigo postal solo debe contener numeros.";
+      if (values.shippingPostalCode.length !== 5) return "El codigo postal debe tener exactamente 5 digitos.";
+      return null;
+    case "shippingNeighborhood":
+      if (!context.hasPostalCodeData && !context.modeManual) return null;
+      if (!values.shippingNeighborhood.trim()) return context.modeManual ? "Ingresa la colonia." : "Selecciona una colonia.";
+      return null;
+    case "shippingMunicipality":
+      if (!context.hasPostalCodeData && !context.modeManual) return null;
+      if (!values.shippingMunicipality.trim()) {
+        return context.modeManual ? "Ingresa el municipio o alcaldia." : "No se pudo autocompletar el municipio.";
+      }
+      return null;
+    case "shippingState":
+      if (!context.hasPostalCodeData && !context.modeManual) return null;
+      if (!values.shippingState.trim()) return context.modeManual ? "Ingresa el estado." : "No se pudo autocompletar el estado.";
+      return null;
+  }
+}
+
+function validateCheckoutForm(
+  values: CheckoutFormData,
+  context: CheckoutValidationContext,
+): CheckoutFormErrors {
+  const nextErrors: CheckoutFormErrors = {};
+
+  (
+    [
+      "customerName",
+      "customerEmail",
+      "customerPhone",
+      "shippingAddress",
+      "shippingPostalCode",
+      "shippingNeighborhood",
+      "shippingMunicipality",
+      "shippingState",
+    ] as CheckoutFieldName[]
+  ).forEach((field) => {
+    const error = validateCheckoutField(field, values, context);
+    if (error) {
+      nextErrors[field] = error;
+    }
+  });
+
+  return nextErrors;
+}
+
+function FieldShell({
+  icon,
+  children,
+  hasError,
+  isValid,
+  disabled = false,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  hasError: boolean;
+  isValid: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className={`group flex items-center gap-3 rounded-2xl border bg-white/90 px-4 py-1 shadow-sm transition duration-200 ${
+        hasError
+          ? "border-red-500 ring-2 ring-red-100"
+          : isValid
+            ? "border-emerald-500 ring-2 ring-emerald-100"
+            : "border-slate-200 hover:border-sky-200 hover:shadow-md focus-within:border-sky-500 focus-within:ring-4 focus-within:ring-sky-100"
+      } ${disabled ? "bg-slate-100/90" : ""}`}
+    >
+      <div
+        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition ${
+          hasError
+            ? "bg-red-50 text-red-500"
+            : isValid
+              ? "bg-emerald-50 text-emerald-500"
+              : "bg-sky-50 text-sky-600 group-focus-within:bg-sky-100"
+        }`}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
 
 function CheckoutModal({
   open,
   items,
   cartTotal,
   isProcessing,
-  register,
-  handleSubmit,
-  watch,
-  setValue,
-  errors,
   onSubmit,
   onClose,
 }: {
@@ -151,29 +290,82 @@ function CheckoutModal({
   items: CartItem[];
   cartTotal: number;
   isProcessing: boolean;
-  register: ReturnType<typeof useForm<CheckoutFormData>>["register"];
-  handleSubmit: ReturnType<typeof useForm<CheckoutFormData>>["handleSubmit"];
-  watch: ReturnType<typeof useForm<CheckoutFormData>>["watch"];
-  setValue: ReturnType<typeof useForm<CheckoutFormData>>["setValue"];
-  errors: ReturnType<typeof useForm<CheckoutFormData>>["formState"]["errors"];
   onSubmit: (data: CheckoutFormData) => Promise<void>;
   onClose: () => void;
 }) {
-  const postalCode = watch("shippingPostalCode") || "";
-  const neighborhoodValue = watch("shippingNeighborhood") || "";
+  const [formValues, setFormValues] = useState<CheckoutFormData>(initialCheckoutValues);
+  const [errors, setErrors] = useState<CheckoutFormErrors>({});
+  const [touched, setTouched] = useState<Partial<Record<CheckoutFieldName, boolean>>>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [modeManual, setModeManual] = useState(false);
+  const [postalCodeWarning, setPostalCodeWarning] = useState<string | null>(null);
+  const [colonias, setColonias] = useState<Array<{ name: string; type: string | null }>>([]);
+
+  const postalCode = formValues.shippingPostalCode;
   const { data: postalCodeData, isLoading: isPostalCodeLoading, error: postalCodeError } =
     usePostalCodeLookup({ postalCode, enabled: open });
 
-  useEffect(() => {
-    const normalizedPostalCode = postalCode.replace(/\D/g, "").slice(0, 5);
+  const validationContext = useMemo<CheckoutValidationContext>(
+    () => ({
+      hasPostalCodeData: Boolean(postalCodeData && !postalCodeError && !modeManual),
+      modeManual,
+    }),
+    [modeManual, postalCodeData, postalCodeError],
+  );
 
-    if (normalizedPostalCode !== postalCode) {
-      setValue("shippingPostalCode", normalizedPostalCode, {
-        shouldDirty: true,
-        shouldValidate: false,
-      });
+  const nextFormErrors = useMemo(
+    () => validateCheckoutForm(formValues, validationContext),
+    [formValues, validationContext],
+  );
+  const hasBlockingErrors = Object.keys(nextFormErrors).length > 0;
+  const isPostalCodeReady = validationContext.hasPostalCodeData;
+  const shouldDisableLocationFields = (!isPostalCodeReady && !modeManual) || isPostalCodeLoading;
+
+  const updateFieldError = (field: CheckoutFieldName, values: CheckoutFormData) => {
+    const error = validateCheckoutField(field, values, validationContext);
+    setErrors((currentErrors) => {
+      if (!error && !currentErrors[field]) {
+        return currentErrors;
+      }
+
+      const nextErrors = { ...currentErrors };
+      if (error) {
+        nextErrors[field] = error;
+      } else {
+        delete nextErrors[field];
+      }
+      return nextErrors;
+    });
+  };
+
+  const applyValidationVisibility = (values: CheckoutFormData) => {
+    if (hasAttemptedSubmit) {
+      setErrors(validateCheckoutForm(values, validationContext));
+      return;
     }
-  }, [postalCode, setValue]);
+
+    const visibleErrors: CheckoutFormErrors = {};
+    (Object.keys(touched) as CheckoutFieldName[]).forEach((field) => {
+      if (!touched[field]) return;
+      const error = validateCheckoutField(field, values, validationContext);
+      if (error) {
+        visibleErrors[field] = error;
+      }
+    });
+    setErrors(visibleErrors);
+  };
+
+  useEffect(() => {
+    if (!open) {
+      setFormValues(initialCheckoutValues);
+      setErrors({});
+      setTouched({});
+      setHasAttemptedSubmit(false);
+      setModeManual(false);
+      setPostalCodeWarning(null);
+      setColonias([]);
+    }
+  }, [open]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -187,38 +379,148 @@ function CheckoutModal({
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!postalCodeData) {
+    setFormValues((currentValues) => {
+      let nextValues = currentValues;
+
+      if (!postalCode.trim()) {
+        setModeManual(false);
+        setPostalCodeWarning(null);
+        setColonias([]);
+        nextValues = {
+          ...currentValues,
+          shippingNeighborhood: "",
+          shippingMunicipality: "",
+          shippingState: "",
+        };
+      } else if (postalCode.length !== 5) {
+        setModeManual(false);
+        setPostalCodeWarning(null);
+        setColonias([]);
+        nextValues = {
+          ...currentValues,
+          shippingNeighborhood: "",
+          shippingMunicipality: "",
+          shippingState: "",
+        };
+      } else if (postalCodeError && !postalCodeData) {
+        const notFound = postalCodeError === "No se encontro informacion para ese codigo postal.";
+        setModeManual(notFound);
+        setPostalCodeWarning(
+          notFound ? "Codigo postal no encontrado. Ingresa los datos manualmente." : null,
+        );
+        setColonias([]);
+        nextValues = notFound
+          ? currentValues
+          : {
+              ...currentValues,
+              shippingNeighborhood: "",
+              shippingMunicipality: "",
+              shippingState: "",
+            };
+      } else if (!postalCodeData) {
+        setModeManual(false);
+        setPostalCodeWarning(null);
+        setColonias([]);
+        nextValues = {
+          ...currentValues,
+          shippingNeighborhood: "",
+          shippingMunicipality: "",
+          shippingState: "",
+        };
+      } else {
+        setModeManual(false);
+        setPostalCodeWarning(null);
+        setColonias(postalCodeData.neighborhoods);
+        const neighborhoodExists = postalCodeData.neighborhoods.some(
+          (neighborhood) => neighborhood.name === currentValues.shippingNeighborhood,
+        );
+
+        nextValues = {
+          ...currentValues,
+          shippingState: postalCodeData.state,
+          shippingMunicipality: postalCodeData.municipality,
+          shippingNeighborhood:
+            postalCodeData.neighborhoods.length === 1
+              ? postalCodeData.neighborhoods[0]?.name || ""
+              : neighborhoodExists
+                ? currentValues.shippingNeighborhood
+                : "",
+        };
+      }
+
+      const valuesDidChange =
+        nextValues.shippingNeighborhood !== currentValues.shippingNeighborhood ||
+        nextValues.shippingMunicipality !== currentValues.shippingMunicipality ||
+        nextValues.shippingState !== currentValues.shippingState;
+
+      if (valuesDidChange) {
+        applyValidationVisibility(nextValues);
+        return nextValues;
+      }
+
+      return currentValues;
+    });
+  }, [postalCode, postalCodeData, postalCodeError]);
+
+  const handleFieldChange = (field: CheckoutFieldName, value: string) => {
+    let nextValue = value;
+    if (field === "customerPhone") {
+      nextValue = value.replace(/\D/g, "").slice(0, 10);
+    }
+    if (field === "shippingPostalCode") {
+      nextValue = value.replace(/\D/g, "").slice(0, 5);
+    }
+
+    const nextValues = {
+      ...formValues,
+      [field]: nextValue,
+    };
+    setFormValues(nextValues);
+
+    if (field === "shippingPostalCode" && nextValue.length < 5) {
+      nextValues.shippingNeighborhood = "";
+      nextValues.shippingMunicipality = "";
+      nextValues.shippingState = "";
+      setModeManual(false);
+      setPostalCodeWarning(null);
+      setColonias([]);
+      setFormValues({ ...nextValues });
+    }
+
+    if (touched[field] || hasAttemptedSubmit) {
+      updateFieldError(field, nextValues);
+      if (field === "shippingPostalCode" || field === "shippingNeighborhood") {
+        applyValidationVisibility(nextValues);
+      }
+    }
+  };
+
+  const handleFieldBlur = (field: CheckoutFieldName) => {
+    setTouched((currentTouched) => ({
+      ...currentTouched,
+      [field]: true,
+    }));
+    updateFieldError(field, formValues);
+  };
+
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setHasAttemptedSubmit(true);
+
+    const validationErrors = validateCheckoutForm(formValues, validationContext);
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0 || isProcessing || isPostalCodeLoading) {
       return;
     }
 
-    setValue("shippingState", postalCodeData.state, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("shippingMunicipality", postalCodeData.municipality, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
+    await onSubmit(formValues);
+  };
 
-    if (postalCodeData.neighborhoods.length === 1) {
-      setValue("shippingNeighborhood", postalCodeData.neighborhoods[0]?.name || "", {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-      return;
-    }
-
-    const neighborhoodExists = postalCodeData.neighborhoods.some(
-      (neighborhood) => neighborhood.name === neighborhoodValue,
-    );
-
-    if (!neighborhoodExists) {
-      setValue("shippingNeighborhood", "", {
-        shouldDirty: true,
-        shouldValidate: false,
-      });
-    }
-  }, [neighborhoodValue, postalCodeData, setValue]);
+  const isFieldValid = (field: CheckoutFieldName) => Boolean(touched[field] && !errors[field] && formValues[field].trim());
+  const showNeighborhoodSelect = !modeManual && colonias.length > 1;
+  const neighborhoodLockedByLookup = !modeManual && colonias.length === 1;
+  const brandLogoSrc = `${import.meta.env.BASE_URL}logo-tropicolors.png`;
 
   return (
     <AnimatePresence>
@@ -242,30 +544,76 @@ function CheckoutModal({
               className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)]"
             >
               <div className="grid max-h-[88vh] grid-cols-1 overflow-hidden lg:grid-cols-[1.02fr_1.18fr]">
-                <div className="overflow-y-auto bg-slate-950 px-6 py-6 text-white sm:px-8">
-                  <div className="mb-6 flex items-start justify-between gap-4">
+                <div className="relative overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-6 py-6 text-white sm:px-8">
+                  <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                    <div className="absolute -right-16 top-16 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
+                    <div className="absolute -left-10 bottom-20 h-48 w-48 rounded-full bg-sky-500/10 blur-3xl" />
+                    <img
+                      src={brandLogoSrc}
+                      alt=""
+                      className="absolute bottom-6 right-0 w-48 opacity-[0.06] saturate-0 brightness-200"
+                    />
+                  </div>
+
+                  <div className="relative mb-6 flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Checkout</p>
-                      <h3 className="mt-2 text-2xl font-semibold">Resumen del pedido</h3>
-                      <p className="mt-2 text-sm text-slate-300">Revisa tus productos antes de confirmar el envio.</p>
+                      <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0_10px_30px_rgba(34,211,238,0.22)]">
+                          <img src={brandLogoSrc} alt="Tropicolors" className="h-8 w-auto object-contain" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/80">Checkout</p>
+                          <h3 className="mt-1 text-xl font-semibold tracking-tight text-white">Tropicolors</h3>
+                        </div>
+                      </div>
+                      <div className="mt-5 flex max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+                        <Package2 className="h-5 w-5 text-cyan-300" />
+                        <div>
+                          <p className="text-sm font-semibold text-white">Resumen del pedido</p>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                            Revisa tus productos antes de confirmar el envio.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={onClose}
-                      className="rounded-full border border-white/15 p-2 text-slate-200 transition-colors hover:bg-white/10"
+                      className="rounded-full border border-white/15 bg-white/5 p-2 text-slate-200 backdrop-blur-sm transition-colors hover:bg-white/10"
                     >
                       <X className="h-5 w-5" />
                     </button>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="relative mb-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 backdrop-blur-sm">
+                    {[
+                      { label: "Carrito", icon: ShoppingBag, active: true },
+                      { label: "Envio", icon: Truck, active: true },
+                      { label: "Confirmacion", icon: ShieldCheck, active: false },
+                    ].map((step) => {
+                      const StepIcon = step.icon;
+                      return (
+                        <div
+                          key={step.label}
+                          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${
+                            step.active ? "bg-white/12 text-white" : "text-slate-400"
+                          }`}
+                        >
+                          <StepIcon className="h-4 w-4" />
+                          <span>{step.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="relative space-y-3">
                     {items.map((item) => (
                       <div
                         key={`${item.productId}-${item.size}`}
-                        className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4"
+                        className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/8 p-4 shadow-lg shadow-slate-950/10 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/20 hover:bg-white/10 hover:shadow-xl"
                       >
                         <div
-                          className="h-14 w-14 rounded-2xl shadow-inner"
+                          className="h-14 w-14 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_10px_30px_rgba(15,23,42,0.25)]"
                           style={{ backgroundColor: item.hexCode || "#003F91" }}
                         />
                         <div className="min-w-0 flex-1">
@@ -280,72 +628,125 @@ function CheckoutModal({
                     ))}
                   </div>
 
-                  <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div className="relative mt-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 shadow-lg shadow-slate-950/20 backdrop-blur-sm">
                     <div className="flex items-center justify-between text-sm text-slate-300">
                       <span>Productos</span>
                       <span>{items.reduce((sum, item) => sum + item.quantity, 0)}</span>
                     </div>
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
                       <span className="text-base font-medium text-white">Total</span>
-                      <span className="text-3xl font-semibold text-cyan-300">${cartTotal}</span>
+                      <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-200 bg-clip-text text-4xl font-black tracking-tight text-transparent">
+                        ${cartTotal}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_38%,#f8fafc_100%)] px-6 py-6 sm:px-8">
+                <div className="overflow-y-auto bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-6 py-6 sm:px-8">
                   <div className="mb-6">
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700/80">Envio</p>
-                    <h3 className="mt-2 text-2xl font-semibold text-slate-900">Datos de entrega</h3>
-                    <p className="mt-2 text-sm text-slate-500">Completa los datos para confirmar tu pedido.</p>
+                    <div className="inline-flex items-center gap-3 rounded-2xl border border-sky-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-200">
+                        <Truck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-700/80">Envio</p>
+                        <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Datos de entrega</h3>
+                      </div>
+                    </div>
+                    <p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-500">
+                      Completa los datos para confirmar tu pedido con una experiencia rapida y segura.
+                    </p>
                   </div>
 
-                  <form id="checkout-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <form id="checkout-form" onSubmit={handleFormSubmit} className="space-y-4" noValidate>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="sm:col-span-2">
-                        <input
-                          {...register("customerName")}
-                          placeholder="Nombre"
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                        />
-                        {errors.customerName && <p className="mt-1 text-xs text-red-500">{errors.customerName.message}</p>}
+                        <FieldShell
+                          icon={<UserRound className="h-4 w-4" />}
+                          hasError={Boolean(errors.customerName)}
+                          isValid={isFieldValid("customerName")}
+                        >
+                          <input
+                            value={formValues.customerName}
+                            onChange={(event) => handleFieldChange("customerName", event.target.value)}
+                            onBlur={() => handleFieldBlur("customerName")}
+                            placeholder="Nombre"
+                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                          />
+                        </FieldShell>
+                        {errors.customerName && <p className="mt-1 text-xs text-red-500">{errors.customerName}</p>}
                       </div>
 
                       <div>
-                        <input
-                          {...register("customerEmail")}
-                          type="email"
-                          placeholder="Email"
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                        />
-                        {errors.customerEmail && <p className="mt-1 text-xs text-red-500">{errors.customerEmail.message}</p>}
+                        <FieldShell
+                          icon={<Mail className="h-4 w-4" />}
+                          hasError={Boolean(errors.customerEmail)}
+                          isValid={isFieldValid("customerEmail")}
+                        >
+                          <input
+                            value={formValues.customerEmail}
+                            onChange={(event) => handleFieldChange("customerEmail", event.target.value)}
+                            onBlur={() => handleFieldBlur("customerEmail")}
+                            type="email"
+                            placeholder="Email"
+                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                          />
+                        </FieldShell>
+                        {errors.customerEmail && <p className="mt-1 text-xs text-red-500">{errors.customerEmail}</p>}
                       </div>
 
                       <div>
-                        <input
-                          {...register("customerPhone")}
-                          placeholder="Telefono"
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                        />
-                        {errors.customerPhone && <p className="mt-1 text-xs text-red-500">{errors.customerPhone.message}</p>}
+                        <FieldShell
+                          icon={<Phone className="h-4 w-4" />}
+                          hasError={Boolean(errors.customerPhone)}
+                          isValid={isFieldValid("customerPhone")}
+                        >
+                          <input
+                            value={formValues.customerPhone}
+                            onChange={(event) => handleFieldChange("customerPhone", event.target.value)}
+                            onBlur={() => handleFieldBlur("customerPhone")}
+                            placeholder="Telefono"
+                            inputMode="numeric"
+                            maxLength={10}
+                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                          />
+                        </FieldShell>
+                        {errors.customerPhone && <p className="mt-1 text-xs text-red-500">{errors.customerPhone}</p>}
                       </div>
 
                       <div className="sm:col-span-2">
-                        <input
-                          {...register("shippingAddress")}
-                          placeholder="Direccion"
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                        />
-                        {errors.shippingAddress && <p className="mt-1 text-xs text-red-500">{errors.shippingAddress.message}</p>}
+                        <FieldShell
+                          icon={<MapPinHouse className="h-4 w-4" />}
+                          hasError={Boolean(errors.shippingAddress)}
+                          isValid={isFieldValid("shippingAddress")}
+                        >
+                          <input
+                            value={formValues.shippingAddress}
+                            onChange={(event) => handleFieldChange("shippingAddress", event.target.value)}
+                            onBlur={() => handleFieldBlur("shippingAddress")}
+                            placeholder="Direccion"
+                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                          />
+                        </FieldShell>
+                        {errors.shippingAddress && <p className="mt-1 text-xs text-red-500">{errors.shippingAddress}</p>}
                       </div>
 
                       <div>
-                        <input
-                          {...register("shippingPostalCode")}
-                          placeholder="Codigo postal"
-                          inputMode="numeric"
-                          maxLength={5}
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                        />
+                        <FieldShell
+                          icon={<MapPinned className="h-4 w-4" />}
+                          hasError={Boolean(errors.shippingPostalCode)}
+                          isValid={isFieldValid("shippingPostalCode")}
+                        >
+                          <input
+                            value={formValues.shippingPostalCode}
+                            onChange={(event) => handleFieldChange("shippingPostalCode", event.target.value)}
+                            onBlur={() => handleFieldBlur("shippingPostalCode")}
+                            placeholder="Codigo postal"
+                            inputMode="numeric"
+                            maxLength={5}
+                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                          />
+                        </FieldShell>
                         {postalCode.length > 0 && postalCode.length < 5 && (
                           <p className="mt-1 text-xs text-amber-600">Ingresa los 5 digitos del codigo postal.</p>
                         )}
@@ -355,57 +756,107 @@ function CheckoutModal({
                             Consultando codigo postal...
                           </p>
                         )}
-                        {postalCodeError && <p className="mt-1 text-xs text-red-500">{postalCodeError}</p>}
-                        {errors.shippingPostalCode && <p className="mt-1 text-xs text-red-500">{errors.shippingPostalCode.message}</p>}
+                        {postalCodeWarning && (
+                          <p className="mt-1 text-xs text-amber-600">{postalCodeWarning}</p>
+                        )}
+                        {errors.shippingPostalCode && <p className="mt-1 text-xs text-red-500">{errors.shippingPostalCode}</p>}
                       </div>
 
                       <div>
-                        {postalCodeData && postalCodeData.neighborhoods.length > 1 ? (
-                          <select
-                            {...register("shippingNeighborhood")}
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                            defaultValue=""
+                        {showNeighborhoodSelect ? (
+                          <FieldShell
+                            icon={<Building2 className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingNeighborhood)}
+                            isValid={isFieldValid("shippingNeighborhood")}
+                            disabled={shouldDisableLocationFields}
                           >
-                            <option value="" disabled>
-                              Selecciona una colonia
-                            </option>
-                            {postalCodeData.neighborhoods.map((neighborhood) => (
-                              <option key={`${neighborhood.name}-${neighborhood.type || "na"}`} value={neighborhood.name}>
-                                {neighborhood.type ? `${neighborhood.name} (${neighborhood.type})` : neighborhood.name}
+                            <select
+                              value={formValues.shippingNeighborhood}
+                              onChange={(event) => handleFieldChange("shippingNeighborhood", event.target.value)}
+                              onBlur={() => handleFieldBlur("shippingNeighborhood")}
+                              disabled={shouldDisableLocationFields}
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none"
+                            >
+                              <option value="" disabled>
+                                Selecciona una colonia
                               </option>
-                            ))}
-                          </select>
+                              {colonias.map((neighborhood) => (
+                                <option key={`${neighborhood.name}-${neighborhood.type || "na"}`} value={neighborhood.name}>
+                                  {neighborhood.type ? `${neighborhood.name} (${neighborhood.type})` : neighborhood.name}
+                                </option>
+                              ))}
+                            </select>
+                          </FieldShell>
                         ) : (
-                          <input
-                            {...register("shippingNeighborhood")}
-                            placeholder="Colonia"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                          />
+                          <FieldShell
+                            icon={<Building2 className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingNeighborhood)}
+                            isValid={isFieldValid("shippingNeighborhood")}
+                            disabled={shouldDisableLocationFields || neighborhoodLockedByLookup}
+                          >
+                            <input
+                              value={formValues.shippingNeighborhood}
+                              onChange={(event) => handleFieldChange("shippingNeighborhood", event.target.value)}
+                              onBlur={() => handleFieldBlur("shippingNeighborhood")}
+                              placeholder="Colonia"
+                              disabled={shouldDisableLocationFields || neighborhoodLockedByLookup}
+                              readOnly={neighborhoodLockedByLookup}
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
                         )}
-                        {postalCodeData && postalCodeData.neighborhoods.length > 1 && (
+                        {showNeighborhoodSelect && (
                           <p className="mt-1 text-xs text-slate-500">Se encontraron varias colonias para este codigo postal.</p>
                         )}
-                        {errors.shippingNeighborhood && <p className="mt-1 text-xs text-red-500">{errors.shippingNeighborhood.message}</p>}
+                        {modeManual && <p className="mt-1 text-xs text-amber-600">Completa la colonia manualmente.</p>}
+                        {!postalCode && <p className="mt-1 text-xs text-slate-500">Ingresa un codigo postal para habilitar la colonia.</p>}
+                        {errors.shippingNeighborhood && <p className="mt-1 text-xs text-red-500">{errors.shippingNeighborhood}</p>}
                       </div>
 
                       <div>
-                        <input
-                          {...register("shippingMunicipality")}
-                          placeholder="Municipio"
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                        />
-                        {postalCodeData && <p className="mt-1 text-xs text-slate-500">Autocompletado por codigo postal. Puedes editarlo.</p>}
-                        {errors.shippingMunicipality && <p className="mt-1 text-xs text-red-500">{errors.shippingMunicipality.message}</p>}
+                        <FieldShell
+                          icon={<Landmark className="h-4 w-4" />}
+                          hasError={Boolean(errors.shippingMunicipality)}
+                          isValid={isFieldValid("shippingMunicipality")}
+                          disabled={!modeManual}
+                        >
+                          <input
+                            value={formValues.shippingMunicipality}
+                            onChange={(event) => handleFieldChange("shippingMunicipality", event.target.value)}
+                            onBlur={() => handleFieldBlur("shippingMunicipality")}
+                            placeholder="Municipio / Alcaldia"
+                            disabled={!modeManual}
+                            readOnly={!modeManual}
+                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                          />
+                        </FieldShell>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {modeManual ? "Ingresa el municipio o alcaldia manualmente." : "Autocompletado por codigo postal."}
+                        </p>
+                        {errors.shippingMunicipality && <p className="mt-1 text-xs text-red-500">{errors.shippingMunicipality}</p>}
                       </div>
 
                       <div>
-                        <input
-                          {...register("shippingState")}
-                          placeholder="Estado"
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                        />
-                        {postalCodeData && <p className="mt-1 text-xs text-slate-500">Autocompletado por codigo postal. Puedes editarlo.</p>}
-                        {errors.shippingState && <p className="mt-1 text-xs text-red-500">{errors.shippingState.message}</p>}
+                        <FieldShell
+                          icon={<Landmark className="h-4 w-4" />}
+                          hasError={Boolean(errors.shippingState)}
+                          isValid={isFieldValid("shippingState")}
+                          disabled={!modeManual}
+                        >
+                          <input
+                            value={formValues.shippingState}
+                            onChange={(event) => handleFieldChange("shippingState", event.target.value)}
+                            onBlur={() => handleFieldBlur("shippingState")}
+                            placeholder="Estado"
+                            disabled={!modeManual}
+                            readOnly={!modeManual}
+                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                          />
+                        </FieldShell>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {modeManual ? "Ingresa el estado manualmente." : "Autocompletado por codigo postal."}
+                        </p>
+                        {errors.shippingState && <p className="mt-1 text-xs text-red-500">{errors.shippingState}</p>}
                       </div>
                     </div>
 
@@ -419,8 +870,8 @@ function CheckoutModal({
                       </button>
                       <button
                         type="submit"
-                        disabled={isProcessing}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isProcessing || isPostalCodeLoading || hasBlockingErrors}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                       >
                         {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                         {isProcessing ? "Procesando..." : "Confirmar pedido"}
@@ -466,27 +917,6 @@ export function CartDrawer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isCartOpen, isCheckoutModalOpen, setIsCartOpen]);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<CheckoutFormData>({
-    resolver: zodResolver(checkoutSchema),
-    defaultValues: {
-      customerName: "",
-      customerEmail: "",
-      customerPhone: "",
-      shippingAddress: "",
-      shippingPostalCode: "",
-      shippingNeighborhood: "",
-      shippingMunicipality: "",
-      shippingState: "",
-    },
-  });
-
   const onSubmit = async (data: CheckoutFormData) => {
     if (items.length === 0) return;
 
@@ -502,7 +932,6 @@ export function CartDrawer() {
 
       console.log("Order ID:", response.orderId, data);
       clearCart();
-      reset();
       setIsCheckoutModalOpen(false);
       setIsCartOpen(false);
     } catch (error) {
@@ -643,11 +1072,6 @@ export function CartDrawer() {
             items={items}
             cartTotal={cartTotal}
             isProcessing={isProcessing}
-            register={register}
-            handleSubmit={handleSubmit}
-            watch={watch}
-            setValue={setValue}
-            errors={errors}
             onSubmit={onSubmit}
             onClose={() => setIsCheckoutModalOpen(false)}
           />
