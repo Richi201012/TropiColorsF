@@ -24,9 +24,13 @@ import {
   Receipt,
   UserPlus,
   Search,
-  BarChart3
+  BarChart3,
+  X,
+  MapPin,
+  ClipboardList
 } from "lucide-react";
 import { useLocation } from "wouter";
+import jsPDF from "jspdf";
 
 // Auth Context for session management
 interface AuthContextType {
@@ -587,6 +591,107 @@ function EmptyState({
 }
 
 type DashboardView = "resumen" | "pedidos" | "facturas" | "clientes" | "estadisticas";
+type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado";
+type ModalActivo = null | "detallePedido" | "crearFactura" | "verFactura" | "nuevoPedido" | "cliente";
+
+type OrderProduct = {
+  name: string;
+  quantity: number;
+  price: number;
+};
+
+type AdminOrder = {
+  id: string;
+  customer: string;
+  email: string;
+  address: string;
+  total: number;
+  status: OrderStatus;
+  items: OrderProduct[];
+};
+
+type AdminInvoice = {
+  id: string;
+  orderId: string;
+  customer: string;
+  total: number;
+  status: "pagada" | "pendiente";
+  items: OrderProduct[];
+  createdAt: string;
+};
+
+type AdminClient = {
+  id: string;
+  name: string;
+  email: string;
+  orders: number;
+};
+
+function statusLabel(status: OrderStatus) {
+  return {
+    pendiente: "Pendiente",
+    pagado: "Pagado",
+    enviado: "Enviado",
+    entregado: "Entregado",
+  }[status];
+}
+
+function orderStatusClasses(status: OrderStatus) {
+  return {
+    pendiente: "bg-amber-50 text-amber-700 border-amber-200",
+    pagado: "bg-sky-50 text-sky-700 border-sky-200",
+    enviado: "bg-blue-50 text-blue-700 border-blue-200",
+    entregado: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  }[status];
+}
+
+function invoiceStatusClasses(status: "pagada" | "pendiente") {
+  return status === "pagada"
+    ? "bg-emerald-50 text-emerald-700"
+    : "bg-amber-50 text-amber-700";
+}
+
+function ModalShell({
+  open,
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20 animate-fade-in-scale"
+        onClick={(event) => event.stopPropagation()}
+        onWheel={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
+          <div>
+            <h3 className="text-xl font-display font-bold text-slate-950">{title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 function DashboardSection({
   title,
@@ -613,12 +718,14 @@ function DashboardSection({
   );
 }
 
-function SummaryView({ onSelectView }: { onSelectView: (view: DashboardView) => void }) {
-  const recentOrders = [
-    { id: "ORD-8F4A91C2", customer: "María López", total: "$1,250", status: "Pagado" },
-    { id: "ORD-7A21D1B4", customer: "Carlos Ruiz", total: "$890", status: "Pendiente" },
-    { id: "ORD-4F2C98AB", customer: "Ana Torres", total: "$2,430", status: "Enviado" },
-  ];
+function SummaryView({
+  onSelectView,
+  orders,
+}: {
+  onSelectView: (view: DashboardView) => void;
+  orders: AdminOrder[];
+}) {
+  const recentOrders = orders.slice(0, 3);
 
   const shortcuts = [
     { label: "Estadísticas de ventas", description: "Ventas por día y rendimiento", icon: TrendingUp, view: "estadisticas" as DashboardView, color: "text-primary", bg: "bg-primary/10" },
@@ -686,10 +793,10 @@ function SummaryView({ onSelectView }: { onSelectView: (view: DashboardView) => 
                     <p className="text-sm font-semibold text-slate-950">{order.customer}</p>
                     <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">{order.id}</p>
                   </div>
-                  <span className="text-sm font-bold text-slate-950">{order.total}</span>
+                  <span className="text-sm font-bold text-slate-950">${order.total.toLocaleString("es-MX")}</span>
                 </div>
-                <span className="mt-3 inline-flex rounded-full bg-slate-950 px-2.5 py-1 text-[11px] font-semibold text-white">
-                  {order.status}
+                <span className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${orderStatusClasses(order.status)}`}>
+                  {statusLabel(order.status)}
                 </span>
               </div>
             ))}
@@ -700,21 +807,17 @@ function SummaryView({ onSelectView }: { onSelectView: (view: DashboardView) => 
   );
 }
 
-function OrdersView() {
-  const [statuses, setStatuses] = useState<Record<string, string>>({
-    "ORD-8F4A91C2": "Pagado",
-    "ORD-7A21D1B4": "Pendiente",
-    "ORD-4F2C98AB": "Enviado",
-    "ORD-93B1DD72": "Entregado",
-  });
-
-  const orders = [
-    { id: "ORD-8F4A91C2", customer: "María López", total: "$1,250" },
-    { id: "ORD-7A21D1B4", customer: "Carlos Ruiz", total: "$890" },
-    { id: "ORD-4F2C98AB", customer: "Ana Torres", total: "$2,430" },
-    { id: "ORD-93B1DD72", customer: "Sofía Jiménez", total: "$640" },
-  ];
-
+function OrdersView({
+  orders,
+  onViewDetail,
+  onStatusChange,
+  onCreateOrder,
+}: {
+  orders: AdminOrder[];
+  onViewDetail: (orderId: string) => void;
+  onStatusChange: (orderId: string, status: OrderStatus) => void;
+  onCreateOrder: () => void;
+}) {
   return (
     <DashboardSection
       title="Pedidos"
@@ -722,6 +825,7 @@ function OrdersView() {
       action={
         <button
           type="button"
+          onClick={onCreateOrder}
           className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
         >
           <Package size={16} />
@@ -741,19 +845,20 @@ function OrdersView() {
           <div key={order.id} className="grid grid-cols-[1.15fr_1.2fr_0.8fr_0.95fr_0.7fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20">
             <span className="font-semibold text-slate-950">{order.id}</span>
             <span className="text-slate-600">{order.customer}</span>
-            <span className="font-semibold text-slate-950">{order.total}</span>
+            <span className="font-semibold text-slate-950">${order.total.toLocaleString("es-MX")}</span>
             <select
-              value={statuses[order.id]}
-              onChange={(event) => setStatuses((current) => ({ ...current, [order.id]: event.target.value }))}
-              className="rounded-xl border border-border/60 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              value={order.status}
+              onChange={(event) => onStatusChange(order.id, event.target.value as OrderStatus)}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(order.status)}`}
             >
-              <option>Pendiente</option>
-              <option>Pagado</option>
-              <option>Enviado</option>
-              <option>Entregado</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="pagado">Pagado</option>
+              <option value="enviado">Enviado</option>
+              <option value="entregado">Entregado</option>
             </select>
             <button
               type="button"
+              onClick={() => onViewDetail(order.id)}
               className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
             >
               Ver detalle
@@ -765,13 +870,17 @@ function OrdersView() {
   );
 }
 
-function InvoicesView() {
-  const invoices = [
-    { id: "FAC-00124", customer: "María López", total: "$1,250", status: "Pagada" },
-    { id: "FAC-00125", customer: "Carlos Ruiz", total: "$890", status: "Pendiente" },
-    { id: "FAC-00126", customer: "Ana Torres", total: "$2,430", status: "Pagada" },
-  ];
-
+function InvoicesView({
+  invoices,
+  onCreateInvoice,
+  onPreviewInvoice,
+  onDownloadInvoice,
+}: {
+  invoices: AdminInvoice[];
+  onCreateInvoice: () => void;
+  onPreviewInvoice: (invoiceId: string) => void;
+  onDownloadInvoice: (invoiceId: string) => void;
+}) {
   return (
     <DashboardSection
       title="Facturas"
@@ -779,6 +888,7 @@ function InvoicesView() {
       action={
         <button
           type="button"
+          onClick={onCreateInvoice}
           className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
         >
           <Receipt size={16} />
@@ -794,16 +904,16 @@ function InvoicesView() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{invoice.id}</p>
                 <h3 className="mt-2 text-lg font-display font-bold text-slate-950">{invoice.customer}</h3>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoice.status === "Pagada" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                {invoice.status}
+              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusClasses(invoice.status)}`}>
+                {invoice.status === "pagada" ? "Pagada" : "Pendiente"}
               </span>
             </div>
-            <p className="mt-4 text-3xl font-display font-bold text-slate-950">{invoice.total}</p>
+            <p className="mt-4 text-3xl font-display font-bold text-slate-950">${invoice.total.toLocaleString("es-MX")}</p>
             <div className="mt-5 flex items-center justify-between">
-              <button type="button" className="text-sm font-semibold text-primary transition-colors hover:text-primary/80">
+              <button type="button" onClick={() => onPreviewInvoice(invoice.id)} className="text-sm font-semibold text-primary transition-colors hover:text-primary/80">
                 Ver factura
               </button>
-              <button type="button" className="rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5">
+              <button type="button" onClick={() => onDownloadInvoice(invoice.id)} className="rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5">
                 Descargar PDF
               </button>
             </div>
@@ -814,15 +924,14 @@ function InvoicesView() {
   );
 }
 
-function ClientsView() {
+function ClientsView({
+  clients,
+  onAddClient,
+}: {
+  clients: AdminClient[];
+  onAddClient: () => void;
+}) {
   const [search, setSearch] = useState("");
-  const clients = [
-    { id: "CL-001", name: "María López", email: "maria@cliente.com", orders: 12 },
-    { id: "CL-002", name: "Carlos Ruiz", email: "carlos@cliente.com", orders: 5 },
-    { id: "CL-003", name: "Ana Torres", email: "ana@cliente.com", orders: 8 },
-    { id: "CL-004", name: "Sofía Jiménez", email: "sofia@cliente.com", orders: 3 },
-  ];
-
   const filteredClients = clients.filter((client) =>
     `${client.name} ${client.email}`.toLowerCase().includes(search.toLowerCase()),
   );
@@ -834,6 +943,7 @@ function ClientsView() {
       action={
         <button
           type="button"
+          onClick={onAddClient}
           className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
         >
           <UserPlus size={16} />
@@ -871,7 +981,7 @@ function ClientsView() {
   );
 }
 
-function StatisticsView() {
+function StatisticsView({ orders }: { orders: AdminOrder[] }) {
   const salesByDay = [
     { day: "Lun", value: 35 },
     { day: "Mar", value: 52 },
@@ -883,10 +993,10 @@ function StatisticsView() {
   ];
 
   const orderStatus = [
-    { label: "Pendiente", value: 12, tone: "bg-amber-400" },
-    { label: "Pagado", value: 86, tone: "bg-sky-500" },
-    { label: "Enviado", value: 41, tone: "bg-emerald-500" },
-    { label: "Entregado", value: 17, tone: "bg-violet-500" },
+    { label: "Pendiente", value: orders.filter((order) => order.status === "pendiente").length, tone: "bg-amber-400" },
+    { label: "Pagado", value: orders.filter((order) => order.status === "pagado").length, tone: "bg-sky-500" },
+    { label: "Enviado", value: orders.filter((order) => order.status === "enviado").length, tone: "bg-emerald-500" },
+    { label: "Entregado", value: orders.filter((order) => order.status === "entregado").length, tone: "bg-violet-500" },
   ];
 
   const maxValue = Math.max(...salesByDay.map((entry) => entry.value));
@@ -953,18 +1063,112 @@ function StatisticsView() {
 // Dashboard Component
 function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [vistaActiva, setVistaActiva] = useState<DashboardView>("resumen");
+  const [modalActivo, setModalActivo] = useState<ModalActivo>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
   const [, setLocation] = useLocation();
+  const [pedidos, setPedidos] = useState<AdminOrder[]>([
+    {
+      id: "ORD-8F4A91C2",
+      customer: "María López",
+      email: "maria@cliente.com",
+      address: "Av. Reforma 120, Col. Juárez, Cuauhtémoc, CDMX",
+      total: 1250,
+      status: "pagado",
+      items: [
+        { name: "Colorante Azul 125g", quantity: 2, price: 320 },
+        { name: "Colorante Rojo 250g", quantity: 1, price: 610 },
+      ],
+    },
+    {
+      id: "ORD-7A21D1B4",
+      customer: "Carlos Ruiz",
+      email: "carlos@cliente.com",
+      address: "Calle Hidalgo 45, Centro, Guadalajara, Jalisco",
+      total: 890,
+      status: "pendiente",
+      items: [
+        { name: "Colorante Verde 125g", quantity: 1, price: 290 },
+        { name: "Colorante Amarillo 125g", quantity: 2, price: 300 },
+      ],
+    },
+    {
+      id: "ORD-4F2C98AB",
+      customer: "Ana Torres",
+      email: "ana@cliente.com",
+      address: "Blvd. Díaz Ordaz 580, Monterrey, Nuevo León",
+      total: 2430,
+      status: "enviado",
+      items: [
+        { name: "Colorante Industrial Negro 1kg", quantity: 1, price: 1430 },
+        { name: "Colorante Naranja 250g", quantity: 2, price: 500 },
+      ],
+    },
+    {
+      id: "ORD-93B1DD72",
+      customer: "Sofía Jiménez",
+      email: "sofia@cliente.com",
+      address: "Av. Las Torres 890, Puebla, Puebla",
+      total: 640,
+      status: "entregado",
+      items: [{ name: "Colorante Rosa 125g", quantity: 2, price: 320 }],
+    },
+  ]);
+  const [facturas, setFacturas] = useState<AdminInvoice[]>([
+    {
+      id: "FAC-00124",
+      orderId: "ORD-8F4A91C2",
+      customer: "María López",
+      total: 1250,
+      status: "pagada",
+      items: [
+        { name: "Colorante Azul 125g", quantity: 2, price: 320 },
+        { name: "Colorante Rojo 250g", quantity: 1, price: 610 },
+      ],
+      createdAt: "2026-03-23",
+    },
+    {
+      id: "FAC-00125",
+      orderId: "ORD-7A21D1B4",
+      customer: "Carlos Ruiz",
+      total: 890,
+      status: "pendiente",
+      items: [
+        { name: "Colorante Verde 125g", quantity: 1, price: 290 },
+        { name: "Colorante Amarillo 125g", quantity: 2, price: 300 },
+      ],
+      createdAt: "2026-03-23",
+    },
+  ]);
+  const [clientes, setClientes] = useState<AdminClient[]>([
+    { id: "CL-001", name: "María López", email: "maria@cliente.com", orders: 12 },
+    { id: "CL-002", name: "Carlos Ruiz", email: "carlos@cliente.com", orders: 5 },
+    { id: "CL-003", name: "Ana Torres", email: "ana@cliente.com", orders: 8 },
+    { id: "CL-004", name: "Sofía Jiménez", email: "sofia@cliente.com", orders: 3 },
+  ]);
+  const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState("");
+  const [newOrderForm, setNewOrderForm] = useState({
+    customer: "",
+    email: "",
+    address: "",
+    products: "",
+    total: "",
+  });
+  const [newClientForm, setNewClientForm] = useState({ name: "", email: "" });
 
-  // Mock stats - will be replaced with real data
   const stats = [
-    { icon: DollarSign, label: "Ingresos Totales", value: "$24,580", trend: { value: 12.5, isPositive: true }, color: "text-primary", bgColor: "bg-primary/10" },
-    { icon: ShoppingBag, label: "Pedidos Totales", value: "156", trend: { value: 8.2, isPositive: true }, color: "text-secondary", bgColor: "bg-secondary/10" },
-    { icon: Clock, label: "Pendientes", value: "12", trend: { value: 3.1, isPositive: false }, color: "text-amber-600", bgColor: "bg-amber-50" },
-    { icon: Users, label: "Clientes Nuevos", value: "28", trend: { value: 15.3, isPositive: true }, color: "text-purple-600", bgColor: "bg-purple-50" },
+    { icon: DollarSign, label: "Ingresos Totales", value: `$${pedidos.reduce((sum, order) => sum + order.total, 0).toLocaleString("es-MX")}`, trend: { value: 12.5, isPositive: true }, color: "text-primary", bgColor: "bg-primary/10" },
+    { icon: ShoppingBag, label: "Pedidos Totales", value: String(pedidos.length), trend: { value: 8.2, isPositive: true }, color: "text-secondary", bgColor: "bg-secondary/10" },
+    { icon: Clock, label: "Pendientes", value: String(pedidos.filter((order) => order.status === "pendiente").length), trend: { value: 3.1, isPositive: false }, color: "text-amber-600", bgColor: "bg-amber-50" },
+    { icon: Users, label: "Clientes Nuevos", value: String(clientes.length), trend: { value: 15.3, isPositive: true }, color: "text-purple-600", bgColor: "bg-purple-50" },
   ];
+
+  const selectedOrder = pedidos.find((order) => order.id === selectedOrderId) ?? null;
+  const selectedInvoice = facturas.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
+  const selectedInvoiceOrder = pedidos.find((order) => order.id === selectedInvoiceOrderId) ?? null;
 
   const handleViewChange = (view: DashboardView) => {
     setIsTransitioning(true);
@@ -972,6 +1176,102 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       setVistaActiva(view);
       setIsTransitioning(false);
     }, 150);
+  };
+
+  const openOrderDetail = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setModalActivo("detallePedido");
+  };
+
+  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+    setPedidos((current) => current.map((order) => (order.id === orderId ? { ...order, status } : order)));
+  };
+
+  const openCreateInvoiceModal = () => {
+    setSelectedInvoiceOrderId(pedidos[0]?.id ?? "");
+    setModalActivo("crearFactura");
+    setVistaActiva("facturas");
+  };
+
+  const generateInvoice = () => {
+    if (!selectedInvoiceOrder) return;
+
+    const nextInvoice: AdminInvoice = {
+      id: `FAC-${String(facturas.length + 124).padStart(5, "0")}`,
+      orderId: selectedInvoiceOrder.id,
+      customer: selectedInvoiceOrder.customer,
+      total: selectedInvoiceOrder.total,
+      status: "pendiente",
+      items: selectedInvoiceOrder.items,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+
+    setFacturas((current) => [nextInvoice, ...current]);
+    setSelectedInvoiceId(nextInvoice.id);
+    setModalActivo("verFactura");
+  };
+
+  const downloadInvoicePdf = (invoiceId: string) => {
+    const invoice = facturas.find((entry) => entry.id === invoiceId);
+    if (!invoice) return;
+
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Factura Tropicolors", 14, 18);
+    doc.setFontSize(11);
+    doc.text(`Folio: ${invoice.id}`, 14, 30);
+    doc.text(`Pedido: ${invoice.orderId}`, 14, 38);
+    doc.text(`Cliente: ${invoice.customer}`, 14, 46);
+    doc.text(`Fecha: ${invoice.createdAt}`, 14, 54);
+    let y = 70;
+    invoice.items.forEach((item, index) => {
+      doc.text(`${index + 1}. ${item.name} x${item.quantity} - $${item.price.toLocaleString("es-MX")}`, 14, y);
+      y += 8;
+    });
+    doc.setFontSize(13);
+    doc.text(`Total: $${invoice.total.toLocaleString("es-MX")}`, 14, y + 8);
+    doc.save(`${invoice.id}.pdf`);
+  };
+
+  const createOrderFromModal = () => {
+    if (!newOrderForm.customer.trim() || !newOrderForm.products.trim() || !newOrderForm.total.trim()) return;
+
+    const total = Number(newOrderForm.total);
+    if (Number.isNaN(total)) return;
+
+    const productNames = newOrderForm.products.split(",").map((item) => item.trim()).filter(Boolean);
+    const averagePrice = Math.round(total / Math.max(1, productNames.length));
+
+    const nextOrder: AdminOrder = {
+      id: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+      customer: newOrderForm.customer.trim(),
+      email: newOrderForm.email.trim() || "sin-correo@cliente.com",
+      address: newOrderForm.address.trim() || "Dirección pendiente de captura",
+      total,
+      status: "pendiente",
+      items: productNames.map((name) => ({ name, quantity: 1, price: averagePrice })),
+    };
+
+    setPedidos((current) => [nextOrder, ...current]);
+    setNewOrderForm({ customer: "", email: "", address: "", products: "", total: "" });
+    setVistaActiva("pedidos");
+    setModalActivo(null);
+  };
+
+  const createClientFromModal = () => {
+    if (!newClientForm.name.trim() || !newClientForm.email.trim()) return;
+
+    const nextClient: AdminClient = {
+      id: `CL-${String(clientes.length + 1).padStart(3, "0")}`,
+      name: newClientForm.name.trim(),
+      email: newClientForm.email.trim(),
+      orders: 0,
+    };
+
+    setClientes((current) => [nextClient, ...current]);
+    setNewClientForm({ name: "", email: "" });
+    setVistaActiva("clientes");
+    setModalActivo(null);
   };
 
   const handleLogout = async () => {
@@ -996,6 +1296,48 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
+
+    if (modalActivo) {
+      html.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${scrollY}px`;
+      body.style.left = "0";
+      body.style.right = "0";
+      body.style.width = "100%";
+    } else {
+      const lockedScrollY = body.style.top ? Math.abs(parseInt(body.style.top, 10)) : 0;
+      html.style.overflow = "";
+      body.style.overflow = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      if (lockedScrollY) {
+        window.scrollTo(0, lockedScrollY);
+      }
+    }
+
+    return () => {
+      const lockedScrollY = body.style.top ? Math.abs(parseInt(body.style.top, 10)) : 0;
+      html.style.overflow = "";
+      body.style.overflow = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      if (lockedScrollY) {
+        window.scrollTo(0, lockedScrollY);
+      }
+    };
+  }, [modalActivo]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
@@ -1106,11 +1448,39 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             transition-all duration-300
             ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}
           `}>
-            {vistaActiva === "resumen" && <SummaryView onSelectView={handleViewChange} />}
-            {vistaActiva === "pedidos" && <OrdersView />}
-            {vistaActiva === "facturas" && <InvoicesView />}
-            {vistaActiva === "clientes" && <ClientsView />}
-            {vistaActiva === "estadisticas" && <StatisticsView />}
+            {vistaActiva === "resumen" && <SummaryView onSelectView={handleViewChange} orders={pedidos} />}
+            {vistaActiva === "pedidos" && (
+              <OrdersView
+                orders={pedidos}
+                onViewDetail={openOrderDetail}
+                onStatusChange={updateOrderStatus}
+                onCreateOrder={() => {
+                  setVistaActiva("pedidos");
+                  setModalActivo("nuevoPedido");
+                }}
+              />
+            )}
+            {vistaActiva === "facturas" && (
+              <InvoicesView
+                invoices={facturas}
+                onCreateInvoice={openCreateInvoiceModal}
+                onPreviewInvoice={(invoiceId) => {
+                  setSelectedInvoiceId(invoiceId);
+                  setModalActivo("verFactura");
+                }}
+                onDownloadInvoice={downloadInvoicePdf}
+              />
+            )}
+            {vistaActiva === "clientes" && (
+              <ClientsView
+                clients={clientes}
+                onAddClient={() => {
+                  setVistaActiva("clientes");
+                  setModalActivo("cliente");
+                }}
+              />
+            )}
+            {vistaActiva === "estadisticas" && <StatisticsView orders={pedidos} />}
           </div>
         </div>
 
@@ -1124,7 +1494,23 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             <button
               key={i}
               type="button"
-              onClick={() => handleViewChange(action.view)}
+              onClick={() => {
+                if (action.view === "pedidos") {
+                  setVistaActiva("pedidos");
+                  setModalActivo("nuevoPedido");
+                  return;
+                }
+                if (action.view === "facturas") {
+                  openCreateInvoiceModal();
+                  return;
+                }
+                if (action.view === "clientes") {
+                  setVistaActiva("clientes");
+                  setModalActivo("cliente");
+                  return;
+                }
+                handleViewChange(action.view);
+              }}
               className={`
                 p-4 rounded-2xl bg-gradient-to-br ${action.color} 
                 text-white font-bold text-sm flex items-center justify-center gap-2
@@ -1140,6 +1526,305 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           ))}
         </div>
       </div>
+
+      <ModalShell
+        open={modalActivo === "detallePedido" && Boolean(selectedOrder)}
+        title="Detalle del pedido"
+        subtitle="Consulta la información completa y ajusta el estado si es necesario."
+        onClose={() => setModalActivo(null)}
+      >
+        {selectedOrder && (
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">ID del pedido</p>
+                <p className="mt-2 text-lg font-display font-bold text-slate-950">{selectedOrder.id}</p>
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Estado actual</p>
+                <span className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${orderStatusClasses(selectedOrder.status)}`}>
+                  {statusLabel(selectedOrder.status)}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2 text-slate-950">
+                  <User size={16} />
+                  <p className="font-semibold">{selectedOrder.customer}</p>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{selectedOrder.email}</p>
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2 text-slate-950">
+                  <MapPin size={16} />
+                  <p className="font-semibold">Dirección completa</p>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{selectedOrder.address}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-950">
+                <ClipboardList size={16} />
+                <p className="font-semibold">Productos</p>
+              </div>
+              <div className="mt-4 space-y-3">
+                {selectedOrder.items.map((item, index) => (
+                  <div key={`${item.name}-${index}`} className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/20 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">{item.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
+                    </div>
+                    <p className="text-sm font-bold text-slate-950">${item.price.toLocaleString("es-MX")}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 border-t border-border/50 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="text-3xl font-display font-bold text-slate-950">${selectedOrder.total.toLocaleString("es-MX")}</p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <select
+                  value={selectedOrder.status}
+                  onChange={(event) => updateOrderStatus(selectedOrder.id, event.target.value as OrderStatus)}
+                  className={`rounded-2xl border px-4 py-3 text-sm font-semibold outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(selectedOrder.status)}`}
+                >
+                  <option value="pendiente">Pendiente</option>
+                  <option value="pagado">Pagado</option>
+                  <option value="enviado">Enviado</option>
+                  <option value="entregado">Entregado</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setModalActivo(null)}
+                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Actualizar status
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </ModalShell>
+
+      <ModalShell
+        open={modalActivo === "crearFactura"}
+        title="Crear factura"
+        subtitle="Selecciona un pedido existente y genera una factura dentro del mismo panel."
+        onClose={() => setModalActivo(null)}
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Pedido</label>
+            <select
+              value={selectedInvoiceOrderId}
+              onChange={(event) => setSelectedInvoiceOrderId(event.target.value)}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+            >
+              {pedidos.map((order) => (
+                <option key={order.id} value={order.id}>
+                  {order.id} · {order.customer}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedInvoiceOrder && (
+            <div className="rounded-3xl border border-border/50 bg-muted/20 p-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cliente</p>
+                  <p className="mt-2 text-lg font-display font-bold text-slate-950">{selectedInvoiceOrder.customer}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Total</p>
+                  <p className="mt-2 text-lg font-display font-bold text-slate-950">${selectedInvoiceOrder.total.toLocaleString("es-MX")}</p>
+                </div>
+              </div>
+              <div className="mt-5 space-y-3">
+                {selectedInvoiceOrder.items.map((item, index) => (
+                  <div key={`${item.name}-${index}`} className="flex items-center justify-between rounded-2xl border border-border/40 bg-white px-4 py-3">
+                    <span className="text-sm font-semibold text-slate-900">{item.name}</span>
+                    <span className="text-sm text-slate-600">x{item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={generateInvoice}
+              className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:-translate-y-0.5 hover:shadow-xl"
+            >
+              Generar factura
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={modalActivo === "verFactura" && Boolean(selectedInvoice)}
+        title="Vista previa de factura"
+        subtitle="Revisa la factura generada y descarga el PDF cuando lo necesites."
+        onClose={() => setModalActivo(null)}
+      >
+        {selectedInvoice && (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-border/50 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 text-white">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Tropicolors</p>
+              <h3 className="mt-2 text-2xl font-display font-bold">{selectedInvoice.id}</h3>
+              <p className="mt-2 text-sm text-white/70">Cliente: {selectedInvoice.customer}</p>
+              <p className="mt-1 text-sm text-white/70">Pedido: {selectedInvoice.orderId}</p>
+              <p className="mt-1 text-sm text-white/70">Fecha: {selectedInvoice.createdAt}</p>
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+              <div className="space-y-3">
+                {selectedInvoice.items.map((item, index) => (
+                  <div key={`${item.name}-${index}`} className="flex items-center justify-between border-b border-border/40 pb-3 last:border-b-0 last:pb-0">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">{item.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
+                    </div>
+                    <p className="text-sm font-bold text-slate-950">${item.price.toLocaleString("es-MX")}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-muted/20 px-5 py-4">
+              <span className="text-sm font-semibold text-slate-700">Total</span>
+              <span className="text-2xl font-display font-bold text-slate-950">${selectedInvoice.total.toLocaleString("es-MX")}</span>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModalActivo(null)}
+                className="rounded-2xl border border-border/60 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-muted/30"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadInvoicePdf(selectedInvoice.id)}
+                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Descargar PDF
+              </button>
+            </div>
+          </div>
+        )}
+      </ModalShell>
+
+      <ModalShell
+        open={modalActivo === "nuevoPedido"}
+        title="Nuevo pedido"
+        subtitle="Crea un pedido rápido y agrégalo a la lista de pedidos del panel."
+        onClose={() => setModalActivo(null)}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Cliente</label>
+            <input
+              value={newOrderForm.customer}
+              onChange={(event) => setNewOrderForm((current) => ({ ...current, customer: event.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              placeholder="Nombre del cliente"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Correo</label>
+            <input
+              value={newOrderForm.email}
+              onChange={(event) => setNewOrderForm((current) => ({ ...current, email: event.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              placeholder="correo@cliente.com"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Dirección</label>
+            <input
+              value={newOrderForm.address}
+              onChange={(event) => setNewOrderForm((current) => ({ ...current, address: event.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              placeholder="Dirección completa"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Productos</label>
+            <textarea
+              value={newOrderForm.products}
+              onChange={(event) => setNewOrderForm((current) => ({ ...current, products: event.target.value }))}
+              className="min-h-[110px] w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              placeholder="Escribe los productos separados por coma"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Total</label>
+            <input
+              value={newOrderForm.total}
+              onChange={(event) => setNewOrderForm((current) => ({ ...current, total: event.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              placeholder="0"
+              inputMode="numeric"
+            />
+          </div>
+          <div className="flex items-end justify-end sm:col-span-1">
+            <button
+              type="button"
+              onClick={createOrderFromModal}
+              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:-translate-y-0.5 hover:shadow-xl sm:w-auto"
+            >
+              Guardar pedido
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={modalActivo === "cliente"}
+        title="Agregar cliente"
+        subtitle="Captura un nuevo cliente y agrégalo inmediatamente al panel."
+        onClose={() => setModalActivo(null)}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Nombre</label>
+            <input
+              value={newClientForm.name}
+              onChange={(event) => setNewClientForm((current) => ({ ...current, name: event.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              placeholder="Nombre completo"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Correo</label>
+            <input
+              value={newClientForm.email}
+              onChange={(event) => setNewClientForm((current) => ({ ...current, email: event.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              placeholder="correo@cliente.com"
+            />
+          </div>
+          <div className="sm:col-span-2 flex justify-end">
+            <button
+              type="button"
+              onClick={createClientFromModal}
+              className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition hover:-translate-y-0.5 hover:shadow-xl"
+            >
+              Guardar cliente
+            </button>
+          </div>
+        </div>
+      </ModalShell>
     </div>
   );
 }
