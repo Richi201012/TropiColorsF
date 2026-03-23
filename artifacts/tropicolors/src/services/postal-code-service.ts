@@ -74,7 +74,7 @@ function normalizePostalCodeDocument(postalCode: string, typedData: PostalCodeDo
 
   if (!state || !municipality || neighborhoods.length === 0) {
     throw new Error(
-      "El documento del codigo postal en Firebase no tiene el formato esperado.",
+      "El catalogo local del codigo postal no tiene el formato esperado.",
     );
   }
 
