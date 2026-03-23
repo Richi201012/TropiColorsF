@@ -125,12 +125,12 @@ export default function Home() {
         whileInView={{ opacity: 1 }}
         viewport={{ once: false, amount: 0.1 }}
         transition={{ duration: 0.4 }}
-        className="page-snap-section bg-gradient-to-b from-slate-50 to-white relative overflow-hidden"
+        className="page-snap-section relative overflow-hidden bg-gradient-to-b from-slate-50 to-white"
       >
         {/* Premium subtle background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-[#003F91]/5 to-transparent blur-3xl pointer-events-none" />
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-16 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
 
           {/* Heading */}
           <motion.div 
@@ -138,10 +138,10 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="text-center mb-12"
+            className="mx-auto mb-10 max-w-4xl border-b border-slate-200/80 pb-8 text-center sm:mb-12 sm:pb-10"
           >
            
-            <h2 className="text-4xl md:text-6xl font-black text-[#003F91] mb-4 tracking-tight">
+            <h2 className="px-2 text-4xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-6xl">
               Colorantes en <span 
                 className="relative"
                 style={{ 
@@ -152,7 +152,7 @@ export default function Home() {
                 }}
               >Polvo</span>
             </h2>
-            <p className="text-gray-400 text-sm max-w-xl mx-auto leading-relaxed flex flex-wrap justify-center gap-x-3 gap-y-1">
+            <p className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-x-4 gap-y-2 px-2 text-sm leading-relaxed text-gray-400 sm:mt-6">
               <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Precios + IVA 16%</span>
               <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Cajas completas</span>
               <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Envío por cuenta del cliente</span>
@@ -165,11 +165,11 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-            className="flex flex-col items-center gap-6 mb-12"
+            className="mb-14 flex flex-col items-center gap-8 px-2 py-2 sm:mb-16 sm:gap-10"
           >
 
             {/* Fila 1: Categorías de color - Premium Chips */}
-            <div className="flex flex-wrap justify-center gap-2.5">
+            <div className="flex w-full flex-wrap justify-center gap-3">
               {CATEGORY_ORDER.map((cat, index) => {
                 const isActive = activeCategory === cat;
                 const colors = CATEGORY_COLORS[cat];
@@ -183,7 +183,7 @@ export default function Home() {
                     transition={{ duration: 0.25, delay: index * 0.04, ease: "easeOut" }}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className="px-5 py-2.5 rounded-full text-xs font-semibold transition-all duration-300 whitespace-nowrap"
+                    className="whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300 sm:px-5 sm:py-2.5"
                     style={{
                       backgroundColor: isActive ? colors.bg : "rgba(243,244,246,0.8)",
                       color: isActive ? colors.text : "#6b7280",
@@ -198,7 +198,7 @@ export default function Home() {
             </div>
 
             {/* Separador */}
-            <div className="flex items-center gap-3 w-full max-w-xs">
+            <div className="flex w-full max-w-sm items-center gap-3">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
               <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest whitespace-nowrap">Concentración</span>
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
@@ -206,7 +206,7 @@ export default function Home() {
 
             {/* Fila 2: Concentraciones - Premium iOS Segmented Control */}
             <motion.div 
-              className="flex items-center bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1 gap-0.5"
+              className="flex items-center rounded-2xl bg-gray-100/80 p-1 backdrop-blur-sm"
               style={{
                 boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03)"
               }}
@@ -219,7 +219,7 @@ export default function Home() {
                   <motion.button
                     key={c}
                     onClick={() => setConcentration(c)}
-                    className="relative px-10 py-3 rounded-[14px] text-xs font-bold whitespace-nowrap overflow-hidden cursor-pointer"
+                    className="relative cursor-pointer overflow-hidden whitespace-nowrap rounded-[14px] px-8 py-3 text-xs font-bold sm:px-10"
                     whileHover={{ 
                       backgroundColor: isActive ? undefined : "rgba(0,0,0,0.03)"
                     }}
@@ -254,7 +254,7 @@ export default function Home() {
           {/* ── Product Grid ── */}
           <motion.div
             layout
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           >
             <AnimatePresence mode="wait">
               {filtered.map((product, idx) => (
