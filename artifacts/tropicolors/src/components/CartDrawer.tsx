@@ -11,6 +11,8 @@ import {
   Package2,
   Truck,
   ShieldCheck,
+  CreditCard,
+  Store,
   UserRound,
   Mail,
   Phone,
@@ -149,6 +151,16 @@ type CheckoutFormData = {
 
 type CheckoutFieldName = keyof CheckoutFormData;
 type CheckoutFormErrors = Partial<Record<CheckoutFieldName, string>>;
+type CheckoutStep = 1 | 2 | 3;
+type PaymentMethod = "card" | "oxxo" | "transfer";
+type CardFormData = {
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
+  cardholderName: string;
+};
+type CardFieldName = keyof CardFormData;
+type CardFormErrors = Partial<Record<CardFieldName, string>>;
 type CheckoutValidationContext = {
   hasPostalCodeData: boolean;
   modeManual: boolean;
@@ -163,6 +175,13 @@ const initialCheckoutValues: CheckoutFormData = {
   shippingNeighborhood: "",
   shippingMunicipality: "",
   shippingState: "",
+};
+
+const initialCardValues: CardFormData = {
+  cardNumber: "",
+  expiryDate: "",
+  cvv: "",
+  cardholderName: "",
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -278,21 +297,62 @@ function FieldShell({
   );
 }
 
+function validateCardField(field: CardFieldName, values: CardFormData): string | null {
+  switch (field) {
+    case "cardNumber":
+      if (!values.cardNumber.trim()) return "Ingresa el numero de tarjeta.";
+      if (values.cardNumber.replace(/\s/g, "").length < 16) return "Ingresa una tarjeta valida de 16 digitos.";
+      return null;
+    case "expiryDate":
+      if (!values.expiryDate.trim()) return "Ingresa la fecha MM/YY.";
+      if (!/^\d{2}\/\d{2}$/.test(values.expiryDate)) return "Usa el formato MM/YY.";
+      return null;
+    case "cvv":
+      if (!values.cvv.trim()) return "Ingresa el CVV.";
+      if (!/^\d{3,4}$/.test(values.cvv)) return "El CVV debe tener 3 o 4 digitos.";
+      return null;
+    case "cardholderName":
+      if (!values.cardholderName.trim()) return "Ingresa el nombre del titular.";
+      if (values.cardholderName.trim().length < 3) return "El nombre del titular debe tener al menos 3 caracteres.";
+      return null;
+  }
+}
+
+function validateCardForm(values: CardFormData): CardFormErrors {
+  const nextErrors: CardFormErrors = {};
+
+  (["cardNumber", "expiryDate", "cvv", "cardholderName"] as CardFieldName[]).forEach((field) => {
+    const error = validateCardField(field, values);
+    if (error) {
+      nextErrors[field] = error;
+    }
+  });
+
+  return nextErrors;
+}
+
 function CheckoutModal({
   open,
   items,
   cartTotal,
   isProcessing,
   onSubmit,
+  onFinalize,
   onClose,
 }: {
   open: boolean;
   items: CartItem[];
   cartTotal: number;
   isProcessing: boolean;
-  onSubmit: (data: CheckoutFormData) => Promise<void>;
+  onSubmit: (
+    data: CheckoutFormData,
+    paymentMethod: PaymentMethod,
+    cardData: CardFormData | null,
+  ) => Promise<{ success: boolean; orderId: string; sessionUrl: string }>;
+  onFinalize: () => void;
   onClose: () => void;
 }) {
+  const [step, setStep] = useState<CheckoutStep>(1);
   const [formValues, setFormValues] = useState<CheckoutFormData>(initialCheckoutValues);
   const [errors, setErrors] = useState<CheckoutFormErrors>({});
   const [touched, setTouched] = useState<Partial<Record<CheckoutFieldName, boolean>>>({});
@@ -300,6 +360,11 @@ function CheckoutModal({
   const [modeManual, setModeManual] = useState(false);
   const [postalCodeWarning, setPostalCodeWarning] = useState<string | null>(null);
   const [colonias, setColonias] = useState<Array<{ name: string; type: string | null }>>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("card");
+  const [cardValues, setCardValues] = useState<CardFormData>(initialCardValues);
+  const [cardErrors, setCardErrors] = useState<CardFormErrors>({});
+  const [cardTouched, setCardTouched] = useState<Partial<Record<CardFieldName, boolean>>>({});
+  const [paymentResult, setPaymentResult] = useState<{ orderId: string } | null>(null);
 
   const postalCode = formValues.shippingPostalCode;
   const { data: postalCodeData, isLoading: isPostalCodeLoading, error: postalCodeError } =
@@ -357,6 +422,7 @@ function CheckoutModal({
 
   useEffect(() => {
     if (!open) {
+      setStep(1);
       setFormValues(initialCheckoutValues);
       setErrors({});
       setTouched({});
@@ -364,6 +430,11 @@ function CheckoutModal({
       setModeManual(false);
       setPostalCodeWarning(null);
       setColonias([]);
+      setSelectedPaymentMethod("card");
+      setCardValues(initialCardValues);
+      setCardErrors({});
+      setCardTouched({});
+      setPaymentResult(null);
     }
   }, [open]);
 
@@ -514,13 +585,119 @@ function CheckoutModal({
       return;
     }
 
-    await onSubmit(formValues);
+    setStep(2);
   };
 
   const isFieldValid = (field: CheckoutFieldName) => Boolean(touched[field] && !errors[field] && formValues[field].trim());
   const showNeighborhoodSelect = !modeManual && colonias.length > 1;
   const neighborhoodLockedByLookup = !modeManual && colonias.length === 1;
   const brandLogoSrc = `${import.meta.env.BASE_URL}logo-tropicolors.png`;
+  const cardFormHasErrors = Object.keys(validateCardForm(cardValues)).length > 0;
+
+  const handleCardFieldChange = (field: CardFieldName, value: string) => {
+    let nextValue = value;
+
+    if (field === "cardNumber") {
+      const digits = value.replace(/\D/g, "").slice(0, 16);
+      nextValue = digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+    }
+    if (field === "expiryDate") {
+      const digits = value.replace(/\D/g, "").slice(0, 4);
+      nextValue = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+    }
+    if (field === "cvv") {
+      nextValue = value.replace(/\D/g, "").slice(0, 4);
+    }
+
+    const nextValues = {
+      ...cardValues,
+      [field]: nextValue,
+    };
+    setCardValues(nextValues);
+
+    if (cardTouched[field]) {
+      const error = validateCardField(field, nextValues);
+      setCardErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: error || "",
+      }));
+    }
+  };
+
+  const handleCardFieldBlur = (field: CardFieldName) => {
+    setCardTouched((currentTouched) => ({
+      ...currentTouched,
+      [field]: true,
+    }));
+
+    const error = validateCardField(field, cardValues);
+    setCardErrors((currentErrors) => {
+      const nextErrors = { ...currentErrors };
+      if (error) {
+        nextErrors[field] = error;
+      } else {
+        delete nextErrors[field];
+      }
+      return nextErrors;
+    });
+  };
+
+  const isCardFieldValid = (field: CardFieldName) =>
+    Boolean(cardTouched[field] && !cardErrors[field] && cardValues[field].trim());
+
+  const handlePaymentSubmit = async () => {
+    if (selectedPaymentMethod === "card") {
+      const validationErrors = validateCardForm(cardValues);
+      setCardErrors(validationErrors);
+      setCardTouched({
+        cardNumber: true,
+        expiryDate: true,
+        cvv: true,
+        cardholderName: true,
+      });
+
+      if (Object.keys(validationErrors).length > 0) {
+        return;
+      }
+    }
+
+    const response = await onSubmit(
+      formValues,
+      selectedPaymentMethod,
+      selectedPaymentMethod === "card" ? cardValues : null,
+    );
+
+    if (response.success) {
+      setPaymentResult({ orderId: response.orderId });
+      setStep(3);
+    }
+  };
+
+  const paymentOptions: Array<{
+    id: PaymentMethod;
+    title: string;
+    description: string;
+    icon: typeof CreditCard;
+  }> = [
+    {
+      id: "card",
+      title: "Tarjeta bancaria",
+      description: "Visa, Mastercard y debito",
+      icon: CreditCard,
+    },
+    {
+      id: "oxxo",
+      title: "Pago con OXXO",
+      description: "Referencia generada al confirmar",
+      icon: Store,
+    },
+    {
+      id: "transfer",
+      title: "Transferencia",
+      description: "SPEI o deposito bancario",
+      icon: Landmark,
+    },
+  ];
 
   return (
     <AnimatePresence>
@@ -541,10 +718,11 @@ function CheckoutModal({
               exit={{ opacity: 0, scale: 0.96, y: 18 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)]"
+              onWheel={(e) => e.stopPropagation()}
+              className="flex max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)]"
             >
-              <div className="grid max-h-[88vh] grid-cols-1 overflow-hidden lg:grid-cols-[1.02fr_1.18fr]">
-                <div className="relative overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-6 py-6 text-white sm:px-8">
+              <div className="grid min-h-0 w-full grid-cols-1 overflow-hidden lg:grid-cols-[1.02fr_1.18fr]">
+                <div className="relative min-h-0 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-6 py-6 text-white sm:px-8">
                   <div className="pointer-events-none absolute inset-0 overflow-hidden">
                     <div className="absolute -right-16 top-16 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
                     <div className="absolute -left-10 bottom-20 h-48 w-48 rounded-full bg-sky-500/10 blur-3xl" />
@@ -642,22 +820,41 @@ function CheckoutModal({
                   </div>
                 </div>
 
-                <div className="overflow-y-auto bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-6 py-6 sm:px-8">
+                <div className="min-h-0 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-6 py-6 sm:px-8">
                   <div className="mb-6">
                     <div className="inline-flex items-center gap-3 rounded-2xl border border-sky-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-200">
-                        <Truck className="h-5 w-5" />
+                        {step === 1 ? (
+                          <Truck className="h-5 w-5" />
+                        ) : step === 2 ? (
+                          <CreditCard className="h-5 w-5" />
+                        ) : (
+                          <ShieldCheck className="h-5 w-5" />
+                        )}
                       </div>
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-700/80">Envio</p>
-                        <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Datos de entrega</h3>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-700/80">
+                          {step === 1 ? "Envio" : step === 2 ? "Pago" : "Confirmacion"}
+                        </p>
+                        <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                          {step === 1
+                            ? "Datos de entrega"
+                            : step === 2
+                              ? "Metodo de pago"
+                              : "Pago realizado con exito"}
+                        </h3>
                       </div>
                     </div>
                     <p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-500">
-                      Completa los datos para confirmar tu pedido con una experiencia rapida y segura.
+                      {step === 1
+                        ? "Completa los datos para confirmar tu pedido con una experiencia rapida y segura."
+                        : step === 2
+                          ? "Selecciona como deseas pagar y revisa el total antes de finalizar."
+                          : "Tu pedido quedo registrado y el pago fue simulado correctamente."}
                     </p>
                   </div>
 
+                  {step === 1 ? (
                   <form id="checkout-form" onSubmit={handleFormSubmit} className="space-y-4" noValidate>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="sm:col-span-2">
@@ -878,6 +1075,190 @@ function CheckoutModal({
                       </button>
                     </div>
                   </form>
+                  ) : step === 2 ? (
+                    <div className="space-y-6">
+                      <div className="grid gap-3">
+                        {paymentOptions.map((option) => {
+                          const OptionIcon = option.icon;
+                          const isSelected = selectedPaymentMethod === option.id;
+
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => setSelectedPaymentMethod(option.id)}
+                              className={`flex items-center gap-4 rounded-3xl border p-4 text-left transition duration-200 ${
+                                isSelected
+                                  ? "border-sky-500 bg-sky-50 shadow-lg shadow-sky-100"
+                                  : "border-slate-200 bg-white/90 hover:border-sky-200 hover:shadow-md"
+                              }`}
+                            >
+                              <div
+                                className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                                  isSelected ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                <OptionIcon className="h-5 w-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-slate-900">{option.title}</p>
+                                <p className="mt-1 text-xs text-slate-500">{option.description}</p>
+                              </div>
+                              <div
+                                className={`h-4 w-4 rounded-full border-2 ${
+                                  isSelected ? "border-sky-500 bg-sky-500" : "border-slate-300"
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {selectedPaymentMethod === "card" ? (
+                        <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                          <div className="mb-4">
+                            <p className="text-sm font-semibold text-slate-900">Datos de la tarjeta</p>
+                            <p className="mt-1 text-xs text-slate-500">Vista simulada tipo Stripe. No se procesan pagos reales.</p>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <FieldShell
+                                icon={<CreditCard className="h-4 w-4" />}
+                                hasError={Boolean(cardErrors.cardNumber)}
+                                isValid={isCardFieldValid("cardNumber")}
+                              >
+                                <input
+                                  value={cardValues.cardNumber}
+                                  onChange={(event) => handleCardFieldChange("cardNumber", event.target.value)}
+                                  onBlur={() => handleCardFieldBlur("cardNumber")}
+                                  placeholder="Numero de tarjeta"
+                                  inputMode="numeric"
+                                  className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                />
+                              </FieldShell>
+                              {cardErrors.cardNumber && <p className="mt-1 text-xs text-red-500">{cardErrors.cardNumber}</p>}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <FieldShell
+                                  icon={<Package2 className="h-4 w-4" />}
+                                  hasError={Boolean(cardErrors.expiryDate)}
+                                  isValid={isCardFieldValid("expiryDate")}
+                                >
+                                  <input
+                                    value={cardValues.expiryDate}
+                                    onChange={(event) => handleCardFieldChange("expiryDate", event.target.value)}
+                                    onBlur={() => handleCardFieldBlur("expiryDate")}
+                                    placeholder="MM/YY"
+                                    inputMode="numeric"
+                                    className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                  />
+                                </FieldShell>
+                                {cardErrors.expiryDate && <p className="mt-1 text-xs text-red-500">{cardErrors.expiryDate}</p>}
+                              </div>
+
+                              <div>
+                                <FieldShell
+                                  icon={<ShieldCheck className="h-4 w-4" />}
+                                  hasError={Boolean(cardErrors.cvv)}
+                                  isValid={isCardFieldValid("cvv")}
+                                >
+                                  <input
+                                    value={cardValues.cvv}
+                                    onChange={(event) => handleCardFieldChange("cvv", event.target.value)}
+                                    onBlur={() => handleCardFieldBlur("cvv")}
+                                    placeholder="CVV"
+                                    inputMode="numeric"
+                                    className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                  />
+                                </FieldShell>
+                                {cardErrors.cvv && <p className="mt-1 text-xs text-red-500">{cardErrors.cvv}</p>}
+                              </div>
+                            </div>
+
+                            <div>
+                              <FieldShell
+                                icon={<UserRound className="h-4 w-4" />}
+                                hasError={Boolean(cardErrors.cardholderName)}
+                                isValid={isCardFieldValid("cardholderName")}
+                              >
+                                <input
+                                  value={cardValues.cardholderName}
+                                  onChange={(event) => handleCardFieldChange("cardholderName", event.target.value)}
+                                  onBlur={() => handleCardFieldBlur("cardholderName")}
+                                  placeholder="Nombre del titular"
+                                  className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                />
+                              </FieldShell>
+                              {cardErrors.cardholderName && <p className="mt-1 text-xs text-red-500">{cardErrors.cardholderName}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {selectedPaymentMethod === "oxxo" ? "Pago en OXXO" : "Transferencia bancaria"}
+                          </p>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                            {selectedPaymentMethod === "oxxo"
+                              ? "Generaremos una referencia simulada para pago en tienda al continuar."
+                              : "Te mostraremos una referencia simulada para transferencia al continuar."}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                        <div className="flex items-center justify-between text-sm text-slate-500">
+                          <span>Total a pagar</span>
+                          <span className="text-3xl font-black tracking-tight text-sky-700">${cartTotal}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setStep(1)}
+                          className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Regresar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePaymentSubmit}
+                          disabled={isProcessing || (selectedPaymentMethod === "card" && cardFormHasErrors && Object.keys(cardTouched).length > 0)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                        >
+                          {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                          {isProcessing ? "Procesando pago..." : "Pagar ahora"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-emerald-100 bg-white/80 p-8 text-center shadow-sm">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-lg shadow-emerald-100">
+                        <ShieldCheck className="h-10 w-10" />
+                      </div>
+                      <h4 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">Pago realizado con exito</h4>
+                      <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
+                        Tu compra fue simulada correctamente. Ya puedes cerrar este paso y volver al catalogo.
+                      </p>
+                      {paymentResult?.orderId ? (
+                        <p className="mt-4 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold tracking-[0.18em] text-slate-600">
+                          {paymentResult.orderId}
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={onFinalize}
+                        className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80"
+                      >
+                        Finalizar
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -917,32 +1298,42 @@ export function CartDrawer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isCartOpen, isCheckoutModalOpen, setIsCartOpen]);
 
-  const onSubmit = async (data: CheckoutFormData) => {
-    if (items.length === 0) return;
+  const onSubmit = async (
+    data: CheckoutFormData,
+    paymentMethod: PaymentMethod,
+    cardData: CardFormData | null,
+  ) => {
+    if (items.length === 0) {
+      throw new Error("No hay productos en el carrito.");
+    }
 
     setIsProcessing(true);
 
     try {
       const response = await fakeCheckout();
 
-      toast({
-        title: "Pedido realizado con exito",
-        description: "Tu pedido ha sido procesado correctamente.",
-      });
-
-      console.log("Order ID:", response.orderId, data);
-      clearCart();
-      setIsCheckoutModalOpen(false);
-      setIsCartOpen(false);
+      console.log("Order ID:", response.orderId, data, paymentMethod, cardData);
+      return response;
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo procesar el pedido. Intente nuevamente.",
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleFinalizeCheckout = () => {
+    clearCart();
+    setIsCheckoutModalOpen(false);
+    setIsCartOpen(false);
+    toast({
+      title: "Pedido realizado con exito",
+      description: "Tu pedido ha sido procesado correctamente.",
+    });
   };
 
   return (
@@ -1073,6 +1464,7 @@ export function CartDrawer() {
             cartTotal={cartTotal}
             isProcessing={isProcessing}
             onSubmit={onSubmit}
+            onFinalize={handleFinalizeCheckout}
             onClose={() => setIsCheckoutModalOpen(false)}
           />
         </>
