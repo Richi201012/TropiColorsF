@@ -24,6 +24,7 @@ import {
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
+import { createOrder } from "@/services/order-service";
 
 function VaciarCarritoModal({
   open,
@@ -125,18 +126,6 @@ function VaciarCarritoModalButton({
     </>
   );
 }
-
-const fakeCheckout = () => {
-  return new Promise<{ success: boolean; orderId: string; sessionUrl: string }>((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        orderId: `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        sessionUrl: "/?order_success=true&order=ORD-123456",
-      });
-    }, 1500);
-  });
-};
 
 type CheckoutFormData = {
   customerName: string;
@@ -1310,14 +1299,46 @@ export function CartDrawer() {
     setIsProcessing(true);
 
     try {
-      const response = await fakeCheckout();
+      const orderDocumentId = await createOrder({
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
+        shippingAddress: data.shippingAddress,
+        shippingPostalCode: data.shippingPostalCode,
+        shippingNeighborhood: data.shippingNeighborhood,
+        shippingMunicipality: data.shippingMunicipality,
+        shippingState: data.shippingState,
+        paymentMethod,
+        paymentStatus: "paid",
+        orderStatus: "pending",
+        total: cartTotal,
+        items: items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          size: item.size,
+          price: item.price,
+          quantity: item.quantity,
+          hexCode: item.hexCode,
+          imageUrl: item.imageUrl,
+        })),
+        paymentDetails:
+          paymentMethod === "card" && cardData
+            ? {
+                last4: cardData.cardNumber.replace(/\s/g, "").slice(-4),
+                cardholderName: cardData.cardholderName.trim(),
+              }
+            : null,
+      });
 
-      console.log("Order ID:", response.orderId, data, paymentMethod, cardData);
-      return response;
+      return {
+        success: true,
+        orderId: `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`,
+        sessionUrl: "",
+      };
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo procesar el pedido. Intente nuevamente.",
+        description: "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
         variant: "destructive",
       });
       throw error;
