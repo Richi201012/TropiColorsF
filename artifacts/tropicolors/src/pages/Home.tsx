@@ -298,17 +298,17 @@ export default function Home() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.1 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="page-snap-section bg-white overflow-hidden"
+        className="page-snap-section bg-white overflow-visible"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <span className="inline-block py-1.5 px-5 rounded-full bg-[#FF2E63]/10 text-[#FF2E63] text-[11px] font-extrabold uppercase tracking-widest mb-5 border border-[#FF2E63]/20">
               Próximamente
             </span>
-            <h2 className="text-4xl md:text-6xl font-black text-[#003F91] mb-5 tracking-tight">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-[#003F91] mb-4 tracking-tight leading-[1.15] px-2 pb-2">
               Colorante en{" "}
               <span
-                className="italic"
+                className="inline-block pr-[0.08em]"
                 style={{ background: "linear-gradient(135deg,#FF2E63,#C71585)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
               >
                 Gel
