@@ -15,8 +15,18 @@ type FirestoreOrder = {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  // Campos de dirección - aceptar ambos formatos
+  customerAddress?: string;     // Formato legacy
+  shippingAddress?: string;     // Formato nuevo desde CartDrawer
+  shippingPostalCode?: string;
+  shippingNeighborhood?: string;
+  shippingMunicipality?: string;
+  shippingState?: string;
   currency?: string;
   createdAt?: Timestamp | string;
+  paymentMethod?: string; // Nuevo campo para método de pago
+  metodoPago?: string;    // Alternativa para método de pago
+  status?: string;        // Estado del pedido
   items?: Array<{
     productName?: string;
     price?: number;
@@ -41,11 +51,14 @@ export type AdminOrder = {
   id: string;
   customer: string;
   email: string;
+  phone?: string;
   address: string;
   total: number;
   status: OrderStatus;
   items: OrderProduct[];
   createdAt: string;
+  paymentMethod?: string;  // Método de pago desde Firestore
+  metodoPago?: string;      // Alternativa
 };
 
 /**
@@ -99,15 +112,52 @@ export function useOrders() {
           // Transformar createdAt a string
           const createdAtString = formatearFecha(data.createdAt);
 
+          // Construir dirección completa desde campos de envío
+          const buildAddress = (): string => {
+            const parts: string[] = [];
+            
+            // Usar shippingAddress (prioridad) o customerAddress (fallback)
+            if (data.shippingAddress) {
+              parts.push(data.shippingAddress);
+            } else if (data.customerAddress) {
+              parts.push(data.customerAddress);
+            }
+            
+            // Agregar colonia si existe
+            if (data.shippingNeighborhood) {
+              parts.push(data.shippingNeighborhood);
+            }
+            
+            // Agregar municipio/ciudad si existe
+            if (data.shippingMunicipality) {
+              parts.push(data.shippingMunicipality);
+            }
+            
+            // Agregar estado si existe
+            if (data.shippingState) {
+              parts.push(data.shippingState);
+            }
+            
+            // Agregar código postal si existe
+            if (data.shippingPostalCode) {
+              parts.push(`C.P. ${data.shippingPostalCode}`);
+            }
+            
+            return parts.length > 0 ? parts.join(", ") : "Sin dirección";
+          };
+
           return {
             id: doc.id,
             customer: data.customerName || "Cliente sin nombre",
             email: data.customerEmail || "sin-email@ejemplo.com",
-            address: data.customerPhone || "Sin teléfono", // nota: podría ser diferente
+            phone: data.customerPhone || "",
+            address: buildAddress(),
             total: calculatedTotal,
-            status: "pendiente" as OrderStatus, // valor por defecto - ajustar según campo de status
+            status: mapOrderStatus(data.status),
             items: mappedItems,
             createdAt: createdAtString,
+            paymentMethod: data.paymentMethod || data.metodoPago || "efectivo",
+            metodoPago: data.metodoPago || data.paymentMethod || "efectivo",
           };
         });
 
@@ -131,7 +181,7 @@ export function useOrders() {
     };
   }, []);
 
-  return { orders, isLoading, error };
+  return { orders, setOrders, isLoading, error };
 }
 
 /**
@@ -147,6 +197,25 @@ function calcularTotal(items?: Array<{ price?: number; quantity?: number }>): nu
     const quantity = item.quantity || 1;
     return total + (price * quantity);
   }, 0);
+}
+
+/**
+ * Mapea el estado del pedido desde Firestore al tipo local
+ */
+function mapOrderStatus(status?: string): OrderStatus {
+  const statusMap: Record<string, OrderStatus> = {
+    "pagado": "pagado",
+    "paid": "pagado",
+    "enviado": "enviado",
+    "shipped": "enviado",
+    "entregado": "entregado",
+    "delivered": "entregado",
+    "pendiente": "pendiente",
+    "pending": "pendiente",
+    "cancelado": "pendiente",
+    "cancelled": "pendiente",
+  };
+  return statusMap[status?.toLowerCase() || ""] || "pendiente";
 }
 
 /**

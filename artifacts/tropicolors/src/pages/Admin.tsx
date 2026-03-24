@@ -45,7 +45,7 @@ import {
   updatePassword,
   updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, collection } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useOrders } from "@/hooks/useOrders";
 import { useClientesFromOrders, filtrarClientes } from "@/hooks/useClientesFromOrders";
@@ -720,7 +720,7 @@ type AdminOrder = {
 type AdminInvoice = {
   id: string;
   orderId: string;
-  customer: string;
+  customer: string | { name?: string; email?: string; phone?: string; address?: string };
   total: number;
   status: "pagada" | "pendiente";
   items: OrderProduct[];
@@ -983,7 +983,7 @@ function InvoicesView({
   onPreviewInvoice,
   onDownloadInvoice,
 }: {
-  invoices: AdminInvoice[];
+  invoices: InvoiceData[];
   onCreateInvoice: () => void;
   onPreviewInvoice: (invoiceId: string) => void;
   onDownloadInvoice: (invoiceId: string) => void;
@@ -1005,22 +1005,24 @@ function InvoicesView({
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {invoices.map((invoice) => (
-          <div key={invoice.id} className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+          <div key={invoice.invoiceNumber} className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{invoice.id}</p>
-                <h3 className="mt-2 text-lg font-display font-bold text-slate-950">{invoice.customer}</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{invoice.invoiceNumber}</p>
+                <h3 className="mt-2 text-lg font-display font-bold text-slate-950">
+                  {typeof invoice.customer === 'object' ? invoice.customer?.name : invoice.customer || 'Cliente sin nombre'}
+                </h3>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusClasses(invoice.status)}`}>
-                {invoice.status === "pagada" ? "Pagada" : "Pendiente"}
+              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusClasses(invoice.status === 'paid' ? 'pagada' : 'pendiente')}`}>
+                {invoice.status === 'paid' ? 'Pagada' : 'Pendiente'}
               </span>
             </div>
-            <p className="mt-4 text-3xl font-display font-bold text-slate-950">${invoice.total.toLocaleString("es-MX")}</p>
+            <p className="mt-4 text-3xl font-display font-bold text-slate-950">${Number(invoice.total || 0).toLocaleString("es-MX")}</p>
             <div className="mt-5 flex items-center justify-between">
-              <button type="button" onClick={() => onPreviewInvoice(invoice.id)} className="text-sm font-semibold text-primary transition-colors hover:text-primary/80">
+              <button type="button" onClick={() => onPreviewInvoice(invoice.invoiceNumber)} className="text-sm font-semibold text-primary transition-colors hover:text-primary/80">
                 Ver factura
               </button>
-              <button type="button" onClick={() => onDownloadInvoice(invoice.id)} className="rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5">
+              <button type="button" onClick={() => onDownloadInvoice(invoice.invoiceNumber)} className="rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5">
                 Descargar PDF
               </button>
             </div>
@@ -1369,11 +1371,11 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
   
   // Hook para obtener pedidos desde Firestore en tiempo real (colección: orders)
-  const { orders, isLoading: isLoadingOrders, error: errorOrders } = useOrders();
+  const { orders, setOrders, isLoading: isLoadingOrders, error: errorOrders } = useOrders();
   
   // Hook para obtener facturas generadas automáticamente desde pedidos
   const { facturas: facturasData, isLoading: loadingFacturas } = useFacturasFromOrders();
-  const [facturas, setFacturas] = useState<AdminInvoice[]>(facturasData);
+  const [facturas, setFacturas] = useState<InvoiceData[]>(facturasData);
 
   // Sincronizar cuando lleguen los datos del hook
   useEffect(() => {
@@ -1409,9 +1411,11 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [newOrderForm, setNewOrderForm] = useState({
     customer: "",
     email: "",
+    phone: "",
     address: "",
     products: "",
     total: "",
+    metodoPago: "efectivo", // Nuevo campo para método de pago
   });
   const [newClientForm, setNewClientForm] = useState({ name: "", email: "" });
 
@@ -1423,7 +1427,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   ];
 
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
-  const selectedInvoice = facturas.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
+  // Buscar la factura seleccionada usando invoiceNumber como id
+  const selectedInvoice = facturas.find((invoice) => invoice.invoiceNumber === selectedInvoiceId) ?? null;
   const selectedInvoiceOrder = orders.find((order) => order.id === selectedInvoiceOrderId) ?? null;
 
   const handleViewChange = (view: DashboardView) => {
@@ -1440,7 +1445,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    setPedidos((current) => current.map((order) => (order.id === orderId ? { ...order, status } : order)));
+    setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, status } : order)));
   };
 
   const openCreateInvoiceModal = () => {
@@ -1452,18 +1457,65 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const generateInvoice = () => {
     if (!selectedInvoiceOrder) return;
 
-    const nextInvoice: AdminInvoice = {
-      id: `FAC-${String(facturas.length + 124).padStart(5, "0")}`,
+    // Mapear correctamente los datos del pedido al formato InvoiceData
+    const customerData = typeof selectedInvoiceOrder.customer === 'object' 
+      ? selectedInvoiceOrder.customer 
+      : { name: selectedInvoiceOrder.customer, email: selectedInvoiceOrder.email, phone: selectedInvoiceOrder.phone, address: selectedInvoiceOrder.address };
+
+    const invoiceNumber = `FAC-${String(facturas.length + 124).padStart(5, "0")}`;
+    const orderTotal = Number(selectedInvoiceOrder.total) || 0;
+    
+    // Calcular subtotal e IVA
+    const subtotal = orderTotal / 1.16;
+    const taxAmount = orderTotal - subtotal;
+
+    // Mapear items con validación para evitar NaN
+    const mappedItems = selectedInvoiceOrder.items.map((item, index) => {
+      const unitPrice = Number(item.price) || 0;
+      const quantity = Number(item.quantity) || 1;
+      return {
+        id: `item-${index}`,
+        name: item.name || 'Producto sin nombre',
+        quantity: quantity,
+        unitPrice: unitPrice,
+        subtotal: unitPrice * quantity,
+      };
+    });
+
+    const nextInvoice: InvoiceData = {
+      invoiceNumber: invoiceNumber,
+      invoiceNumberFormatted: invoiceNumber,
+      issueDate: new Date().toISOString().slice(0, 10),
+      paymentMethod: 'transferencia',
+      status: 'pending',
+      company: {
+        name: empresa.nombre,
+        address: empresa.direccion,
+        phone: empresa.telefono,
+        email: empresa.email,
+        rfc: empresa.rfc,
+      },
+      customer: {
+        name: customerData.name || selectedInvoiceOrder.customer || 'Cliente sin nombre',
+        email: selectedInvoiceOrder.email || '',
+        phone: selectedInvoiceOrder.phone || '',
+        address: selectedInvoiceOrder.address || '',
+      },
+      items: mappedItems,
+      subtotal: subtotal,
+      taxRate: 0.16,
+      taxAmount: taxAmount,
+      total: orderTotal,
       orderId: selectedInvoiceOrder.id,
-      customer: selectedInvoiceOrder.customer,
-      total: selectedInvoiceOrder.total,
-      status: "pendiente",
-      items: selectedInvoiceOrder.items,
-      createdAt: new Date().toISOString().slice(0, 10),
     };
 
+    console.log('[generateInvoice] 📄 Generando factura para pedido:', selectedInvoiceOrder.id);
+    console.log('[generateInvoice] 👤 Cliente:', nextInvoice.customer);
+    console.log('[generateInvoice] 💰 Total:', nextInvoice.total);
+    console.log('[generateInvoice] 📦 Items:', nextInvoice.items);
+
     setFacturas((current) => [nextInvoice, ...current]);
-    setSelectedInvoiceId(nextInvoice.id);
+    setSelectedInvoiceId(nextInvoice.invoiceNumber);
     setModalActivo("verFactura");
   };
 
@@ -1480,23 +1532,20 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   };
 
   const downloadInvoicePdf = async (invoiceId: string) => {
-    const invoice = facturas.find((entry) => entry.id === invoiceId);
+    const invoice = facturas.find((entry) => entry.invoiceNumber === invoiceId);
     if (!invoice) return;
 
     // El PDF se genera capturando el DOM visible - no necesita datos aquí
     // Solo pasamos el nombre del archivo
     try {
-      await generateInvoicePDF({
-        invoiceNumber: invoice.id,
-        invoiceNumberFormatted: invoice.id,
-      });
+      await generateInvoicePDF(invoice);
     } catch (error) {
       console.error('Error al generar PDF:', error);
       alert('Error al generar el PDF. Intenta de nuevo.');
     }
   };
 
-  const createOrderFromModal = () => {
+  const createOrderFromModal = async () => {
     if (!newOrderForm.customer.trim() || !newOrderForm.products.trim() || !newOrderForm.total.trim()) return;
 
     const total = Number(newOrderForm.total);
@@ -1505,18 +1554,45 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     const productNames = newOrderForm.products.split(",").map((item) => item.trim()).filter(Boolean);
     const averagePrice = Math.round(total / Math.max(1, productNames.length));
 
-    const nextOrder: AdminOrder = {
-      id: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
-      customer: newOrderForm.customer.trim(),
-      email: newOrderForm.email.trim() || "sin-correo@cliente.com",
-      address: newOrderForm.address.trim() || "Dirección pendiente de captura",
-      total,
-      status: "pendiente",
-      items: productNames.map((name) => ({ name, quantity: 1, price: averagePrice })),
-    };
+    try {
+      // Guardar el pedido en Firestore con el método de pago
+      const orderData = {
+        customerName: newOrderForm.customer.trim(),
+        customerEmail: newOrderForm.email.trim() || "sin-correo@cliente.com",
+        customerPhone: newOrderForm.phone?.trim() || "",
+        customerAddress: newOrderForm.address.trim() || "Dirección pendiente de captura",
+        total,
+        status: "pendiente",
+        metodoPago: newOrderForm.metodoPago || "efectivo",
+        items: productNames.map((name) => ({ name, quantity: 1, price: averagePrice })),
+        createdAt: new Date(),
+      };
 
-    setPedidos((current) => [nextOrder, ...current]);
-    setNewOrderForm({ customer: "", email: "", address: "", products: "", total: "" });
+      await addDoc(collection(db, "orders"), orderData);
+      console.log("Pedido guardado en Firestore:", orderData);
+
+      // También actualizar el estado local
+      const nextOrder: AdminOrder = {
+        id: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+        customer: newOrderForm.customer.trim(),
+        email: newOrderForm.email.trim() || "sin-correo@cliente.com",
+        address: newOrderForm.address.trim() || "Dirección pendiente de captura",
+        total,
+        status: "pendiente",
+        items: productNames.map((name) => ({ name, quantity: 1, price: averagePrice })),
+        phone: newOrderForm.phone?.trim() || "",
+        paymentMethod: newOrderForm.metodoPago || "efectivo",
+        createdAt: new Date().toISOString(),
+      };
+
+      setOrders((current) => [nextOrder, ...current]);
+    } catch (error) {
+      console.error("Error al guardar el pedido:", error);
+      alert("Error al guardar el pedido. Intenta de nuevo.");
+      return;
+    }
+
+    setNewOrderForm({ customer: "", email: "", phone: "", address: "", products: "", total: "", metodoPago: "efectivo" });
     setVistaActiva("pedidos");
     setModalActivo(null);
   };
@@ -1947,33 +2023,29 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           <div className="max-h-[80vh] overflow-y-auto">
             <Invoice 
               data={{
-                invoiceNumber: selectedInvoice.id,
-                invoiceNumberFormatted: selectedInvoice.id,
-                issueDate: selectedInvoice.createdAt,
-                paymentMethod: 'transferencia',
-                status: selectedInvoice.status === 'pagada' ? 'paid' : 'pending',
-                company: {
-                  name: empresa.nombre,
-                  address: empresa.direccion,
-                  phone: empresa.telefono,
-                  email: empresa.email,
-                  rfc: empresa.rfc,
-                },
-                customer: {
-                  name: selectedInvoice.customer,
-                  email: '',
-                },
-                items: selectedInvoice.items.map((item, index) => ({
-                  id: `item-${index}`,
-                  name: item.name,
-                  quantity: item.quantity,
-                  unitPrice: item.price,
-                  subtotal: item.price * item.quantity,
-                })),
-                subtotal: selectedInvoice.total / 1.16,
-                taxRate: 0.16,
-                taxAmount: selectedInvoice.total - (selectedInvoice.total / 1.16),
-                total: selectedInvoice.total,
+                invoiceNumber: selectedInvoice.invoiceNumber,
+                invoiceNumberFormatted: selectedInvoice.invoiceNumberFormatted,
+                issueDate: selectedInvoice.issueDate,
+                paymentMethod: selectedInvoice.paymentMethod,
+                status: selectedInvoice.status,
+                company: selectedInvoice.company,
+                customer: selectedInvoice.customer,
+                // Mapear items con validación para evitar NaN
+                items: selectedInvoice.items.map((item, index) => {
+                  const unitPrice = Number(item.unitPrice) || 0;
+                  const quantity = Number(item.quantity) || 1;
+                  return {
+                    id: item.id || `item-${index}`,
+                    name: item.name || 'Producto sin nombre',
+                    quantity: quantity,
+                    unitPrice: unitPrice,
+                    subtotal: item.subtotal || (unitPrice * quantity),
+                  };
+                }),
+                subtotal: Number(selectedInvoice.subtotal) || 0,
+                taxRate: Number(selectedInvoice.taxRate) || 0,
+                taxAmount: Number(selectedInvoice.taxAmount) || 0,
+                total: Number(selectedInvoice.total) || 0,
                 orderId: selectedInvoice.orderId,
               }}
               showActions={true}
@@ -2035,6 +2107,20 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               placeholder="0"
               inputMode="numeric"
             />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">Método de Pago</label>
+            <select
+              value={newOrderForm.metodoPago}
+              onChange={(event) => setNewOrderForm((current) => ({ ...current, metodoPago: event.target.value }))}
+              className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+            >
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="mercadopago">MercadoPago</option>
+              <option value="oxxo">OXXO</option>
+            </select>
           </div>
           <div className="flex items-end justify-end sm:col-span-1">
             <button
