@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, View, Text, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer';
 import type { InvoiceData } from '../types/invoice';
 import { formatCurrency, formatDate, getPaymentMethodLabel } from '../types/invoice';
 
@@ -40,11 +40,15 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  headerLeftWithLogo: {
+    gap: 12,
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
+    borderRadius: 8,
     marginRight: 12,
   },
   companyName: {
@@ -274,15 +278,20 @@ const styles = StyleSheet.create({
 
 interface InvoicePDFDocumentProps {
   data: InvoiceData;
+  logoBase64?: string;
 }
 
-export const InvoicePDFDocument: React.FC<InvoicePDFDocumentProps> = ({ data }) => {
+export const InvoicePDFDocument: React.FC<InvoicePDFDocumentProps> = ({ data, logoBase64 }) => {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <View style={[styles.headerLeft, logoBase64 ? { gap: 12 } : {}]}>
+            {/* Logo */}
+            {logoBase64 && (
+              <Image src={logoBase64} style={styles.logo} />
+            )}
             <View>
               <Text style={styles.companyName}>Tropicolors</Text>
               <Text style={styles.companyInfo}>
