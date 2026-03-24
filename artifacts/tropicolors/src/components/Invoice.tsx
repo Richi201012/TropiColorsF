@@ -3,61 +3,65 @@ import {
   InvoiceProps,
   formatCurrency,
   formatDate,
-  getPaymentMethodLabel
+  getPaymentMethodLabel,
 } from '../types/invoice';
 import { useInvoicePDF } from '../hooks/useInvoicePDF';
 
 /**
- * Invoice - Componente de vista previa de factura
- * 
- * IMPORTANTE: Este componente NO tiene overflow propio.
- * El scroll debe controlarse desde el contenedor padre (modal).
- * Solo debe haber UNA barra de scroll en el modal.
+ * Invoice — Vista previa de factura
+ * Diseño alineado con la identidad de Tropicolors:
+ *   azul marino #1a237e · teal #00acc1 · naranja #f97316
+ *
+ * SIN overflow propio — el scroll lo maneja el modal padre.
  */
 export const Invoice: React.FC<InvoiceProps> = ({
   data,
   showActions = true,
-  isPreview = false
+  isPreview = false,
 }) => {
-  // Hook para descargar PDF
   const { downloadPDF, isGenerating } = useInvoicePDF();
 
-  // Handlers
-  const handlePrint = () => {
-    window.print();
+  const C = {
+    blue:      '#1a237e',
+    blueMid:   '#283593',
+    blueLight: '#3949ab',
+    teal:      '#00acc1',
+    orange:    '#f97316',
+    offWhite:  '#f0f4ff',
+    grayL:     '#e2e8f0',
+    grayD:     '#64748b',
+    ink:       '#1e293b',
   };
-
-  // ============================================
-  // Render - SIN overflow propio, fluye naturalmente
-  // ============================================
 
   return (
     <div className="invoice-wrapper w-full">
-      {/* Print Styles */}
+
+      {/* Print styles */}
       <style>{`
         @media print {
-          @page { size: A4; margin: 0; }
+          @page { size: A4; margin: 12mm; }
           body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .no-print { display: none !important; }
-          .invoice-print { margin: 0 !important; padding: 0 !important; box-shadow: none !important; max-width: 100% !important; }
+          .invoice-print { box-shadow: none !important; border-radius: 0 !important; }
         }
       `}</style>
 
-      {/* Botones de acción - Fuera del área de scroll si es posible */}
+      {/* Botones */}
       {showActions && !isPreview && (
-        <div className="no-print mb-4 flex justify-end gap-2 flex-shrink-0">
+        <div className="no-print mb-4 flex justify-end gap-2">
           <button
             onClick={() => downloadPDF(data)}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1a237e] text-white rounded-lg hover:bg-[#151b60] transition-colors shadow-md disabled:opacity-50"
+            style={{ backgroundColor: C.blue }}
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity shadow-md disabled:opacity-50 text-sm font-medium"
           >
             {isGenerating ? (
               <>
                 <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Generando...
+                Generando…
               </>
             ) : (
               <>
@@ -69,8 +73,8 @@ export const Invoice: React.FC<InvoiceProps> = ({
             )}
           </button>
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -80,171 +84,272 @@ export const Invoice: React.FC<InvoiceProps> = ({
         </div>
       )}
 
-      {/* Contenido de la factura - SIN overflow propio, fluye naturalmente */}
-      <div className="invoice-print bg-white rounded-lg shadow-lg overflow-hidden">
-        
-        {/* HEADER AZUL - De borde a borde */}
-        <div className="bg-[#1a237e] text-white">
-          {/* Fila 1: Logo+Empresa | Folio+Fecha */}
-          <div className="flex justify-between items-start p-6">
-            {/* Columna Izquierda */}
-            <div className="flex items-start gap-4">
-              <img src="/logo-tropicolors.png" alt="Tropicolors" className="w-14 h-14 object-contain rounded-lg bg-white/10 p-1 flex-shrink-0" />
+      {/* ── Factura ─────────────────────────────────────────────────── */}
+      <div className="invoice-print bg-white rounded-xl shadow-lg overflow-hidden">
+
+        {/* ── HEADER azul ──────────────────────────────────────────── */}
+        <div style={{ backgroundColor: C.blue }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '20px 28px 16px',
+          }}>
+            {/* Logo + empresa */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                backgroundColor: '#fff',
+                borderRadius: '10px',
+                width: '64px',
+                height: '64px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                overflow: 'hidden',
+              }}>
+                <img
+                  src="/logo-tropicolors.png"
+                  alt="Tropicolors"
+                  style={{ width: '56px', height: '56px', objectFit: 'contain' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white">Tropicolors</h1>
-                <div className="mt-2 space-y-0.5 text-white/80 text-sm">
-                  <p className="text-xs">{data.company.address}</p>
-                  <p className="text-xs">{data.company.phone}</p>
-                  <p className="text-xs">{data.company.email}</p>
-                  {data.company.rfc && <p className="text-xs">RFC: {data.company.rfc}</p>}
+                <p style={{ color: '#fff', fontSize: '20px', fontWeight: '700', marginBottom: '4px', letterSpacing: '0.4px' }}>
+                  Tropicolors
+                </p>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', lineHeight: '1.6' }}>
+                  <p>{data.company.address}</p>
+                  <p>{data.company.phone} &nbsp;·&nbsp; {data.company.email}</p>
+                  {data.company.rfc && <p>RFC: {data.company.rfc}</p>}
                 </div>
               </div>
             </div>
-            {/* Columna Derecha */}
-            <div className="text-right">
-              <h2 className="text-4xl font-bold tracking-wide text-white mb-2">FACTURA</h2>
-              <div className="text-2xl font-bold text-[#f97316] bg-white/10 px-4 py-2 rounded-lg inline-block">
-                {data.invoiceNumberFormatted || data.invoiceNumber}
+
+            {/* Folio + fecha */}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{
+                backgroundColor: 'rgba(255,255,255,0.18)',
+                borderRadius: '8px',
+                padding: '7px 14px',
+                display: 'inline-block',
+                border: '1px solid rgba(255,255,255,0.25)',
+                marginBottom: '7px',
+              }}>
+                <span style={{ color: C.orange, fontSize: '19px', fontWeight: '700', letterSpacing: '0.8px' }}>
+                  {data.invoiceNumberFormatted || data.invoiceNumber}
+                </span>
               </div>
-              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-white/20">
-                {formatDate(data.issueDate)}
+              <br />
+              <div style={{
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                borderRadius: '5px',
+                padding: '4px 10px',
+                display: 'inline-block',
+              }}>
+                <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}>
+                  {formatDate(data.issueDate)}
+                </span>
               </div>
             </div>
           </div>
-          {/* Línea divisoria */}
-          <div className="border-t border-white/20"></div>
-          {/* Fila 2: Método de Pago | Pedido */}
-          <div className="flex justify-start gap-12 px-6 py-4">
+
+          {/* Franja teal */}
+          <div style={{
+            backgroundColor: C.teal,
+            padding: '9px 28px',
+            display: 'flex',
+            gap: '36px',
+          }}>
             <div>
-              <p className="text-xs uppercase tracking-wider text-white/60 mb-1">Método de Pago</p>
-              <p className="font-medium text-white">{getPaymentMethodLabel(data.paymentMethod)}</p>
+              <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>
+                Método de Pago
+              </p>
+              <p style={{ color: '#fff', fontSize: '12px', fontWeight: '600' }}>
+                {getPaymentMethodLabel(data.paymentMethod)}
+              </p>
             </div>
             {data.dueDate && (
               <div>
-                <p className="text-xs uppercase tracking-wider text-white/60 mb-1">Vencimiento</p>
-                <p className="font-medium text-white">{formatDate(data.dueDate)}</p>
+                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>
+                  Vencimiento
+                </p>
+                <p style={{ color: '#fff', fontSize: '12px', fontWeight: '600' }}>{formatDate(data.dueDate)}</p>
               </div>
             )}
             {data.orderId && (
               <div>
-                <p className="text-xs uppercase tracking-wider text-white/60 mb-1">Pedido</p>
-                <p className="font-medium text-[#f97316]">#{data.orderId}</p>
+                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>
+                  Pedido
+                </p>
+                <p style={{ color: '#fff3cd', fontSize: '12px', fontWeight: '600' }}>#{data.orderId}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* SECCIÓN CLIENTE - Fondo blanco */}
-        <div className="p-6">
-          <div className="bg-white border border-slate-200 rounded-lg p-5">
-            <h3 className="text-base font-semibold text-[#1a237e] mb-4">Datos del Cliente</h3>
-            <div className="grid grid-cols-2 gap-4">
+        {/* ── CUERPO ───────────────────────────────────────────────── */}
+        <div style={{ padding: '20px 28px' }}>
+
+          {/* Cliente */}
+          <div style={{
+            backgroundColor: C.offWhite,
+            borderRadius: '7px',
+            borderLeft: `3px solid ${C.teal}`,
+            padding: '12px 14px',
+            marginBottom: '16px',
+          }}>
+            <p style={{ color: C.blue, fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>
+              Datos del Cliente
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
               <div>
-                <p className="text-xs uppercase tracking-wider text-[#64748b] mb-1">Nombre</p>
-                <p className="font-medium text-[#1e293b]">{data.customer.name}</p>
+                <p style={{ color: C.grayD, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Nombre</p>
+                <p style={{ color: C.ink, fontSize: '12px', fontWeight: '500' }}>{data.customer.name}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-[#64748b] mb-1">Email</p>
-                <p className="text-[#1e293b]">{data.customer.email}</p>
+                <p style={{ color: C.grayD, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Email</p>
+                <p style={{ color: C.ink, fontSize: '12px' }}>{data.customer.email}</p>
               </div>
               {data.customer.phone && (
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-[#64748b] mb-1">Teléfono</p>
-                  <p className="text-[#1e293b]">{data.customer.phone}</p>
+                  <p style={{ color: C.grayD, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Teléfono</p>
+                  <p style={{ color: C.ink, fontSize: '12px' }}>{data.customer.phone}</p>
                 </div>
               )}
               {data.customer.address && (
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-[#64748b] mb-1">Dirección</p>
-                  <p className="text-[#1e293b]">
+                  <p style={{ color: C.grayD, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Dirección</p>
+                  <p style={{ color: C.ink, fontSize: '12px' }}>
                     {data.customer.address}
-                    {(data.customer.city || data.customer.state) && (
-                      <span className="text-[#64748b]">
-                        {data.customer.city && `, ${data.customer.city}`}
-                        {data.customer.state && `, ${data.customer.state}`}
-                        {data.customer.postalCode && ` ${data.customer.postalCode}`}
-                      </span>
-                    )}
+                    {data.customer.city       ? `, ${data.customer.city}`           : ''}
+                    {data.customer.state      ? `, ${data.customer.state}`          : ''}
+                    {data.customer.postalCode ? ` C.P. ${data.customer.postalCode}` : ''}
                   </p>
                 </div>
               )}
               {data.customer.rfc && (
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-[#64748b] mb-1">RFC</p>
-                  <p className="text-[#1e293b] font-mono">{data.customer.rfc}</p>
+                  <p style={{ color: C.grayD, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>RFC</p>
+                  <p style={{ color: C.ink, fontSize: '12px', fontFamily: 'monospace' }}>{data.customer.rfc}</p>
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* TABLA PRODUCTOS */}
-        <div className="px-6 pb-6">
-          <div className="overflow-hidden rounded-lg border border-slate-200">
-            <div className="bg-[#1a237e] text-white grid grid-cols-12 gap-4 px-4 py-3 text-sm font-semibold">
-              <div className="col-span-5 text-left">Producto</div>
-              <div className="col-span-2 text-center">Cantidad</div>
-              <div className="col-span-2 text-right">Precio Unit.</div>
-              <div className="col-span-3 text-right">Importe</div>
+          {/* Tabla */}
+          <div style={{ borderRadius: '7px', overflow: 'hidden', border: `1px solid ${C.grayL}`, marginBottom: '16px' }}>
+            <div style={{
+              backgroundColor: C.blue,
+              display: 'grid',
+              gridTemplateColumns: '46% 14% 20% 20%',
+              padding: '8px 12px',
+            }}>
+              {[
+                { label: 'Producto',  align: 'left'   },
+                { label: 'Cant.',     align: 'center' },
+                { label: 'P. Unit.',  align: 'right'  },
+                { label: 'Importe',   align: 'right'  },
+              ].map(({ label, align }) => (
+                <p key={label} style={{ color: '#fff', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: align as any }}>
+                  {label}
+                </p>
+              ))}
             </div>
-            {data.items.map((item, index) => (
-              <div key={item.id} className={`grid grid-cols-12 gap-4 px-4 py-3 text-sm border-b border-slate-100 ${index % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
-                <div className="col-span-5">
-                  <p className="font-medium text-[#1e293b]">{item.name}</p>
-                  {item.description && <p className="text-xs text-[#64748b] mt-0.5">{item.description}</p>}
+            {data.items.map((item, i) => (
+              <div key={item.id} style={{
+                display: 'grid',
+                gridTemplateColumns: '46% 14% 20% 20%',
+                padding: '9px 12px',
+                borderBottom: i < data.items.length - 1 ? `1px solid ${C.grayL}` : 'none',
+                backgroundColor: i % 2 === 0 ? '#fff' : '#f8faff',
+                alignItems: 'center',
+              }}>
+                <div>
+                  <p style={{ color: C.ink, fontSize: '12px', fontWeight: '500' }}>{item.name}</p>
+                  {item.description && <p style={{ color: C.grayD, fontSize: '10px', marginTop: '2px' }}>{item.description}</p>}
                 </div>
-                <div className="col-span-2 text-center text-[#1e293b]">{item.quantity}</div>
-                <div className="col-span-2 text-right text-[#1e293b]">{formatCurrency(item.unitPrice)}</div>
-                <div className="col-span-3 text-right font-medium text-[#1e293b]">{formatCurrency(item.subtotal)}</div>
+                <p style={{ color: C.ink, fontSize: '12px', textAlign: 'center' }}>{item.quantity}</p>
+                <p style={{ color: C.ink, fontSize: '12px', textAlign: 'right' }}>{formatCurrency(item.unitPrice)}</p>
+                <p style={{ color: C.ink, fontSize: '12px', fontWeight: '500', textAlign: 'right' }}>{formatCurrency(item.subtotal)}</p>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* SECCIÓN TOTALES */}
-        <div className="px-6 pb-6">
-          <div className="flex justify-end">
-            <div className="w-72 bg-[#f8fafc] rounded-lg border border-slate-200 p-4">
-              <div className="flex justify-between text-[#64748b] mb-2">
-                <span>Subtotal</span>
-                <span className="font-medium">{formatCurrency(data.subtotal)}</span>
+          {/* Totales */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+            <div style={{
+              width: '210px',
+              backgroundColor: C.offWhite,
+              borderRadius: '7px',
+              border: `1px solid ${C.grayL}`,
+              overflow: 'hidden',
+            }}>
+              <div style={{ padding: '12px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ color: C.grayD, fontSize: '12px' }}>Subtotal</span>
+                  <span style={{ color: C.ink, fontSize: '12px' }}>{formatCurrency(data.subtotal)}</span>
+                </div>
+                {data.taxRate > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ color: C.grayD, fontSize: '12px' }}>IVA ({data.taxRate * 100}%)</span>
+                    <span style={{ color: C.ink, fontSize: '12px' }}>{formatCurrency(data.taxAmount)}</span>
+                  </div>
+                )}
+                {data.discount && data.discount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ color: C.teal, fontSize: '12px' }}>Descuento</span>
+                    <span style={{ color: C.teal, fontSize: '12px' }}>-{formatCurrency(data.discount)}</span>
+                  </div>
+                )}
               </div>
-              {data.taxRate > 0 && (
-                <div className="flex justify-between text-[#64748b] mb-2">
-                  <span>IVA ({data.taxRate * 100}%)</span>
-                  <span className="font-medium">{formatCurrency(data.taxAmount)}</span>
-                </div>
-              )}
-              {data.discount && data.discount > 0 && (
-                <div className="flex justify-between text-green-600 mb-2">
-                  <span>Descuento</span>
-                  <span className="font-medium">-{formatCurrency(data.discount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center pt-2 mt-2 border-t-2 border-[#f97316]">
-                <span className="text-base font-semibold text-[#1a237e]">Total</span>
-                <span className="text-xl font-bold text-[#f97316]">{formatCurrency(data.total)}</span>
+              <div style={{
+                backgroundColor: C.blue,
+                padding: '10px 14px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <span style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>Total</span>
+                <span style={{ color: C.orange, fontSize: '17px', fontWeight: '700' }}>{formatCurrency(data.total)}</span>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* NOTAS */}
-        {data.notes && (
-          <div className="px-6 pb-6">
-            <div className="bg-blue-50 rounded-lg border border-blue-100 p-4">
-              <h4 className="font-semibold text-[#1a237e] text-sm mb-2">Notas</h4>
-              <p className="text-[#64748b] text-sm">{data.notes}</p>
+          {/* Notas */}
+          {data.notes && (
+            <div style={{
+              backgroundColor: '#eff6ff',
+              borderRadius: '6px',
+              borderLeft: `3px solid ${C.blueLight}`,
+              padding: '10px 12px',
+              marginBottom: '14px',
+            }}>
+              <p style={{ color: C.blue, fontSize: '11px', fontWeight: '600', marginBottom: '4px' }}>Notas</p>
+              <p style={{ color: C.grayD, fontSize: '11px', lineHeight: '1.5' }}>{data.notes}</p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ borderTop: `1px solid ${C.grayL}`, paddingTop: '14px', textAlign: 'center' }}>
+            <p style={{ color: C.blue, fontSize: '14px', fontWeight: '700', marginBottom: '4px' }}>
+              ¡Gracias por su compra!
+            </p>
+            <p style={{ color: C.grayD, fontSize: '11px' }}>
+              Para cualquier duda contáctenos a {data.company.email}
+            </p>
+            {/* Marca de agua */}
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
+              <img
+                src="/logo-tropicolors.png"
+                alt=""
+                style={{ width: '120px', height: '120px', objectFit: 'contain', opacity: 0.05 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
             </div>
           </div>
-        )}
 
-        {/* FOOTER */}
-        <div className="px-6 pb-8 pt-4 border-t border-slate-200">
-          <div className="text-center">
-            <p className="text-lg font-semibold text-[#1a237e] mb-1">¡Gracias por su compra!</p>
-            <p className="text-sm text-[#64748b]">Para cualquier duda o aclaración, contáctenos a {data.company.email}</p>
-          </div>
         </div>
       </div>
     </div>
