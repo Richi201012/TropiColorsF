@@ -33,24 +33,30 @@ const urlToBase64 = async (url: string): Promise<string> => {
 export const useInvoicePDF = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const downloadPDF = useCallback(async (invoiceData: InvoiceData) => {
-    setIsGenerating(true);
-    try {
-      // Validar que los datos tengan los campos requeridos
-      const validData = {
-        ...invoiceData,
-        // Asegurar valores numéricos válidos
-        subtotal: Number(invoiceData.subtotal) || 0,
-        taxAmount: Number(invoiceData.taxAmount) || 0,
-        total: Number(invoiceData.total) || 0,
-        taxRate: Number(invoiceData.taxRate) || 0,
-        items: invoiceData.items.map(item => ({
-          ...item,
-          quantity: Number(item.quantity) || 1,
-          unitPrice: Number(item.unitPrice) || 0,
-          subtotal: Number(item.subtotal) || 0
-        }))
-      };
+   const downloadPDF = useCallback(async (invoiceData: InvoiceData) => {
+     setIsGenerating(true);
+     try {
+       // Generar número de factura único basado en timestamp para evitar duplicados
+       const timestamp = Date.now();
+       const uniqueInvoiceNumber = `FAC-${timestamp.toString().slice(-6)}`;
+       
+       // Validar que los datos tengan los campos requeridos
+       const validData = {
+         ...invoiceData,
+         invoiceNumber: uniqueInvoiceNumber,
+         invoiceNumberFormatted: uniqueInvoiceNumber,
+         // Asegurar valores numéricos válidos
+         subtotal: Number(invoiceData.subtotal) || 0,
+         taxAmount: Number(invoiceData.taxAmount) || 0,
+         total: Number(invoiceData.total) || 0,
+         taxRate: Number(invoiceData.taxRate) || 0,
+         items: invoiceData.items.map(item => ({
+           ...item,
+           quantity: Number(item.quantity) || 1,
+           unitPrice: Number(item.unitPrice) || 0,
+           subtotal: Number(item.subtotal) || 0
+         }))
+       };
 
       // Convertir logo URL a base64 si existe
       let logoBase64 = '';

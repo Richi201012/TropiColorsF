@@ -3,7 +3,6 @@ import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/
 import type { InvoiceData } from '../types/invoice';
 import { formatCurrency, formatDate, getPaymentMethodLabel } from '../types/invoice';
 
-// Registrar fuentes paraPDF (opcional - usamos fuentes por defecto)
 Font.register({
   family: 'Helvetica',
   fonts: [
@@ -12,447 +11,412 @@ Font.register({
   ],
 });
 
-// Colores exactos según especificación
-const COLORS = {
-  navy: '#1a237e',
-  orange: '#f97316',
-  lightGray: '#f8fafc',
-  white: '#ffffff',
-  darkText: '#1e293b',
-  grayText: '#64748b',
-  lightBorder: '#e2e8f0'
+// ── Paleta Tropicolors ────────────────────────────────────────────────────────
+const C = {
+  blue:       '#1a237e',
+  blueMid:    '#283593',
+  blueLight:  '#3949ab',
+  teal:       '#00acc1',
+  orange:     '#f97316',
+  white:      '#ffffff',
+  offWhite:   '#f0f4ff',
+  grayL:      '#e2e8f0',
+  grayD:      '#64748b',
+  ink:        '#1e293b',
+  overlayLo:  'rgba(255,255,255,0.1)',
+  overlayMid: 'rgba(255,255,255,0.18)',
 };
 
-// Estilos para el PDF
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   page: {
-    padding: 0,
     fontFamily: 'Helvetica',
     fontSize: 10,
-    backgroundColor: COLORS.white,
+    backgroundColor: C.white,
+    padding: 0,
   },
-  // Header
+
+  // ── Header azul ───────────────────────────────────────────────────────────
   header: {
-    backgroundColor: COLORS.navy,
-    padding: 25,
+    backgroundColor: C.blue,
+    paddingHorizontal: 28,
+    paddingTop: 20,
+    paddingBottom: 0,
+  },
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 16,
   },
   headerLeft: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    flex: 1,
   },
-  headerLeftWithLogo: {
-    gap: 12,
-  },
-  logo: {
+  logoBox: {
+    backgroundColor: C.white,
+    borderRadius: 10,
     width: 60,
     height: 60,
-    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
     marginRight: 12,
   },
-  companyName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginBottom: 8,
+  logoImg: {
+    width: 52,
+    height: 52,
+    objectFit: 'contain',
   },
-  companyInfo: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 8,
-    lineHeight: 1.5,
+  companyName: {
+    fontSize: 19,
+    fontWeight: 'bold',
+    color: C.white,
+    marginBottom: 4,
+    letterSpacing: 0.4,
+  },
+  companyLine: {
+    fontSize: 7.5,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 1.6,
   },
   headerRight: {
     alignItems: 'flex-end',
   },
-  invoiceTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginBottom: 8,
-  },
-  invoiceNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.orange,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: '6 12',
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  invoiceDate: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.9)',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: '4 8',
-    borderRadius: 12,
-  },
-  // Meta section
-  metaSection: {
-    backgroundColor: COLORS.navy,
-    padding: '15 25',
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
-  },
-  metaItem: {
-    marginRight: 40,
-  },
-  metaLabel: {
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 3,
-  },
-  metaValue: {
-    fontSize: 10,
-    color: COLORS.white,
-    fontWeight: 'normal',
-  },
-  // Body
-  body: {
-    padding: 25,
-  },
-  // Customer section
-  customerSection: {
-    backgroundColor: COLORS.lightGray,
-    padding: 15,
+  folioBadge: {
+    backgroundColor: C.overlayMid,
     borderRadius: 8,
-    marginBottom: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: COLORS.lightBorder,
+    borderColor: 'rgba(255,255,255,0.25)',
+    marginBottom: 6,
   },
-  sectionTitle: {
-    fontSize: 12,
+  folioText: {
+    fontSize: 17,
     fontWeight: 'bold',
-    color: COLORS.navy,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    color: C.orange,
+    letterSpacing: 0.8,
   },
-  customerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  dateBadge: {
+    backgroundColor: C.overlayLo,
+    borderRadius: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
   },
-  customerField: {
-    width: '50%',
-    marginBottom: 8,
-  },
-  fieldLabel: {
+  dateText: {
     fontSize: 8,
-    color: COLORS.grayText,
+    color: 'rgba(255,255,255,0.85)',
+  },
+
+  // ── Franja teal ───────────────────────────────────────────────────────────
+  metaStripe: {
+    backgroundColor: C.teal,
+    paddingHorizontal: 28,
+    paddingVertical: 9,
+    flexDirection: 'row',
+  },
+  metaItem: { marginRight: 36 },
+  metaLabel: {
+    fontSize: 6.5,
+    color: 'rgba(255,255,255,0.65)',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     marginBottom: 2,
   },
-  fieldValue: {
-    fontSize: 10,
-    color: COLORS.darkText,
+  metaValue: { fontSize: 9, color: C.white, fontWeight: 'bold' },
+  metaValueOrange: { fontSize: 9, color: '#fff3cd', fontWeight: 'bold' },
+
+  // ── Cuerpo ────────────────────────────────────────────────────────────────
+  body: {
+    paddingHorizontal: 28,
+    paddingTop: 16,
+    paddingBottom: 14,
   },
-  // Items table
-  tableHeader: {
-    backgroundColor: COLORS.navy,
-    flexDirection: 'row',
-    padding: '10 15',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+
+  // ── Cliente ───────────────────────────────────────────────────────────────
+  clientCard: {
+    backgroundColor: C.offWhite,
+    borderRadius: 7,
+    borderLeftWidth: 3,
+    borderLeftColor: C.teal,
+    padding: 11,
+    marginBottom: 14,
   },
-  tableHeaderCell: {
-    fontSize: 9,
+  clientTitle: {
+    fontSize: 8,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: C.blue,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 7,
   },
-  colProducto: { width: '45%' },
-  colCantidad: { width: '15%', textAlign: 'center' },
-  colPrecio: { width: '20%', textAlign: 'right' },
-  colImporte: { width: '20%', textAlign: 'right' },
+  clientGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  clientField: { width: '50%', marginBottom: 5, paddingRight: 8 },
+  fieldLabel: {
+    fontSize: 6.5,
+    color: C.grayD,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 1,
+  },
+  fieldValue: { fontSize: 9, color: C.ink },
+
+  // ── Tabla ─────────────────────────────────────────────────────────────────
+  tableHead: {
+    backgroundColor: C.blue,
+    flexDirection: 'row',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 5,
+  },
+  thCell: {
+    fontSize: 7.5,
+    fontWeight: 'bold',
+    color: C.white,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   tableRow: {
     flexDirection: 'row',
-    padding: '10 15',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightBorder,
+    borderBottomColor: C.grayL,
+    alignItems: 'center',
   },
-  tableRowEven: {
-    backgroundColor: COLORS.white,
-  },
-  tableRowOdd: {
-    backgroundColor: COLORS.lightGray,
-  },
-  tableCell: {
-    fontSize: 10,
-    color: COLORS.darkText,
-  },
-  itemName: {
-    fontWeight: 'bold',
-  },
-  itemDesc: {
-    fontSize: 8,
-    color: COLORS.grayText,
-    marginTop: 2,
-  },
-  // Totals
-  totalsSection: {
-    alignItems: 'flex-end',
-    marginTop: 20,
-  },
+  rowEven: { backgroundColor: C.white },
+  rowOdd:  { backgroundColor: '#f8faff' },
+  tdCell:  { fontSize: 9, color: C.ink },
+  tdBold:  { fontWeight: 'bold' },
+  tdSub:   { fontSize: 7, color: C.grayD, marginTop: 1 },
+
+  cDesc:  { width: '46%' },
+  cQty:   { width: '14%', textAlign: 'center' },
+  cPrice: { width: '20%', textAlign: 'right' },
+  cTotal: { width: '20%', textAlign: 'right' },
+
+  // ── Totales ───────────────────────────────────────────────────────────────
+  totalsWrap: { alignItems: 'flex-end', marginTop: 10, marginBottom: 14 },
   totalsBox: {
-    width: 200,
-    backgroundColor: COLORS.lightGray,
-    padding: 12,
-    borderRadius: 8,
+    width: 195,
+    backgroundColor: C.offWhite,
+    borderRadius: 7,
     borderWidth: 1,
-    borderColor: COLORS.lightBorder,
+    borderColor: C.grayL,
+    overflow: 'hidden',
   },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  totalLabel: {
-    fontSize: 10,
-    color: COLORS.grayText,
-  },
-  totalValue: {
-    fontSize: 10,
-    color: COLORS.darkText,
-    fontWeight: 'normal',
-  },
-  totalFinal: {
+  totalsInner: { paddingHorizontal: 13, paddingVertical: 9 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
+  totalRowLabel: { fontSize: 8.5, color: C.grayD },
+  totalRowValue: { fontSize: 8.5, color: C.ink },
+  totalFinalBg: {
+    backgroundColor: C.blue,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 2,
-    borderTopColor: COLORS.orange,
-    paddingTop: 8,
-    marginTop: 4,
   },
-  totalFinalLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.navy,
-  },
-  totalFinalValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.orange,
-  },
-  // Notes
-  notesSection: {
-    marginTop: 20,
-    padding: 12,
+  totalFinalLabel: { fontSize: 10, fontWeight: 'bold', color: C.white },
+  totalFinalValue: { fontSize: 15, fontWeight: 'bold', color: C.orange },
+
+  // ── Notas ─────────────────────────────────────────────────────────────────
+  notesCard: {
     backgroundColor: '#eff6ff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: C.blueLight,
+    padding: 9,
+    marginBottom: 12,
   },
-  notesTitle: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: COLORS.navy,
-    marginBottom: 4,
-  },
-  notesText: {
-    fontSize: 9,
-    color: COLORS.grayText,
-  },
-  // Footer
+  notesTitle: { fontSize: 8.5, fontWeight: 'bold', color: C.blue, marginBottom: 3 },
+  notesText:  { fontSize: 8, color: C.grayD, lineHeight: 1.5 },
+
+  // ── Footer ────────────────────────────────────────────────────────────────
   footer: {
-    padding: 20,
-    borderTopWidth: 2,
-    borderTopColor: COLORS.lightBorder,
+    borderTopWidth: 1,
+    borderTopColor: C.grayL,
+    paddingTop: 12,
     alignItems: 'center',
   },
-  footerThanks: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.navy,
-    marginBottom: 4,
-  },
-  footerContact: {
-    fontSize: 9,
-    color: COLORS.grayText,
-  },
+  footerThanks:  { fontSize: 11, fontWeight: 'bold', color: C.blue, marginBottom: 3 },
+  footerContact: { fontSize: 7.5, color: C.grayD },
+  watermarkWrap: { alignItems: 'center', marginTop: 16 },
+  watermark: { width: 110, height: 110, opacity: 0.05, objectFit: 'contain' },
 });
 
+// ─── Componente ──────────────────────────────────────────────────────────────
 interface InvoicePDFDocumentProps {
   data: InvoiceData;
   logoBase64?: string;
 }
 
-export const InvoicePDFDocument: React.FC<InvoicePDFDocumentProps> = ({ data, logoBase64 }) => {
-  return (
-    <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.headerLeft, logoBase64 ? { gap: 12 } : {}]}>
-            {/* Logo */}
+export const InvoicePDFDocument: React.FC<InvoicePDFDocumentProps> = ({ data, logoBase64 }) => (
+  <Document>
+    <Page size="A4" style={s.page}>
+
+      {/* HEADER */}
+      <View style={s.header}>
+        <View style={s.headerRow}>
+          <View style={s.headerLeft}>
             {logoBase64 && (
-              <Image src={logoBase64} style={styles.logo} />
+              <View style={s.logoBox}>
+                <Image src={logoBase64} style={s.logoImg} />
+              </View>
             )}
             <View>
-              <Text style={styles.companyName}>Tropicolors</Text>
-              <Text style={styles.companyInfo}>
+              <Text style={s.companyName}>Tropicolors</Text>
+              <Text style={s.companyLine}>
                 {data.company.address}{'\n'}
-                {data.company.phone}{'\n'}
-                {data.company.email}
-                {data.company.rfc && `\nRFC: ${data.company.rfc}`}
+                {data.company.phone}{'   '}{data.company.email}
+                {data.company.rfc ? `\nRFC: ${data.company.rfc}` : ''}
               </Text>
             </View>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.invoiceTitle}>FACTURA</Text>
-            <Text style={styles.invoiceNumber}>
-              {data.invoiceNumberFormatted || data.invoiceNumber}
-            </Text>
-            <Text style={styles.invoiceDate}>{formatDate(data.issueDate)}</Text>
+          <View style={s.headerRight}>
+            <View style={s.folioBadge}>
+              <Text style={s.folioText}>{data.invoiceNumberFormatted || data.invoiceNumber}</Text>
+            </View>
+            <View style={s.dateBadge}>
+              <Text style={s.dateText}>{formatDate(data.issueDate)}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* FRANJA TEAL */}
+      <View style={s.metaStripe}>
+        <View style={s.metaItem}>
+          <Text style={s.metaLabel}>Método de Pago</Text>
+          <Text style={s.metaValue}>{getPaymentMethodLabel(data.paymentMethod)}</Text>
+        </View>
+        {data.dueDate && (
+          <View style={s.metaItem}>
+            <Text style={s.metaLabel}>Vencimiento</Text>
+            <Text style={s.metaValue}>{formatDate(data.dueDate)}</Text>
+          </View>
+        )}
+        {data.orderId && (
+          <View style={s.metaItem}>
+            <Text style={s.metaLabel}>Pedido</Text>
+            <Text style={s.metaValueOrange}>#{data.orderId}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* CUERPO */}
+      <View style={s.body}>
+
+        {/* Cliente */}
+        <View style={s.clientCard}>
+          <Text style={s.clientTitle}>Datos del Cliente</Text>
+          <View style={s.clientGrid}>
+            <View style={s.clientField}>
+              <Text style={s.fieldLabel}>Nombre</Text>
+              <Text style={s.fieldValue}>{data.customer.name}</Text>
+            </View>
+            <View style={s.clientField}>
+              <Text style={s.fieldLabel}>Email</Text>
+              <Text style={s.fieldValue}>{data.customer.email}</Text>
+            </View>
+            {data.customer.phone && (
+              <View style={s.clientField}>
+                <Text style={s.fieldLabel}>Teléfono</Text>
+                <Text style={s.fieldValue}>{data.customer.phone}</Text>
+              </View>
+            )}
+            {data.customer.address && (
+              <View style={s.clientField}>
+                <Text style={s.fieldLabel}>Dirección</Text>
+                <Text style={s.fieldValue}>
+                  {data.customer.address}
+                  {data.customer.city       ? `, ${data.customer.city}`           : ''}
+                  {data.customer.state      ? `, ${data.customer.state}`          : ''}
+                  {data.customer.postalCode ? ` C.P. ${data.customer.postalCode}` : ''}
+                </Text>
+              </View>
+            )}
+            {data.customer.rfc && (
+              <View style={s.clientField}>
+                <Text style={s.fieldLabel}>RFC</Text>
+                <Text style={s.fieldValue}>{data.customer.rfc}</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Meta section */}
-        <View style={styles.metaSection}>
-          {data.dueDate && (
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Vencimiento</Text>
-              <Text style={styles.metaValue}>{formatDate(data.dueDate)}</Text>
-            </View>
-          )}
-          <View style={styles.metaItem}>
-            <Text style={styles.metaLabel}>Método de Pago</Text>
-            <Text style={styles.metaValue}>{getPaymentMethodLabel(data.paymentMethod)}</Text>
-          </View>
-          {data.orderId && (
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Pedido</Text>
-              <Text style={[styles.metaValue, { color: COLORS.orange }]}>#{data.orderId}</Text>
-            </View>
-          )}
+        {/* Tabla */}
+        <View style={s.tableHead}>
+          <Text style={[s.thCell, s.cDesc]}>Producto</Text>
+          <Text style={[s.thCell, s.cQty]}>Cant.</Text>
+          <Text style={[s.thCell, s.cPrice]}>P. Unit.</Text>
+          <Text style={[s.thCell, s.cTotal]}>Importe</Text>
         </View>
-
-        {/* Body */}
-        <View style={styles.body}>
-          {/* Customer section */}
-          <View style={styles.customerSection}>
-            <Text style={styles.sectionTitle}>Datos del Cliente</Text>
-            <View style={styles.customerGrid}>
-              <View style={styles.customerField}>
-                <Text style={styles.fieldLabel}>Nombre</Text>
-                <Text style={styles.fieldValue}>{data.customer.name}</Text>
-              </View>
-              <View style={styles.customerField}>
-                <Text style={styles.fieldLabel}>Email</Text>
-                <Text style={styles.fieldValue}>{data.customer.email}</Text>
-              </View>
-              {data.customer.phone && (
-                <View style={styles.customerField}>
-                  <Text style={styles.fieldLabel}>Teléfono</Text>
-                  <Text style={styles.fieldValue}>{data.customer.phone}</Text>
-                </View>
-              )}
-              {data.customer.address && (
-                <View style={styles.customerField}>
-                  <Text style={styles.fieldLabel}>Dirección</Text>
-                  <Text style={styles.fieldValue}>
-                    {data.customer.address}
-                    {(data.customer.city || data.customer.state) && (
-                      <Text style={{ color: COLORS.grayText }}>
-                        {data.customer.city && `, ${data.customer.city}`}
-                        {data.customer.state && `, ${data.customer.state}`}
-                        {data.customer.postalCode && ` ${data.customer.postalCode}`}
-                      </Text>
-                    )}
-                  </Text>
-                </View>
-              )}
-              {data.customer.rfc && (
-                <View style={styles.customerField}>
-                  <Text style={styles.fieldLabel}>RFC</Text>
-                  <Text style={styles.fieldValue}>{data.customer.rfc}</Text>
-                </View>
-              )}
+        {data.items.map((item, i) => (
+          <View key={item.id} style={[s.tableRow, i % 2 === 0 ? s.rowEven : s.rowOdd]}>
+            <View style={s.cDesc}>
+              <Text style={[s.tdCell, s.tdBold]}>{item.name}</Text>
+              {item.description && <Text style={s.tdSub}>{item.description}</Text>}
             </View>
+            <Text style={[s.tdCell, s.cQty]}>{item.quantity}</Text>
+            <Text style={[s.tdCell, s.cPrice]}>{formatCurrency(item.unitPrice)}</Text>
+            <Text style={[s.tdCell, s.cTotal]}>{formatCurrency(item.subtotal)}</Text>
           </View>
+        ))}
 
-          {/* Items table */}
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.colProducto]}>Producto</Text>
-            <Text style={[styles.tableHeaderCell, styles.colCantidad]}>Cantidad</Text>
-            <Text style={[styles.tableHeaderCell, styles.colPrecio]}>Precio Unit.</Text>
-            <Text style={[styles.tableHeaderCell, styles.colImporte]}>Importe</Text>
-          </View>
-          {data.items.map((item, index) => (
-            <View
-              key={item.id}
-              style={[
-                styles.tableRow,
-                index % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd,
-              ]}
-            >
-              <View style={styles.colProducto}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                {item.description && (
-                  <Text style={styles.itemDesc}>{item.description}</Text>
-                )}
-              </View>
-              <Text style={[styles.tableCell, styles.colCantidad]}>{item.quantity}</Text>
-              <Text style={[styles.tableCell, styles.colPrecio]}>
-                {formatCurrency(item.unitPrice)}
-              </Text>
-              <Text style={[styles.tableCell, styles.colImporte]}>
-                {formatCurrency(item.subtotal)}
-              </Text>
-            </View>
-          ))}
-
-          {/* Totals */}
-          <View style={styles.totalsSection}>
-            <View style={styles.totalsBox}>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Subtotal</Text>
-                <Text style={styles.totalValue}>{formatCurrency(data.subtotal)}</Text>
+        {/* Totales */}
+        <View style={s.totalsWrap}>
+          <View style={s.totalsBox}>
+            <View style={s.totalsInner}>
+              <View style={s.totalRow}>
+                <Text style={s.totalRowLabel}>Subtotal</Text>
+                <Text style={s.totalRowValue}>{formatCurrency(data.subtotal)}</Text>
               </View>
               {data.taxRate > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>IVA ({data.taxRate * 100}%)</Text>
-                  <Text style={styles.totalValue}>{formatCurrency(data.taxAmount)}</Text>
+                <View style={s.totalRow}>
+                  <Text style={s.totalRowLabel}>IVA ({data.taxRate * 100}%)</Text>
+                  <Text style={s.totalRowValue}>{formatCurrency(data.taxAmount)}</Text>
                 </View>
               )}
               {data.discount && data.discount > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={[styles.totalLabel, { color: '#16a34a' }]}>Descuento</Text>
-                  <Text style={[styles.totalValue, { color: '#16a34a' }]}>
-                    -{formatCurrency(data.discount)}
-                  </Text>
+                <View style={s.totalRow}>
+                  <Text style={[s.totalRowLabel, { color: C.teal }]}>Descuento</Text>
+                  <Text style={[s.totalRowValue, { color: C.teal }]}>-{formatCurrency(data.discount)}</Text>
                 </View>
               )}
-              <View style={styles.totalFinal}>
-                <Text style={styles.totalFinalLabel}>Total</Text>
-                <Text style={styles.totalFinalValue}>{formatCurrency(data.total)}</Text>
-              </View>
             </View>
-          </View>
-
-          {/* Notes */}
-          {data.notes && (
-            <View style={styles.notesSection}>
-              <Text style={styles.notesTitle}>Notas</Text>
-              <Text style={styles.notesText}>{data.notes}</Text>
+            <View style={s.totalFinalBg}>
+              <Text style={s.totalFinalLabel}>Total</Text>
+              <Text style={s.totalFinalValue}>{formatCurrency(data.total)}</Text>
             </View>
-          )}
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerThanks}>¡Gracias por su compra!</Text>
-            <Text style={styles.footerContact}>
-              Para cualquier duda o aclaración, contáctenos a {data.company.email}
-            </Text>
           </View>
         </View>
-      </Page>
-    </Document>
-  );
-};
+
+        {/* Notas */}
+        {data.notes && (
+          <View style={s.notesCard}>
+            <Text style={s.notesTitle}>Notas</Text>
+            <Text style={s.notesText}>{data.notes}</Text>
+          </View>
+        )}
+
+        {/* Footer */}
+        <View style={s.footer}>
+          <Text style={s.footerThanks}>¡Gracias por su compra!</Text>
+          <Text style={s.footerContact}>
+            Para cualquier duda contáctenos a {data.company.email}
+          </Text>
+          {logoBase64 && (
+            <View style={s.watermarkWrap}>
+              <Image src={logoBase64} style={s.watermark} />
+            </View>
+          )}
+        </View>
+
+      </View>
+    </Page>
+  </Document>
+);
 
 export default InvoicePDFDocument;
