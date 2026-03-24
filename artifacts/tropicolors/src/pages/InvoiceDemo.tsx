@@ -1,4 +1,4 @@
-import { Invoice } from '../components/Invoice';
+import { Invoice } from '../components/InvoiceTemplate';
 import type { InvoiceData } from '../types/invoice';
 
 // Datos de ejemplo para la factura
