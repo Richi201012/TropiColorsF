@@ -32,7 +32,7 @@ import {
   Phone,
   Shield
 } from "lucide-react";
-import { Invoice } from "@/components/InvoiceTemplate";
+import { Invoice } from "@/components/Invoice";
 import type { InvoiceData } from "@/types/invoice";
 import { useInvoicePDF } from "@/hooks/useInvoicePDF";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -2005,8 +2005,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         onClose={() => setModalActivo(null)}
       >
         {selectedInvoice && (
-          <div className="max-h-[80vh] overflow-y-auto">
-            <Invoice 
+          <Invoice 
               data={{
                 invoiceNumber: selectedInvoice.invoiceNumber,
                 invoiceNumberFormatted: selectedInvoice.invoiceNumberFormatted,
@@ -2035,7 +2034,6 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               }}
               showActions={true}
             />
-          </div>
         )}
       </ModalShell>
 
