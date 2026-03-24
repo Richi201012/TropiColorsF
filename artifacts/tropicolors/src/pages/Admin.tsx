@@ -32,8 +32,7 @@ import {
   Phone,
   Shield
 } from "lucide-react";
-import jsPDF from "jspdf";
-import { Invoice } from "@/components/Invoice";
+import { Invoice } from "@/components/InvoiceTemplate";
 import type { InvoiceData } from "@/types/invoice";
 import { useInvoicePDF } from "@/hooks/useInvoicePDF";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -1520,7 +1519,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   };
 
   // Hook para generar PDF de facturas
-  const { downloadPDF: generateInvoicePDF } = useInvoicePDF();
+  const { downloadPDF } = useInvoicePDF();
 
   // Datos de la empresa centralizados
   const empresa = {
@@ -1529,20 +1528,6 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     telefono: '+52 55 5114 6856',
     email: 'm_tropicolors1@hotmail.com',
     rfc: 'TCO20240315ABC',
-  };
-
-  const downloadInvoicePdf = async (invoiceId: string) => {
-    const invoice = facturas.find((entry) => entry.invoiceNumber === invoiceId);
-    if (!invoice) return;
-
-    // El PDF se genera capturando el DOM visible - no necesita datos aquí
-    // Solo pasamos el nombre del archivo
-    try {
-      await generateInvoicePDF(invoice);
-    } catch (error) {
-      console.error('Error al generar PDF:', error);
-      alert('Error al generar el PDF. Intenta de nuevo.');
-    }
   };
 
   const createOrderFromModal = async () => {
@@ -2049,7 +2034,6 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 orderId: selectedInvoice.orderId,
               }}
               showActions={true}
-              onDownloadPDF={undefined}
             />
           </div>
         )}
