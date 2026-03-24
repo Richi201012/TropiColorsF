@@ -56,7 +56,7 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   onSendEmail,
   isPreview = false
 }) => {
-  const { downloadPDF, loading } = useInvoicePDF();
+  const { downloadPDF, isGenerating } = useInvoicePDF();
 
   const handlePrint = () => {
     window.print();
@@ -91,7 +91,7 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
             )}
             <button
               onClick={() => downloadPDF(data)}
-              disabled={loading}
+              disabled={isGenerating}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -101,13 +101,13 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                 color: COLORS.white,
                 border: 'none',
                 borderRadius: '8px',
-                cursor: loading ? 'wait' : 'pointer',
+                cursor: isGenerating ? 'wait' : 'pointer',
                 fontSize: '14px',
                 fontWeight: '500',
-                opacity: loading ? 0.7 : 1
+                opacity: isGenerating ? 0.7 : 1
               }}
             >
-              {loading ? '⏳ Generando...' : '📥 Descargar PDF'}
+              {isGenerating ? '⏳ Generando...' : '📥 Descargar PDF'}
             </button>
             <button
               onClick={handlePrint}

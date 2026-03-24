@@ -20,7 +20,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
   isPreview = false
 }) => {
   // Hook para descargar PDF
-  const { downloadPDF, loading } = useInvoicePDF();
+  const { downloadPDF, isGenerating } = useInvoicePDF();
 
   // Handlers
   const handlePrint = () => {
@@ -48,10 +48,10 @@ export const Invoice: React.FC<InvoiceProps> = ({
         <div className="no-print mb-4 flex justify-end gap-2 flex-shrink-0">
           <button
             onClick={() => downloadPDF(data)}
-            disabled={loading}
+            disabled={isGenerating}
             className="flex items-center gap-2 px-4 py-2 bg-[#1a237e] text-white rounded-lg hover:bg-[#151b60] transition-colors shadow-md disabled:opacity-50"
           >
-            {loading ? (
+            {isGenerating ? (
               <>
                 <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
