@@ -47,6 +47,9 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { useOrders } from "@/hooks/useOrders";
+import { useClientesFromOrders, filtrarClientes } from "@/hooks/useClientesFromOrders";
+import { useFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
 
 // Auth Context for session management
 interface AuthContextType {
@@ -1364,85 +1367,44 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
-  const [pedidos, setPedidos] = useState<AdminOrder[]>([
-    {
-      id: "ORD-8F4A91C2",
-      customer: "María López",
-      email: "maria@cliente.com",
-      address: "Av. Reforma 120, Col. Juárez, Cuauhtémoc, CDMX",
-      total: 1250,
-      status: "pagado",
-      items: [
-        { name: "Colorante Azul 125g", quantity: 2, price: 320 },
-        { name: "Colorante Rojo 250g", quantity: 1, price: 610 },
-      ],
-    },
-    {
-      id: "ORD-7A21D1B4",
-      customer: "Carlos Ruiz",
-      email: "carlos@cliente.com",
-      address: "Calle Hidalgo 45, Centro, Guadalajara, Jalisco",
-      total: 890,
-      status: "pendiente",
-      items: [
-        { name: "Colorante Verde 125g", quantity: 1, price: 290 },
-        { name: "Colorante Amarillo 125g", quantity: 2, price: 300 },
-      ],
-    },
-    {
-      id: "ORD-4F2C98AB",
-      customer: "Ana Torres",
-      email: "ana@cliente.com",
-      address: "Blvd. Díaz Ordaz 580, Monterrey, Nuevo León",
-      total: 2430,
-      status: "enviado",
-      items: [
-        { name: "Colorante Industrial Negro 1kg", quantity: 1, price: 1430 },
-        { name: "Colorante Naranja 250g", quantity: 2, price: 500 },
-      ],
-    },
-    {
-      id: "ORD-93B1DD72",
-      customer: "Sofía Jiménez",
-      email: "sofia@cliente.com",
-      address: "Av. Las Torres 890, Puebla, Puebla",
-      total: 640,
-      status: "entregado",
-      items: [{ name: "Colorante Rosa 125g", quantity: 2, price: 320 }],
-    },
-  ]);
-  const [facturas, setFacturas] = useState<AdminInvoice[]>([
-    {
-      id: "FAC-00124",
-      orderId: "ORD-8F4A91C2",
-      customer: "María López",
-      total: 1250,
-      status: "pagada",
-      items: [
-        { name: "Colorante Azul 125g", quantity: 2, price: 320 },
-        { name: "Colorante Rojo 250g", quantity: 1, price: 610 },
-      ],
-      createdAt: "2026-03-23",
-    },
-    {
-      id: "FAC-00125",
-      orderId: "ORD-7A21D1B4",
-      customer: "Carlos Ruiz",
-      total: 890,
-      status: "pendiente",
-      items: [
-        { name: "Colorante Verde 125g", quantity: 1, price: 290 },
-        { name: "Colorante Amarillo 125g", quantity: 2, price: 300 },
-      ],
-      createdAt: "2026-03-23",
-    },
-  ]);
-  const [clientes, setClientes] = useState<AdminClient[]>([
-    { id: "CL-001", name: "María López", email: "maria@cliente.com", orders: 12 },
-    { id: "CL-002", name: "Carlos Ruiz", email: "carlos@cliente.com", orders: 5 },
-    { id: "CL-003", name: "Ana Torres", email: "ana@cliente.com", orders: 8 },
-    { id: "CL-004", name: "Sofía Jiménez", email: "sofia@cliente.com", orders: 3 },
-  ]);
+  
+  // Hook para obtener pedidos desde Firestore en tiempo real (colección: orders)
+  const { orders, isLoading: isLoadingOrders, error: errorOrders } = useOrders();
+  
+  // Hook para obtener facturas generadas automáticamente desde pedidos
+  const { facturas: facturasData, isLoading: loadingFacturas } = useFacturasFromOrders();
+  const [facturas, setFacturas] = useState<AdminInvoice[]>(facturasData);
+
+  // Sincronizar cuando lleguen los datos del hook
+  useEffect(() => {
+    if (!loadingFacturas && facturasData.length > 0) {
+      setFacturas(facturasData);
+    }
+  }, [facturasData, loadingFacturas]);
+  // Hook para obtener clientes dinámicamente desde Firestore (agrupados por email desde orders)
+  const { clientes: clientesRaw, isLoading: loadingClientes } = useClientesFromOrders();
+  
+  // Mapear ClienteAgrupado a AdminClient para compatibilidad con el componente
+  const clientesDesdePedidos: AdminClient[] = clientesRaw.map((c) => ({
+    id: c.id,
+    name: c.nombre,
+    email: c.email,
+    orders: c.pedidos,
+  }));
+  
+  const [clientes, setClientes] = useState<AdminClient[]>(clientesDesdePedidos);
+
+  // Sincronizar cuando lleguen los datos del hook
+  useEffect(() => {
+    if (!loadingClientes && clientesRaw.length > 0) {
+      setClientes(clientesRaw.map((c) => ({
+        id: c.id,
+        name: c.nombre,
+        email: c.email,
+        orders: c.pedidos,
+      })));
+    }
+  }, [clientesRaw, loadingClientes]);
   const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState("");
   const [newOrderForm, setNewOrderForm] = useState({
     customer: "",
@@ -1454,15 +1416,15 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [newClientForm, setNewClientForm] = useState({ name: "", email: "" });
 
   const stats = [
-    { icon: DollarSign, label: "Ingresos Totales", value: `$${pedidos.reduce((sum, order) => sum + order.total, 0).toLocaleString("es-MX")}`, trend: { value: 12.5, isPositive: true }, color: "text-primary", bgColor: "bg-primary/10" },
-    { icon: ShoppingBag, label: "Pedidos Totales", value: String(pedidos.length), trend: { value: 8.2, isPositive: true }, color: "text-secondary", bgColor: "bg-secondary/10" },
-    { icon: Clock, label: "Pendientes", value: String(pedidos.filter((order) => order.status === "pendiente").length), trend: { value: 3.1, isPositive: false }, color: "text-amber-600", bgColor: "bg-amber-50" },
+    { icon: DollarSign, label: "Ingresos Totales", value: `${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString("es-MX")}`, trend: { value: 12.5, isPositive: true }, color: "text-primary", bgColor: "bg-primary/10" },
+    { icon: ShoppingBag, label: "Pedidos Totales", value: String(orders.length), trend: { value: 8.2, isPositive: true }, color: "text-secondary", bgColor: "bg-secondary/10" },
+    { icon: Clock, label: "Pendientes", value: String(orders.filter((order) => order.status === "pendiente").length), trend: { value: 3.1, isPositive: false }, color: "text-amber-600", bgColor: "bg-amber-50" },
     { icon: Users, label: "Clientes Nuevos", value: String(clientes.length), trend: { value: 15.3, isPositive: true }, color: "text-purple-600", bgColor: "bg-purple-50" },
   ];
 
-  const selectedOrder = pedidos.find((order) => order.id === selectedOrderId) ?? null;
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
   const selectedInvoice = facturas.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
-  const selectedInvoiceOrder = pedidos.find((order) => order.id === selectedInvoiceOrderId) ?? null;
+  const selectedInvoiceOrder = orders.find((order) => order.id === selectedInvoiceOrderId) ?? null;
 
   const handleViewChange = (view: DashboardView) => {
     setIsTransitioning(true);
@@ -1482,7 +1444,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   };
 
   const openCreateInvoiceModal = () => {
-    setSelectedInvoiceOrderId(pedidos[0]?.id ?? "");
+    setSelectedInvoiceOrderId(orders[0]?.id ?? "");
     setModalActivo("crearFactura");
     setVistaActiva("facturas");
   };
@@ -1749,10 +1711,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             transition-all duration-300
             ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}
           `}>
-            {vistaActiva === "resumen" && <SummaryView onSelectView={handleViewChange} orders={pedidos} />}
+            {vistaActiva === "resumen" && <SummaryView onSelectView={handleViewChange} orders={orders} />}
             {vistaActiva === "pedidos" && (
               <OrdersView
-                orders={pedidos}
+                orders={orders}
                 onViewDetail={openOrderDetail}
                 onStatusChange={updateOrderStatus}
                 onCreateOrder={() => {
@@ -1785,7 +1747,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 }}
               />
             )}
-            {vistaActiva === "estadisticas" && <StatisticsView orders={pedidos} />}
+            {vistaActiva === "estadisticas" && <StatisticsView orders={orders} />}
             {vistaActiva === "configuracion" && <SettingsView onLogout={handleLogout} />}
           </div>
         </div>
@@ -1932,7 +1894,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               onChange={(event) => setSelectedInvoiceOrderId(event.target.value)}
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
             >
-              {pedidos.map((order) => (
+              {orders.map((order) => (
                 <option key={order.id} value={order.id}>
                   {order.id} · {order.customer}
                 </option>
