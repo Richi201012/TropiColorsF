@@ -534,7 +534,7 @@ export default function Home() {
                 {[
                   { label: "Teléfono / WhatsApp", value: "+52 55 5114 6856" },
                   { label: "Lada sin costo",       value: "01 800 8 36 74 68" },
-                  { label: "Correo electrónico",   value: "m_tropicolors@hotmail.com" },
+                  { label: "Correo electrónico",   value: "m_tropicolors1@hotmail.com" },
                   { label: "Dirección",             value: "Abedules Mz.1 Lt.36, Ejército del Trabajo II, Ecatepec, Edo. Mex. C.P. 55238" },
                 ].map((c, i) => (
                   <div key={i} className="border-l-2 border-[#003F91]/20 pl-4">
