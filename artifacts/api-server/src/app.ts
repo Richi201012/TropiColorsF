@@ -40,6 +40,12 @@ app.use(
   express.static(path.join(__dirname, "../../tropicolors/public/data")),
 );
 
+// Serve static files for images (logos, etc)
+app.use(
+  "/images",
+  express.static(path.join(__dirname, "../../tropicolors/public")),
+);
+
 app.use("/api", router);
 
 export default app;
