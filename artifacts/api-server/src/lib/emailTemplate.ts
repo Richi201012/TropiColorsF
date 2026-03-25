@@ -1,7 +1,7 @@
 /**
  * Plantilla HTML profesional para correo de "Pedido Confirmado" y "Estado de Pedido"
  * Estilo: Fondo blanco con degradados claros - identidad Tropicolors
- * Logo: https://i.ibb.co/cKX9nVTQ/logo.png
+ * Logo: /images/logo-tropicolors.png (servido desde el API server)
  */
 
 export interface Producto {
@@ -191,7 +191,7 @@ export function generarEmailConfirmacion(pedido: DatosPedido): string {
           <tr>
             <td style="background: #ffffff; padding: 0 32px 36px; text-align: center;">
               <p style="margin: 0 0 18px; color: #64748b; font-size: 14px; line-height: 1.6;">¿Tienes dudas sobre tu pedido? Estamos aquí para ayudarte.</p>
-              <a href="https://wa.me/52551146856" style="display: inline-block; background: linear-gradient(135deg, #0d1340 0%, #1a237e 100%); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 50px; font-size: 14px; font-weight: 700;">Contáctanos por WhatsApp ↗</a>
+              <a href="https://wa.me/+52551146856?text=Hola,%20tengo%20una%20consulta%20sobre%20mi%20pedido%20${pedido.numeroPedido ? `-%20${pedido.numeroPedido}` : ""}" style="display: inline-block; background: linear-gradient(135deg, #0d1340 0%, #1a237e 100%); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 50px; font-size: 14px; font-weight: 700;">Contáctanos por WhatsApp ↗</a>
             </td>
           </tr>
 
@@ -249,6 +249,168 @@ export interface DatosEstadoPedido {
 }
 
 export interface EmailEstadoData extends DatosEstadoPedido {}
+
+/**
+ * Genera correo de notificación al administrador cuando se recibe un nuevo pedido
+ */
+export function generarEmailAdminNuevoPedido(pedido: DatosPedido): string {
+  const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
+  const productosHtml = generarFilasProductos(pedido.productos);
+  const fecha = new Date().toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuevo pedido recibido - Tropicolors</title>
+</head>
+<body style="margin:0; padding:0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color:#f8fafc;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(180deg, #fef2f2 0%, #f8fafc 50%, #fef2f2 100%); min-height: 100vh; padding: 40px 16px;">
+    <tr>
+      <td align="center" valign="top">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px;">
+
+          <tr>
+            <td style="background: #ffffff; border: 1px solid #fecaca; border-radius: 20px 20px 0 0; padding: 40px 32px 32px; text-align: center;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 24px;">
+                <tr>
+                  <td align="center" style="border-radius: 50%; padding: 14px;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background: #fef2f2; border-radius: 16px; padding: 8px; line-height: 0;">
+                          <img src="${logoUrl}" alt="Tropicolors" width="100" style="display: block; border-radius: 10px;">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); border-radius: 50px; padding: 8px 24px; margin-bottom: 16px;">
+                <span style="color: #ffffff; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">🛎️ Nuevo pedido recibido</span>
+              </div>
+
+              ${
+                pedido.numeroPedido
+                  ? `
+              <div style="display: inline-block; background: #fef2f2; border-radius: 8px; padding: 8px 16px; margin-bottom: 16px;">
+                <span style="color: #b91c1c; font-size: 12px;">No. de Pedido:</span>
+                <span style="color: #dc2626; font-size: 14px; font-weight: 700; margin-left: 8px;">${pedido.numeroPedido}</span>
+              </div>
+              `
+                  : ""
+              }
+
+              <h1 style="margin: 0 0 12px; color: #1e293b; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2;">
+                Tienes un nuevo pedido de <span style="color: #dc2626;">${pedido.nombre}</span>
+              </h1>
+              <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">
+                Pedido realizado el <strong style="color: #1e293b;">${fecha}</strong>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="height: 3px; background: linear-gradient(90deg, #dc2626, #ef4444, #dc2626); padding: 0;"></td>
+          </tr>
+
+          <tr>
+            <td style="background: #ffffff; padding: 28px 32px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fef2f2 0%, #f8fafc 100%); border-radius: 12px; border-left: 4px solid #dc2626; overflow: hidden;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <p style="margin: 0 0 14px; color: #1e293b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">📋 Datos del Cliente</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="50%" style="padding: 0 8px 10px 0; vertical-align: top;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">Nombre</span>
+                          <span style="color: #1e293b; font-size: 14px; font-weight: 600;">${pedido.nombre}</span>
+                        </td>
+                        <td width="50%" style="padding: 0 0 10px 8px; vertical-align: top;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">Email</span>
+                          <span style="color: #1e293b; font-size: 14px;">${pedido.email}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td width="50%" style="padding: 0 8px 10px 0; vertical-align: top;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">Teléfono</span>
+                          <span style="color: #1e293b; font-size: 14px;">${pedido.telefono || "No proporcionado"}</span>
+                        </td>
+                        <td width="50%" style="padding: 0 0 10px 8px; vertical-align: top;"></td>
+                      </tr>
+                      <tr>
+                        <td colspan="2" style="padding-top: 4px;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">Dirección de entrega</span>
+                          <span style="color: #1e293b; font-size: 14px;">${pedido.direccion}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background: #ffffff; padding: 0 32px 24px;">
+              <p style="margin: 0 0 12px; color: #1e293b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">🛒 Detalle del Pedido</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <thead>
+                  <tr style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+                    <th style="padding: 12px 16px; text-align: left; color: #ffffff; font-size: 11px; font-weight: 600; text-transform: uppercase;">Producto</th>
+                    <th style="padding: 12px 16px; text-align: center; color: #ffffff; font-size: 11px; font-weight: 600; text-transform: uppercase;">Cant.</th>
+                    <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 600; text-transform: uppercase;">P. Unit.</th>
+                    <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 600; text-transform: uppercase;">Importe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${productosHtml}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background: #ffffff; padding: 0 32px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); border-radius: 12px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="color: rgba(255,255,255,0.8); font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; padding-bottom: 6px;">Total del Pedido</td>
+                        <td style="text-align: right;"><span style="color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">$${pedido.total.toFixed(2)}</span></td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 20px 20px; padding: 28px 32px; text-align: center;">
+              <img src="${logoUrl}" alt="Tropicolors" width="48" style="display:inline-block; border-radius: 10px; margin-bottom: 12px;">
+              <p style="margin: 0 0 4px; color: #1e293b; font-size: 15px; font-weight: 700;">Tropicolors - Panel de Administración</p>
+              <p style="margin: 0; color: #64748b; font-size: 12px;">Notificaciones de nuevos pedidos</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+`;
+}
 
 function generarIconoEstado(estado: string): string {
   const iconos: Record<string, string> = {

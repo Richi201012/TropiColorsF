@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import {
   generarEmailConfirmacion,
   generarEmailEstadoPedido,
+  generarEmailAdminNuevoPedido,
   type EmailPedidoData,
   type EmailEstadoData,
 } from "../lib/emailTemplate";
@@ -15,6 +16,9 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY || "";
 const BREVO_SENDER_EMAIL =
   process.env.BREVO_SENDER_EMAIL || "m_tropicolors1@hotmail.com";
 const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || "Tropicolors";
+
+// Correo del administrador
+const ADMIN_EMAIL = "m_tropicolors1@hotmail.com";
 
 /**
  * Función para enviar correo usando la API REST de Brevo
@@ -145,29 +149,59 @@ router.post("/enviar-correo-pedido", async (req, res) => {
     );
 
     console.log("[Email] Enviando correo a:", email);
-    const result = await enviarCorreoBrevoAPI(
+    const customerResult = await enviarCorreoBrevoAPI(
       email,
       nombre,
       "Pedido Confirmado - Tropicolors",
       html,
     );
 
-    if (!result.success) {
-      console.error("[Email] ERROR al enviar correo:", result.error);
+    if (!customerResult.success) {
+      console.error(
+        "[Email] ERROR al enviar correo al cliente:",
+        customerResult.error,
+      );
       res.status(500).json({
         error: "Error al enviar correo",
-        message: result.error,
+        message: customerResult.error,
       });
       return;
     }
 
-    console.log("[Email] Correo enviado exitosamente!");
-    console.log("[Email] Message ID:", result.messageId);
+    console.log("[Email] Correo enviado exitosamente al cliente!");
+    console.log("[Email] Message ID:", customerResult.messageId);
+
+    console.log("[Email] Enviando notificación al administrador...");
+    const adminHtml = generarEmailAdminNuevoPedido({
+      nombre,
+      email,
+      telefono,
+      direccion,
+      productos,
+      total,
+      numeroPedido,
+    });
+
+    const adminResult = await enviarCorreoBrevoAPI(
+      ADMIN_EMAIL,
+      "Administrador Tropicolors",
+      "Nuevo pedido recibido - Tropicolors",
+      adminHtml,
+    );
+
+    if (adminResult.success) {
+      console.log("[Email] Notificación admin enviada:", adminResult.messageId);
+    } else {
+      console.warn(
+        "[Email] Error al enviar notificación admin (no crítico):",
+        adminResult.error,
+      );
+    }
 
     res.json({
       success: true,
       message: "Correo de confirmación enviado exitosamente",
-      messageId: result.messageId,
+      messageId: customerResult.messageId,
     });
   } catch (error) {
     console.error("[Email] ERROR al enviar correo:", error);
