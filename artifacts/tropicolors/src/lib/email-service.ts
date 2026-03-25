@@ -12,6 +12,7 @@ export type ProductoPedido = {
 export type DatosPedidoCorreo = {
   nombre: string;
   email: string;
+  telefono?: string;
   direccion: string;
   total: number;
   numeroPedido?: string;

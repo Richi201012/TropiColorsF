@@ -91,8 +91,15 @@ router.post("/enviar-correo-pedido", async (req, res) => {
   }
 
   try {
-    const { nombre, email, direccion, total, productos } =
-      req.body as EmailPedidoData;
+    const {
+      nombre,
+      email,
+      telefono,
+      direccion,
+      total,
+      productos,
+      numeroPedido,
+    } = req.body as EmailPedidoData;
 
     if (
       !nombre ||
@@ -125,9 +132,11 @@ router.post("/enviar-correo-pedido", async (req, res) => {
     const html = generarEmailConfirmacion({
       nombre,
       email,
+      telefono,
       direccion,
       productos,
       total,
+      numeroPedido,
     });
 
     console.log(
