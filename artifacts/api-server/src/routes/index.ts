@@ -6,6 +6,7 @@ import ordersRouter from "./orders";
 import invoicesRouter from "./invoices";
 import adminRouter from "./admin";
 import postalCodesRouter from "./postal-codes";
+import emailRouter from "./email";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(ordersRouter);
 router.use(invoicesRouter);
 router.use(adminRouter);
 router.use(postalCodesRouter);
+router.use(emailRouter);
 
 export default router;

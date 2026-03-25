@@ -25,6 +25,7 @@ import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { createOrder } from "@/services/order-service";
+import { enviarCorreoConfirmacion } from "@/lib/email-service";
 
 function VaciarCarritoModal({
   open,
@@ -67,9 +68,12 @@ function VaciarCarritoModal({
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
                 <Trash2 className="h-7 w-7 text-red-500" />
               </div>
-              <h3 className="mb-2 text-lg font-bold text-gray-900">Vaciar el carrito</h3>
+              <h3 className="mb-2 text-lg font-bold text-gray-900">
+                Vaciar el carrito
+              </h3>
               <p className="mb-6 text-sm text-gray-500">
-                Esta accion eliminara todos los productos de tu carrito. Estas seguro de continuar?
+                Esta accion eliminara todos los productos de tu carrito. Estas
+                seguro de continuar?
               </p>
               <div className="flex gap-3">
                 <button
@@ -122,7 +126,11 @@ function VaciarCarritoModalButton({
         <Trash2 className="h-4 w-4" />
         Vaciar Carrito
       </button>
-      <VaciarCarritoModal open={isOpen} onOpenChange={setIsOpen} onConfirm={handleConfirm} />
+      <VaciarCarritoModal
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        onConfirm={handleConfirm}
+      />
     </>
   );
 }
@@ -183,39 +191,54 @@ function validateCheckoutField(
   switch (field) {
     case "customerName":
       if (!values.customerName.trim()) return "Ingresa tu nombre.";
-      if (values.customerName.trim().length < 3) return "El nombre debe tener al menos 3 caracteres.";
+      if (values.customerName.trim().length < 3)
+        return "El nombre debe tener al menos 3 caracteres.";
       return null;
     case "customerEmail":
       if (!values.customerEmail.trim()) return "Ingresa tu correo electronico.";
-      if (!emailRegex.test(values.customerEmail.trim())) return "Ingresa un correo electronico valido.";
+      if (!emailRegex.test(values.customerEmail.trim()))
+        return "Ingresa un correo electronico valido.";
       return null;
     case "customerPhone":
       if (!values.customerPhone.trim()) return "Ingresa tu telefono.";
-      if (!/^\d+$/.test(values.customerPhone)) return "El telefono solo debe contener numeros.";
-      if (values.customerPhone.length !== 10) return "El telefono debe tener exactamente 10 digitos.";
+      if (!/^\d+$/.test(values.customerPhone))
+        return "El telefono solo debe contener numeros.";
+      if (values.customerPhone.length !== 10)
+        return "El telefono debe tener exactamente 10 digitos.";
       return null;
     case "shippingAddress":
       if (!values.shippingAddress.trim()) return "Ingresa tu direccion.";
-      if (values.shippingAddress.trim().length < 10) return "La direccion debe tener al menos 10 caracteres.";
+      if (values.shippingAddress.trim().length < 10)
+        return "La direccion debe tener al menos 10 caracteres.";
       return null;
     case "shippingPostalCode":
       if (!values.shippingPostalCode.trim()) return "Ingresa tu codigo postal.";
-      if (!/^\d+$/.test(values.shippingPostalCode)) return "El codigo postal solo debe contener numeros.";
-      if (values.shippingPostalCode.length !== 5) return "El codigo postal debe tener exactamente 5 digitos.";
+      if (!/^\d+$/.test(values.shippingPostalCode))
+        return "El codigo postal solo debe contener numeros.";
+      if (values.shippingPostalCode.length !== 5)
+        return "El codigo postal debe tener exactamente 5 digitos.";
       return null;
     case "shippingNeighborhood":
       if (!context.hasPostalCodeData && !context.modeManual) return null;
-      if (!values.shippingNeighborhood.trim()) return context.modeManual ? "Ingresa la colonia." : "Selecciona una colonia.";
+      if (!values.shippingNeighborhood.trim())
+        return context.modeManual
+          ? "Ingresa la colonia."
+          : "Selecciona una colonia.";
       return null;
     case "shippingMunicipality":
       if (!context.hasPostalCodeData && !context.modeManual) return null;
       if (!values.shippingMunicipality.trim()) {
-        return context.modeManual ? "Ingresa el municipio o alcaldia." : "No se pudo autocompletar el municipio.";
+        return context.modeManual
+          ? "Ingresa el municipio o alcaldia."
+          : "No se pudo autocompletar el municipio.";
       }
       return null;
     case "shippingState":
       if (!context.hasPostalCodeData && !context.modeManual) return null;
-      if (!values.shippingState.trim()) return context.modeManual ? "Ingresa el estado." : "No se pudo autocompletar el estado.";
+      if (!values.shippingState.trim())
+        return context.modeManual
+          ? "Ingresa el estado."
+          : "No se pudo autocompletar el estado.";
       return null;
   }
 }
@@ -286,23 +309,31 @@ function FieldShell({
   );
 }
 
-function validateCardField(field: CardFieldName, values: CardFormData): string | null {
+function validateCardField(
+  field: CardFieldName,
+  values: CardFormData,
+): string | null {
   switch (field) {
     case "cardNumber":
       if (!values.cardNumber.trim()) return "Ingresa el numero de tarjeta.";
-      if (values.cardNumber.replace(/\s/g, "").length < 16) return "Ingresa una tarjeta valida de 16 digitos.";
+      if (values.cardNumber.replace(/\s/g, "").length < 16)
+        return "Ingresa una tarjeta valida de 16 digitos.";
       return null;
     case "expiryDate":
       if (!values.expiryDate.trim()) return "Ingresa la fecha MM/YY.";
-      if (!/^\d{2}\/\d{2}$/.test(values.expiryDate)) return "Usa el formato MM/YY.";
+      if (!/^\d{2}\/\d{2}$/.test(values.expiryDate))
+        return "Usa el formato MM/YY.";
       return null;
     case "cvv":
       if (!values.cvv.trim()) return "Ingresa el CVV.";
-      if (!/^\d{3,4}$/.test(values.cvv)) return "El CVV debe tener 3 o 4 digitos.";
+      if (!/^\d{3,4}$/.test(values.cvv))
+        return "El CVV debe tener 3 o 4 digitos.";
       return null;
     case "cardholderName":
-      if (!values.cardholderName.trim()) return "Ingresa el nombre del titular.";
-      if (values.cardholderName.trim().length < 3) return "El nombre del titular debe tener al menos 3 caracteres.";
+      if (!values.cardholderName.trim())
+        return "Ingresa el nombre del titular.";
+      if (values.cardholderName.trim().length < 3)
+        return "El nombre del titular debe tener al menos 3 caracteres.";
       return null;
   }
 }
@@ -310,7 +341,9 @@ function validateCardField(field: CardFieldName, values: CardFormData): string |
 function validateCardForm(values: CardFormData): CardFormErrors {
   const nextErrors: CardFormErrors = {};
 
-  (["cardNumber", "expiryDate", "cvv", "cardholderName"] as CardFieldName[]).forEach((field) => {
+  (
+    ["cardNumber", "expiryDate", "cvv", "cardholderName"] as CardFieldName[]
+  ).forEach((field) => {
     const error = validateCardField(field, values);
     if (error) {
       nextErrors[field] = error;
@@ -342,26 +375,44 @@ function CheckoutModal({
   onClose: () => void;
 }) {
   const [step, setStep] = useState<CheckoutStep>(1);
-  const [formValues, setFormValues] = useState<CheckoutFormData>(initialCheckoutValues);
+  const [formValues, setFormValues] = useState<CheckoutFormData>(
+    initialCheckoutValues,
+  );
   const [errors, setErrors] = useState<CheckoutFormErrors>({});
-  const [touched, setTouched] = useState<Partial<Record<CheckoutFieldName, boolean>>>({});
+  const [touched, setTouched] = useState<
+    Partial<Record<CheckoutFieldName, boolean>>
+  >({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [modeManual, setModeManual] = useState(false);
-  const [postalCodeWarning, setPostalCodeWarning] = useState<string | null>(null);
-  const [colonias, setColonias] = useState<Array<{ name: string; type: string | null }>>([]);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("card");
+  const [postalCodeWarning, setPostalCodeWarning] = useState<string | null>(
+    null,
+  );
+  const [colonias, setColonias] = useState<
+    Array<{ name: string; type: string | null }>
+  >([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<PaymentMethod>("card");
   const [cardValues, setCardValues] = useState<CardFormData>(initialCardValues);
   const [cardErrors, setCardErrors] = useState<CardFormErrors>({});
-  const [cardTouched, setCardTouched] = useState<Partial<Record<CardFieldName, boolean>>>({});
-  const [paymentResult, setPaymentResult] = useState<{ orderId: string } | null>(null);
+  const [cardTouched, setCardTouched] = useState<
+    Partial<Record<CardFieldName, boolean>>
+  >({});
+  const [paymentResult, setPaymentResult] = useState<{
+    orderId: string;
+  } | null>(null);
 
   const postalCode = formValues.shippingPostalCode;
-  const { data: postalCodeData, isLoading: isPostalCodeLoading, error: postalCodeError } =
-    usePostalCodeLookup({ postalCode, enabled: open });
+  const {
+    data: postalCodeData,
+    isLoading: isPostalCodeLoading,
+    error: postalCodeError,
+  } = usePostalCodeLookup({ postalCode, enabled: open });
 
   const validationContext = useMemo<CheckoutValidationContext>(
     () => ({
-      hasPostalCodeData: Boolean(postalCodeData && !postalCodeError && !modeManual),
+      hasPostalCodeData: Boolean(
+        postalCodeData && !postalCodeError && !modeManual,
+      ),
       modeManual,
     }),
     [modeManual, postalCodeData, postalCodeError],
@@ -373,9 +424,13 @@ function CheckoutModal({
   );
   const hasBlockingErrors = Object.keys(nextFormErrors).length > 0;
   const isPostalCodeReady = validationContext.hasPostalCodeData;
-  const shouldDisableLocationFields = (!isPostalCodeReady && !modeManual) || isPostalCodeLoading;
+  const shouldDisableLocationFields =
+    (!isPostalCodeReady && !modeManual) || isPostalCodeLoading;
 
-  const updateFieldError = (field: CheckoutFieldName, values: CheckoutFormData) => {
+  const updateFieldError = (
+    field: CheckoutFieldName,
+    values: CheckoutFormData,
+  ) => {
     const error = validateCheckoutField(field, values, validationContext);
     setErrors((currentErrors) => {
       if (!error && !currentErrors[field]) {
@@ -463,10 +518,14 @@ function CheckoutModal({
           shippingState: "",
         };
       } else if (postalCodeError && !postalCodeData) {
-        const notFound = postalCodeError === "No se encontro informacion para ese codigo postal.";
+        const notFound =
+          postalCodeError ===
+          "No se encontro informacion para ese codigo postal.";
         setModeManual(notFound);
         setPostalCodeWarning(
-          notFound ? "Codigo postal no encontrado. Ingresa los datos manualmente." : null,
+          notFound
+            ? "Codigo postal no encontrado. Ingresa los datos manualmente."
+            : null,
         );
         setColonias([]);
         nextValues = notFound
@@ -492,7 +551,8 @@ function CheckoutModal({
         setPostalCodeWarning(null);
         setColonias(postalCodeData.neighborhoods);
         const neighborhoodExists = postalCodeData.neighborhoods.some(
-          (neighborhood) => neighborhood.name === currentValues.shippingNeighborhood,
+          (neighborhood) =>
+            neighborhood.name === currentValues.shippingNeighborhood,
         );
 
         nextValues = {
@@ -509,8 +569,10 @@ function CheckoutModal({
       }
 
       const valuesDidChange =
-        nextValues.shippingNeighborhood !== currentValues.shippingNeighborhood ||
-        nextValues.shippingMunicipality !== currentValues.shippingMunicipality ||
+        nextValues.shippingNeighborhood !==
+          currentValues.shippingNeighborhood ||
+        nextValues.shippingMunicipality !==
+          currentValues.shippingMunicipality ||
         nextValues.shippingState !== currentValues.shippingState;
 
       if (valuesDidChange) {
@@ -567,21 +629,30 @@ function CheckoutModal({
     event.preventDefault();
     setHasAttemptedSubmit(true);
 
-    const validationErrors = validateCheckoutForm(formValues, validationContext);
+    const validationErrors = validateCheckoutForm(
+      formValues,
+      validationContext,
+    );
     setErrors(validationErrors);
 
-    if (Object.keys(validationErrors).length > 0 || isProcessing || isPostalCodeLoading) {
+    if (
+      Object.keys(validationErrors).length > 0 ||
+      isProcessing ||
+      isPostalCodeLoading
+    ) {
       return;
     }
 
     setStep(2);
   };
 
-  const isFieldValid = (field: CheckoutFieldName) => Boolean(touched[field] && !errors[field] && formValues[field].trim());
+  const isFieldValid = (field: CheckoutFieldName) =>
+    Boolean(touched[field] && !errors[field] && formValues[field].trim());
   const showNeighborhoodSelect = !modeManual && colonias.length > 1;
   const neighborhoodLockedByLookup = !modeManual && colonias.length === 1;
   const brandLogoSrc = `${import.meta.env.BASE_URL}logo-tropicolors.png`;
-  const cardFormHasErrors = Object.keys(validateCardForm(cardValues)).length > 0;
+  const cardFormHasErrors =
+    Object.keys(validateCardForm(cardValues)).length > 0;
 
   const handleCardFieldChange = (field: CardFieldName, value: string) => {
     let nextValue = value;
@@ -592,7 +663,8 @@ function CheckoutModal({
     }
     if (field === "expiryDate") {
       const digits = value.replace(/\D/g, "").slice(0, 4);
-      nextValue = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+      nextValue =
+        digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
     }
     if (field === "cvv") {
       nextValue = value.replace(/\D/g, "").slice(0, 4);
@@ -632,7 +704,9 @@ function CheckoutModal({
   };
 
   const isCardFieldValid = (field: CardFieldName) =>
-    Boolean(cardTouched[field] && !cardErrors[field] && cardValues[field].trim());
+    Boolean(
+      cardTouched[field] && !cardErrors[field] && cardValues[field].trim(),
+    );
 
   const handlePaymentSubmit = async () => {
     if (selectedPaymentMethod === "card") {
@@ -726,17 +800,27 @@ function CheckoutModal({
                     <div>
                       <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0_10px_30px_rgba(34,211,238,0.22)]">
-                          <img src={brandLogoSrc} alt="Tropicolors" className="h-8 w-auto object-contain" />
+                          <img
+                            src={brandLogoSrc}
+                            alt="Tropicolors"
+                            className="h-8 w-auto object-contain"
+                          />
                         </div>
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/80">Checkout</p>
-                          <h3 className="mt-1 text-xl font-semibold tracking-tight text-white">Tropicolors</h3>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
+                            Checkout
+                          </p>
+                          <h3 className="mt-1 text-xl font-semibold tracking-tight text-white">
+                            Tropicolors
+                          </h3>
                         </div>
                       </div>
                       <div className="mt-5 flex max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
                         <Package2 className="h-5 w-5 text-cyan-300" />
                         <div>
-                          <p className="text-sm font-semibold text-white">Resumen del pedido</p>
+                          <p className="text-sm font-semibold text-white">
+                            Resumen del pedido
+                          </p>
                           <p className="mt-1 text-xs leading-relaxed text-slate-300">
                             Revisa tus productos antes de confirmar el envio.
                           </p>
@@ -756,14 +840,20 @@ function CheckoutModal({
                     {[
                       { label: "Carrito", icon: ShoppingBag, active: true },
                       { label: "Envio", icon: Truck, active: true },
-                      { label: "Confirmacion", icon: ShieldCheck, active: false },
+                      {
+                        label: "Confirmacion",
+                        icon: ShieldCheck,
+                        active: false,
+                      },
                     ].map((step) => {
                       const StepIcon = step.icon;
                       return (
                         <div
                           key={step.label}
                           className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${
-                            step.active ? "bg-white/12 text-white" : "text-slate-400"
+                            step.active
+                              ? "bg-white/12 text-white"
+                              : "text-slate-400"
                           }`}
                         >
                           <StepIcon className="h-4 w-4" />
@@ -784,12 +874,20 @@ function CheckoutModal({
                           style={{ backgroundColor: item.hexCode || "#003F91" }}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-white">{item.productName}</p>
-                          <p className="mt-1 text-xs text-slate-300">{item.size}</p>
+                          <p className="truncate text-sm font-semibold text-white">
+                            {item.productName}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-300">
+                            {item.size}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-white">x{item.quantity}</p>
-                          <p className="mt-1 text-sm text-cyan-300">${item.price * item.quantity}</p>
+                          <p className="text-sm font-semibold text-white">
+                            x{item.quantity}
+                          </p>
+                          <p className="mt-1 text-sm text-cyan-300">
+                            ${item.price * item.quantity}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -798,10 +896,14 @@ function CheckoutModal({
                   <div className="relative mt-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 shadow-lg shadow-slate-950/20 backdrop-blur-sm">
                     <div className="flex items-center justify-between text-sm text-slate-300">
                       <span>Productos</span>
-                      <span>{items.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                      <span>
+                        {items.reduce((sum, item) => sum + item.quantity, 0)}
+                      </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
-                      <span className="text-base font-medium text-white">Total</span>
+                      <span className="text-base font-medium text-white">
+                        Total
+                      </span>
                       <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-200 bg-clip-text text-4xl font-black tracking-tight text-transparent">
                         ${cartTotal}
                       </span>
@@ -823,7 +925,11 @@ function CheckoutModal({
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-700/80">
-                          {step === 1 ? "Envio" : step === 2 ? "Pago" : "Confirmacion"}
+                          {step === 1
+                            ? "Envio"
+                            : step === 2
+                              ? "Pago"
+                              : "Confirmacion"}
                         </p>
                         <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
                           {step === 1
@@ -844,238 +950,368 @@ function CheckoutModal({
                   </div>
 
                   {step === 1 ? (
-                  <form id="checkout-form" onSubmit={handleFormSubmit} className="space-y-4" noValidate>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div className="sm:col-span-2">
-                        <FieldShell
-                          icon={<UserRound className="h-4 w-4" />}
-                          hasError={Boolean(errors.customerName)}
-                          isValid={isFieldValid("customerName")}
-                        >
-                          <input
-                            value={formValues.customerName}
-                            onChange={(event) => handleFieldChange("customerName", event.target.value)}
-                            onBlur={() => handleFieldBlur("customerName")}
-                            placeholder="Nombre"
-                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                          />
-                        </FieldShell>
-                        {errors.customerName && <p className="mt-1 text-xs text-red-500">{errors.customerName}</p>}
-                      </div>
-
-                      <div>
-                        <FieldShell
-                          icon={<Mail className="h-4 w-4" />}
-                          hasError={Boolean(errors.customerEmail)}
-                          isValid={isFieldValid("customerEmail")}
-                        >
-                          <input
-                            value={formValues.customerEmail}
-                            onChange={(event) => handleFieldChange("customerEmail", event.target.value)}
-                            onBlur={() => handleFieldBlur("customerEmail")}
-                            type="email"
-                            placeholder="Email"
-                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                          />
-                        </FieldShell>
-                        {errors.customerEmail && <p className="mt-1 text-xs text-red-500">{errors.customerEmail}</p>}
-                      </div>
-
-                      <div>
-                        <FieldShell
-                          icon={<Phone className="h-4 w-4" />}
-                          hasError={Boolean(errors.customerPhone)}
-                          isValid={isFieldValid("customerPhone")}
-                        >
-                          <input
-                            value={formValues.customerPhone}
-                            onChange={(event) => handleFieldChange("customerPhone", event.target.value)}
-                            onBlur={() => handleFieldBlur("customerPhone")}
-                            placeholder="Telefono"
-                            inputMode="numeric"
-                            maxLength={10}
-                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                          />
-                        </FieldShell>
-                        {errors.customerPhone && <p className="mt-1 text-xs text-red-500">{errors.customerPhone}</p>}
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <FieldShell
-                          icon={<MapPinHouse className="h-4 w-4" />}
-                          hasError={Boolean(errors.shippingAddress)}
-                          isValid={isFieldValid("shippingAddress")}
-                        >
-                          <input
-                            value={formValues.shippingAddress}
-                            onChange={(event) => handleFieldChange("shippingAddress", event.target.value)}
-                            onBlur={() => handleFieldBlur("shippingAddress")}
-                            placeholder="Direccion"
-                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                          />
-                        </FieldShell>
-                        {errors.shippingAddress && <p className="mt-1 text-xs text-red-500">{errors.shippingAddress}</p>}
-                      </div>
-
-                      <div>
-                        <FieldShell
-                          icon={<MapPinned className="h-4 w-4" />}
-                          hasError={Boolean(errors.shippingPostalCode)}
-                          isValid={isFieldValid("shippingPostalCode")}
-                        >
-                          <input
-                            value={formValues.shippingPostalCode}
-                            onChange={(event) => handleFieldChange("shippingPostalCode", event.target.value)}
-                            onBlur={() => handleFieldBlur("shippingPostalCode")}
-                            placeholder="Codigo postal"
-                            inputMode="numeric"
-                            maxLength={5}
-                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                          />
-                        </FieldShell>
-                        {postalCode.length > 0 && postalCode.length < 5 && (
-                          <p className="mt-1 text-xs text-amber-600">Ingresa los 5 digitos del codigo postal.</p>
-                        )}
-                        {isPostalCodeLoading && (
-                          <p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Consultando codigo postal...
-                          </p>
-                        )}
-                        {postalCodeWarning && (
-                          <p className="mt-1 text-xs text-amber-600">{postalCodeWarning}</p>
-                        )}
-                        {errors.shippingPostalCode && <p className="mt-1 text-xs text-red-500">{errors.shippingPostalCode}</p>}
-                      </div>
-
-                      <div>
-                        {showNeighborhoodSelect ? (
+                    <form
+                      id="checkout-form"
+                      onSubmit={handleFormSubmit}
+                      className="space-y-4"
+                      noValidate
+                    >
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
                           <FieldShell
-                            icon={<Building2 className="h-4 w-4" />}
-                            hasError={Boolean(errors.shippingNeighborhood)}
-                            isValid={isFieldValid("shippingNeighborhood")}
-                            disabled={shouldDisableLocationFields}
-                          >
-                            <select
-                              value={formValues.shippingNeighborhood}
-                              onChange={(event) => handleFieldChange("shippingNeighborhood", event.target.value)}
-                              onBlur={() => handleFieldBlur("shippingNeighborhood")}
-                              disabled={shouldDisableLocationFields}
-                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none"
-                            >
-                              <option value="" disabled>
-                                Selecciona una colonia
-                              </option>
-                              {colonias.map((neighborhood) => (
-                                <option key={`${neighborhood.name}-${neighborhood.type || "na"}`} value={neighborhood.name}>
-                                  {neighborhood.type ? `${neighborhood.name} (${neighborhood.type})` : neighborhood.name}
-                                </option>
-                              ))}
-                            </select>
-                          </FieldShell>
-                        ) : (
-                          <FieldShell
-                            icon={<Building2 className="h-4 w-4" />}
-                            hasError={Boolean(errors.shippingNeighborhood)}
-                            isValid={isFieldValid("shippingNeighborhood")}
-                            disabled={shouldDisableLocationFields || neighborhoodLockedByLookup}
+                            icon={<UserRound className="h-4 w-4" />}
+                            hasError={Boolean(errors.customerName)}
+                            isValid={isFieldValid("customerName")}
                           >
                             <input
-                              value={formValues.shippingNeighborhood}
-                              onChange={(event) => handleFieldChange("shippingNeighborhood", event.target.value)}
-                              onBlur={() => handleFieldBlur("shippingNeighborhood")}
-                              placeholder="Colonia"
-                              disabled={shouldDisableLocationFields || neighborhoodLockedByLookup}
-                              readOnly={neighborhoodLockedByLookup}
+                              value={formValues.customerName}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "customerName",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => handleFieldBlur("customerName")}
+                              placeholder="Nombre"
                               className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                             />
                           </FieldShell>
-                        )}
-                        {showNeighborhoodSelect && (
-                          <p className="mt-1 text-xs text-slate-500">Se encontraron varias colonias para este codigo postal.</p>
-                        )}
-                        {modeManual && <p className="mt-1 text-xs text-amber-600">Completa la colonia manualmente.</p>}
-                        {!postalCode && <p className="mt-1 text-xs text-slate-500">Ingresa un codigo postal para habilitar la colonia.</p>}
-                        {errors.shippingNeighborhood && <p className="mt-1 text-xs text-red-500">{errors.shippingNeighborhood}</p>}
-                      </div>
+                          {errors.customerName && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.customerName}
+                            </p>
+                          )}
+                        </div>
 
-                      <div>
-                        <FieldShell
-                          icon={<Landmark className="h-4 w-4" />}
-                          hasError={Boolean(errors.shippingMunicipality)}
-                          isValid={isFieldValid("shippingMunicipality")}
-                          disabled={!modeManual}
-                        >
-                          <input
-                            value={formValues.shippingMunicipality}
-                            onChange={(event) => handleFieldChange("shippingMunicipality", event.target.value)}
-                            onBlur={() => handleFieldBlur("shippingMunicipality")}
-                            placeholder="Municipio / Alcaldia"
+                        <div>
+                          <FieldShell
+                            icon={<Mail className="h-4 w-4" />}
+                            hasError={Boolean(errors.customerEmail)}
+                            isValid={isFieldValid("customerEmail")}
+                          >
+                            <input
+                              value={formValues.customerEmail}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "customerEmail",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => handleFieldBlur("customerEmail")}
+                              type="email"
+                              placeholder="Email"
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          {errors.customerEmail && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.customerEmail}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <FieldShell
+                            icon={<Phone className="h-4 w-4" />}
+                            hasError={Boolean(errors.customerPhone)}
+                            isValid={isFieldValid("customerPhone")}
+                          >
+                            <input
+                              value={formValues.customerPhone}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "customerPhone",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => handleFieldBlur("customerPhone")}
+                              placeholder="Telefono"
+                              inputMode="numeric"
+                              maxLength={10}
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          {errors.customerPhone && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.customerPhone}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <FieldShell
+                            icon={<MapPinHouse className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingAddress)}
+                            isValid={isFieldValid("shippingAddress")}
+                          >
+                            <input
+                              value={formValues.shippingAddress}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingAddress",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => handleFieldBlur("shippingAddress")}
+                              placeholder="Direccion"
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          {errors.shippingAddress && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingAddress}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <FieldShell
+                            icon={<MapPinned className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingPostalCode)}
+                            isValid={isFieldValid("shippingPostalCode")}
+                          >
+                            <input
+                              value={formValues.shippingPostalCode}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingPostalCode",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() =>
+                                handleFieldBlur("shippingPostalCode")
+                              }
+                              placeholder="Codigo postal"
+                              inputMode="numeric"
+                              maxLength={5}
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          {postalCode.length > 0 && postalCode.length < 5 && (
+                            <p className="mt-1 text-xs text-amber-600">
+                              Ingresa los 5 digitos del codigo postal.
+                            </p>
+                          )}
+                          {isPostalCodeLoading && (
+                            <p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Consultando codigo postal...
+                            </p>
+                          )}
+                          {postalCodeWarning && (
+                            <p className="mt-1 text-xs text-amber-600">
+                              {postalCodeWarning}
+                            </p>
+                          )}
+                          {errors.shippingPostalCode && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingPostalCode}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          {showNeighborhoodSelect ? (
+                            <FieldShell
+                              icon={<Building2 className="h-4 w-4" />}
+                              hasError={Boolean(errors.shippingNeighborhood)}
+                              isValid={isFieldValid("shippingNeighborhood")}
+                              disabled={shouldDisableLocationFields}
+                            >
+                              <select
+                                value={formValues.shippingNeighborhood}
+                                onChange={(event) =>
+                                  handleFieldChange(
+                                    "shippingNeighborhood",
+                                    event.target.value,
+                                  )
+                                }
+                                onBlur={() =>
+                                  handleFieldBlur("shippingNeighborhood")
+                                }
+                                disabled={shouldDisableLocationFields}
+                                className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none"
+                              >
+                                <option value="" disabled>
+                                  Selecciona una colonia
+                                </option>
+                                {colonias.map((neighborhood) => (
+                                  <option
+                                    key={`${neighborhood.name}-${neighborhood.type || "na"}`}
+                                    value={neighborhood.name}
+                                  >
+                                    {neighborhood.type
+                                      ? `${neighborhood.name} (${neighborhood.type})`
+                                      : neighborhood.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </FieldShell>
+                          ) : (
+                            <FieldShell
+                              icon={<Building2 className="h-4 w-4" />}
+                              hasError={Boolean(errors.shippingNeighborhood)}
+                              isValid={isFieldValid("shippingNeighborhood")}
+                              disabled={
+                                shouldDisableLocationFields ||
+                                neighborhoodLockedByLookup
+                              }
+                            >
+                              <input
+                                value={formValues.shippingNeighborhood}
+                                onChange={(event) =>
+                                  handleFieldChange(
+                                    "shippingNeighborhood",
+                                    event.target.value,
+                                  )
+                                }
+                                onBlur={() =>
+                                  handleFieldBlur("shippingNeighborhood")
+                                }
+                                placeholder="Colonia"
+                                disabled={
+                                  shouldDisableLocationFields ||
+                                  neighborhoodLockedByLookup
+                                }
+                                readOnly={neighborhoodLockedByLookup}
+                                className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                              />
+                            </FieldShell>
+                          )}
+                          {showNeighborhoodSelect && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              Se encontraron varias colonias para este codigo
+                              postal.
+                            </p>
+                          )}
+                          {modeManual && (
+                            <p className="mt-1 text-xs text-amber-600">
+                              Completa la colonia manualmente.
+                            </p>
+                          )}
+                          {!postalCode && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              Ingresa un codigo postal para habilitar la
+                              colonia.
+                            </p>
+                          )}
+                          {errors.shippingNeighborhood && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingNeighborhood}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <FieldShell
+                            icon={<Landmark className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingMunicipality)}
+                            isValid={isFieldValid("shippingMunicipality")}
                             disabled={!modeManual}
-                            readOnly={!modeManual}
-                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                          />
-                        </FieldShell>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {modeManual ? "Ingresa el municipio o alcaldia manualmente." : "Autocompletado por codigo postal."}
-                        </p>
-                        {errors.shippingMunicipality && <p className="mt-1 text-xs text-red-500">{errors.shippingMunicipality}</p>}
-                      </div>
+                          >
+                            <input
+                              value={formValues.shippingMunicipality}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingMunicipality",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() =>
+                                handleFieldBlur("shippingMunicipality")
+                              }
+                              placeholder="Municipio / Alcaldia"
+                              disabled={!modeManual}
+                              readOnly={!modeManual}
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {modeManual
+                              ? "Ingresa el municipio o alcaldia manualmente."
+                              : "Autocompletado por codigo postal."}
+                          </p>
+                          {errors.shippingMunicipality && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingMunicipality}
+                            </p>
+                          )}
+                        </div>
 
-                      <div>
-                        <FieldShell
-                          icon={<Landmark className="h-4 w-4" />}
-                          hasError={Boolean(errors.shippingState)}
-                          isValid={isFieldValid("shippingState")}
-                          disabled={!modeManual}
-                        >
-                          <input
-                            value={formValues.shippingState}
-                            onChange={(event) => handleFieldChange("shippingState", event.target.value)}
-                            onBlur={() => handleFieldBlur("shippingState")}
-                            placeholder="Estado"
+                        <div>
+                          <FieldShell
+                            icon={<Landmark className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingState)}
+                            isValid={isFieldValid("shippingState")}
                             disabled={!modeManual}
-                            readOnly={!modeManual}
-                            className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                          />
-                        </FieldShell>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {modeManual ? "Ingresa el estado manualmente." : "Autocompletado por codigo postal."}
-                        </p>
-                        {errors.shippingState && <p className="mt-1 text-xs text-red-500">{errors.shippingState}</p>}
+                          >
+                            <input
+                              value={formValues.shippingState}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingState",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => handleFieldBlur("shippingState")}
+                              placeholder="Estado"
+                              disabled={!modeManual}
+                              readOnly={!modeManual}
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {modeManual
+                              ? "Ingresa el estado manualmente."
+                              : "Autocompletado por codigo postal."}
+                          </p>
+                          {errors.shippingState && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingState}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isProcessing || isPostalCodeLoading || hasBlockingErrors}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                      >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        {isProcessing ? "Procesando..." : "Confirmar pedido"}
-                      </button>
-                    </div>
-                  </form>
+                      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={
+                            isProcessing ||
+                            isPostalCodeLoading ||
+                            hasBlockingErrors
+                          }
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                        >
+                          {isProcessing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : null}
+                          {isProcessing ? "Procesando..." : "Confirmar pedido"}
+                        </button>
+                      </div>
+                    </form>
                   ) : step === 2 ? (
                     <div className="space-y-6">
                       <div className="grid gap-3">
                         {paymentOptions.map((option) => {
                           const OptionIcon = option.icon;
-                          const isSelected = selectedPaymentMethod === option.id;
+                          const isSelected =
+                            selectedPaymentMethod === option.id;
 
                           return (
                             <button
                               key={option.id}
                               type="button"
-                              onClick={() => setSelectedPaymentMethod(option.id)}
+                              onClick={() =>
+                                setSelectedPaymentMethod(option.id)
+                              }
                               className={`flex items-center gap-4 rounded-3xl border p-4 text-left transition duration-200 ${
                                 isSelected
                                   ? "border-sky-500 bg-sky-50 shadow-lg shadow-sky-100"
@@ -1084,18 +1320,26 @@ function CheckoutModal({
                             >
                               <div
                                 className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                                  isSelected ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-500"
+                                  isSelected
+                                    ? "bg-sky-600 text-white"
+                                    : "bg-slate-100 text-slate-500"
                                 }`}
                               >
                                 <OptionIcon className="h-5 w-5" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold text-slate-900">{option.title}</p>
-                                <p className="mt-1 text-xs text-slate-500">{option.description}</p>
+                                <p className="text-sm font-semibold text-slate-900">
+                                  {option.title}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {option.description}
+                                </p>
                               </div>
                               <div
                                 className={`h-4 w-4 rounded-full border-2 ${
-                                  isSelected ? "border-sky-500 bg-sky-500" : "border-slate-300"
+                                  isSelected
+                                    ? "border-sky-500 bg-sky-500"
+                                    : "border-slate-300"
                                 }`}
                               />
                             </button>
@@ -1106,8 +1350,13 @@ function CheckoutModal({
                       {selectedPaymentMethod === "card" ? (
                         <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                           <div className="mb-4">
-                            <p className="text-sm font-semibold text-slate-900">Datos de la tarjeta</p>
-                            <p className="mt-1 text-xs text-slate-500">Vista simulada tipo Stripe. No se procesan pagos reales.</p>
+                            <p className="text-sm font-semibold text-slate-900">
+                              Datos de la tarjeta
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Vista simulada tipo Stripe. No se procesan pagos
+                              reales.
+                            </p>
                           </div>
 
                           <div className="space-y-4">
@@ -1119,14 +1368,25 @@ function CheckoutModal({
                               >
                                 <input
                                   value={cardValues.cardNumber}
-                                  onChange={(event) => handleCardFieldChange("cardNumber", event.target.value)}
-                                  onBlur={() => handleCardFieldBlur("cardNumber")}
+                                  onChange={(event) =>
+                                    handleCardFieldChange(
+                                      "cardNumber",
+                                      event.target.value,
+                                    )
+                                  }
+                                  onBlur={() =>
+                                    handleCardFieldBlur("cardNumber")
+                                  }
                                   placeholder="Numero de tarjeta"
                                   inputMode="numeric"
                                   className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                                 />
                               </FieldShell>
-                              {cardErrors.cardNumber && <p className="mt-1 text-xs text-red-500">{cardErrors.cardNumber}</p>}
+                              {cardErrors.cardNumber && (
+                                <p className="mt-1 text-xs text-red-500">
+                                  {cardErrors.cardNumber}
+                                </p>
+                              )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -1138,14 +1398,25 @@ function CheckoutModal({
                                 >
                                   <input
                                     value={cardValues.expiryDate}
-                                    onChange={(event) => handleCardFieldChange("expiryDate", event.target.value)}
-                                    onBlur={() => handleCardFieldBlur("expiryDate")}
+                                    onChange={(event) =>
+                                      handleCardFieldChange(
+                                        "expiryDate",
+                                        event.target.value,
+                                      )
+                                    }
+                                    onBlur={() =>
+                                      handleCardFieldBlur("expiryDate")
+                                    }
                                     placeholder="MM/YY"
                                     inputMode="numeric"
                                     className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                                   />
                                 </FieldShell>
-                                {cardErrors.expiryDate && <p className="mt-1 text-xs text-red-500">{cardErrors.expiryDate}</p>}
+                                {cardErrors.expiryDate && (
+                                  <p className="mt-1 text-xs text-red-500">
+                                    {cardErrors.expiryDate}
+                                  </p>
+                                )}
                               </div>
 
                               <div>
@@ -1156,14 +1427,23 @@ function CheckoutModal({
                                 >
                                   <input
                                     value={cardValues.cvv}
-                                    onChange={(event) => handleCardFieldChange("cvv", event.target.value)}
+                                    onChange={(event) =>
+                                      handleCardFieldChange(
+                                        "cvv",
+                                        event.target.value,
+                                      )
+                                    }
                                     onBlur={() => handleCardFieldBlur("cvv")}
                                     placeholder="CVV"
                                     inputMode="numeric"
                                     className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                                   />
                                 </FieldShell>
-                                {cardErrors.cvv && <p className="mt-1 text-xs text-red-500">{cardErrors.cvv}</p>}
+                                {cardErrors.cvv && (
+                                  <p className="mt-1 text-xs text-red-500">
+                                    {cardErrors.cvv}
+                                  </p>
+                                )}
                               </div>
                             </div>
 
@@ -1175,20 +1455,33 @@ function CheckoutModal({
                               >
                                 <input
                                   value={cardValues.cardholderName}
-                                  onChange={(event) => handleCardFieldChange("cardholderName", event.target.value)}
-                                  onBlur={() => handleCardFieldBlur("cardholderName")}
+                                  onChange={(event) =>
+                                    handleCardFieldChange(
+                                      "cardholderName",
+                                      event.target.value,
+                                    )
+                                  }
+                                  onBlur={() =>
+                                    handleCardFieldBlur("cardholderName")
+                                  }
                                   placeholder="Nombre del titular"
                                   className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                                 />
                               </FieldShell>
-                              {cardErrors.cardholderName && <p className="mt-1 text-xs text-red-500">{cardErrors.cardholderName}</p>}
+                              {cardErrors.cardholderName && (
+                                <p className="mt-1 text-xs text-red-500">
+                                  {cardErrors.cardholderName}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
                       ) : (
                         <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                           <p className="text-sm font-semibold text-slate-900">
-                            {selectedPaymentMethod === "oxxo" ? "Pago en OXXO" : "Transferencia bancaria"}
+                            {selectedPaymentMethod === "oxxo"
+                              ? "Pago en OXXO"
+                              : "Transferencia bancaria"}
                           </p>
                           <p className="mt-2 text-sm leading-relaxed text-slate-500">
                             {selectedPaymentMethod === "oxxo"
@@ -1201,7 +1494,9 @@ function CheckoutModal({
                       <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                         <div className="flex items-center justify-between text-sm text-slate-500">
                           <span>Total a pagar</span>
-                          <span className="text-3xl font-black tracking-tight text-sky-700">${cartTotal}</span>
+                          <span className="text-3xl font-black tracking-tight text-sky-700">
+                            ${cartTotal}
+                          </span>
                         </div>
                       </div>
 
@@ -1216,10 +1511,19 @@ function CheckoutModal({
                         <button
                           type="button"
                           onClick={handlePaymentSubmit}
-                          disabled={isProcessing || (selectedPaymentMethod === "card" && cardFormHasErrors && Object.keys(cardTouched).length > 0)}
+                          disabled={
+                            isProcessing ||
+                            (selectedPaymentMethod === "card" &&
+                              cardFormHasErrors &&
+                              Object.keys(cardTouched).length > 0)
+                          }
                           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                         >
-                          {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                          {isProcessing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CreditCard className="h-4 w-4" />
+                          )}
                           {isProcessing ? "Procesando pago..." : "Pagar ahora"}
                         </button>
                       </div>
@@ -1229,9 +1533,12 @@ function CheckoutModal({
                       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-lg shadow-emerald-100">
                         <ShieldCheck className="h-10 w-10" />
                       </div>
-                      <h4 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">Pago realizado con exito</h4>
+                      <h4 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">
+                        Pago realizado con exito
+                      </h4>
                       <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-                        Tu compra fue simulada correctamente. Ya puedes cerrar este paso y volver al catalogo.
+                        Tu compra fue simulada correctamente. Ya puedes cerrar
+                        este paso y volver al catalogo.
                       </p>
                       {paymentResult?.orderId ? (
                         <p className="mt-4 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold tracking-[0.18em] text-slate-600">
@@ -1259,7 +1566,15 @@ function CheckoutModal({
 }
 
 export function CartDrawer() {
-  const { isCartOpen, setIsCartOpen, items, cartTotal, removeFromCart, updateQuantity, clearCart } = useCart();
+  const {
+    isCartOpen,
+    setIsCartOpen,
+    items,
+    cartTotal,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+  } = useCart();
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -1330,6 +1645,28 @@ export function CartDrawer() {
             : null,
       });
 
+      // Enviar correo de confirmación del pedido
+      try {
+        const direccionCompleta = `${data.shippingAddress}, ${data.shippingNeighborhood}, ${data.shippingMunicipality}, ${data.shippingState}`;
+        await enviarCorreoConfirmacion({
+          nombre: data.customerName,
+          email: data.customerEmail,
+          direccion: direccionCompleta,
+          total: cartTotal,
+          productos: items.map((item) => ({
+            nombre: item.productName,
+            cantidad: item.quantity,
+            precio: item.price,
+          })),
+        });
+        console.log("[CartDrawer] Correo de confirmación enviado exitosamente");
+      } catch (emailError) {
+        console.error(
+          "[CartDrawer] Error al enviar correo de confirmación:",
+          emailError,
+        );
+      }
+
       return {
         success: true,
         orderId: `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`,
@@ -1338,7 +1675,8 @@ export function CartDrawer() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
+        description:
+          "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
         variant: "destructive",
       });
       throw error;
@@ -1379,7 +1717,9 @@ export function CartDrawer() {
             <div className="flex items-center justify-between rounded-tl-2xl border-b bg-gray-50 p-4">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="h-5 w-5 text-blue-600" />
-                <span className="text-lg font-bold text-gray-800">Tu Carrito</span>
+                <span className="text-lg font-bold text-gray-800">
+                  Tu Carrito
+                </span>
                 <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-medium text-white">
                   {items.reduce((sum, item) => sum + item.quantity, 0)}
                 </span>
@@ -1396,8 +1736,12 @@ export function CartDrawer() {
               {items.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center py-16 text-gray-400">
                   <ShoppingBag className="mb-4 h-20 w-20 text-gray-300" />
-                  <p className="mb-2 font-medium text-gray-500">Tu carrito esta vacio</p>
-                  <p className="mb-6 text-sm text-gray-400">Agrega productos para comenzar</p>
+                  <p className="mb-2 font-medium text-gray-500">
+                    Tu carrito esta vacio
+                  </p>
+                  <p className="mb-6 text-sm text-gray-400">
+                    Agrega productos para comenzar
+                  </p>
                   <button
                     onClick={() => setIsCartOpen(false)}
                     className="rounded-xl bg-blue-600 px-6 py-2.5 font-medium text-white transition-colors active:scale-95 hover:bg-blue-700"
@@ -1419,28 +1763,48 @@ export function CartDrawer() {
                       style={{ backgroundColor: item.hexCode || "#003F91" }}
                     />
                     <div className="min-w-0 flex-1">
-                      <h4 className="truncate text-sm font-semibold text-gray-800">{item.productName}</h4>
+                      <h4 className="truncate text-sm font-semibold text-gray-800">
+                        {item.productName}
+                      </h4>
                       <p className="text-xs text-gray-500">{item.size}</p>
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
                           <button
-                            onClick={() => updateQuantity(item.productId, item.size, item.quantity - 1)}
+                            onClick={() =>
+                              updateQuantity(
+                                item.productId,
+                                item.size,
+                                item.quantity - 1,
+                              )
+                            }
                             className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
                           >
                             <Minus className="h-3 w-3 text-gray-600" />
                           </button>
-                          <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                          <span className="w-6 text-center text-sm font-medium">
+                            {item.quantity}
+                          </span>
                           <button
-                            onClick={() => updateQuantity(item.productId, item.size, item.quantity + 1)}
+                            onClick={() =>
+                              updateQuantity(
+                                item.productId,
+                                item.size,
+                                item.quantity + 1,
+                              )
+                            }
                             className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
                           >
                             <Plus className="h-3 w-3 text-gray-600" />
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-gray-800">${item.price * item.quantity}</span>
+                          <span className="text-sm font-bold text-gray-800">
+                            ${item.price * item.quantity}
+                          </span>
                           <button
-                            onClick={() => removeFromCart(item.productId, item.size)}
+                            onClick={() =>
+                              removeFromCart(item.productId, item.size)
+                            }
                             className="rounded-lg p-1.5 text-red-500 opacity-0 transition-all hover:bg-red-50 group-hover:opacity-100"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1455,7 +1819,10 @@ export function CartDrawer() {
 
             {items.length > 0 && (
               <div className="space-y-3 border-t bg-gray-50 p-4">
-                <VaciarCarritoModalButton clearCart={clearCart} setIsCartOpen={setIsCartOpen} />
+                <VaciarCarritoModalButton
+                  clearCart={clearCart}
+                  setIsCartOpen={setIsCartOpen}
+                />
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-semibold">${cartTotal}</span>
@@ -1466,7 +1833,9 @@ export function CartDrawer() {
                 </div>
                 <div className="flex items-center justify-between border-t pt-2">
                   <span className="text-lg font-bold">Total</span>
-                  <span className="text-xl font-bold text-blue-600">${cartTotal}</span>
+                  <span className="text-xl font-bold text-blue-600">
+                    ${cartTotal}
+                  </span>
                 </div>
                 <button
                   onClick={() => setIsCheckoutModalOpen(true)}
