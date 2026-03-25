@@ -1,12 +1,12 @@
 ﻿import React, { useState, useEffect, createContext, useContext } from "react";
-import { 
-  Lock, 
-  TrendingUp, 
-  Package, 
-  Clock, 
-  CheckCircle, 
-  LayoutDashboard, 
-  ShoppingBag, 
+import {
+  Lock,
+  TrendingUp,
+  Package,
+  Clock,
+  CheckCircle,
+  LayoutDashboard,
+  ShoppingBag,
   FileText,
   Eye,
   EyeOff,
@@ -30,7 +30,7 @@ import {
   ClipboardList,
   Settings,
   Phone,
-  Shield
+  Shield,
 } from "lucide-react";
 import { Invoice } from "@/components/Invoice";
 import type { InvoiceData } from "@/types/invoice";
@@ -46,9 +46,14 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, addDoc, collection } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { useOrders } from "@/hooks/useOrders";
-import { useClientesFromOrders, filtrarClientes } from "@/hooks/useClientesFromOrders";
+import { useOrders, type OrderStatus } from "@/hooks/useOrders";
+import {
+  useClientesFromOrders,
+  filtrarClientes,
+} from "@/hooks/useClientesFromOrders";
 import { useFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
+import { updateOrderStatus as updateOrderStatusDB } from "@/services/order-service";
+import { enviarCorreoEstadoPedido } from "@/lib/email-service";
 
 // Auth Context for session management
 interface AuthContextType {
@@ -61,7 +66,11 @@ interface AuthContextType {
   };
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  saveUserProfile: (input: { name: string; email: string; phone: string }) => Promise<void>;
+  saveUserProfile: (input: {
+    name: string;
+    email: string;
+    phone: string;
+  }) => Promise<void>;
   changeUserPassword: (newPassword: string) => Promise<void>;
   isLoading: boolean;
   isLoggingOut: boolean;
@@ -80,7 +89,11 @@ const useAuth = () => {
 
 const useAuthProvider = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [userProfile, setUserProfile] = useState({ name: "", email: "", phone: "" });
+  const [userProfile, setUserProfile] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [authReady, setAuthReady] = useState(false);
@@ -117,7 +130,10 @@ const useAuthProvider = () => {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       const authError = error as { code?: string };
-      if (authError.code === "auth/user-not-found" || authError.code === "auth/invalid-credential") {
+      if (
+        authError.code === "auth/user-not-found" ||
+        authError.code === "auth/invalid-credential"
+      ) {
         throw new Error("Usuario no encontrado.");
       }
       if (authError.code === "auth/wrong-password") {
@@ -142,7 +158,11 @@ const useAuthProvider = () => {
     }
   };
 
-  const saveUserProfile = async (input: { name: string; email: string; phone: string }) => {
+  const saveUserProfile = async (input: {
+    name: string;
+    email: string;
+    phone: string;
+  }) => {
     if (!auth.currentUser) {
       throw new Error("No hay una sesión activa.");
     }
@@ -195,17 +215,17 @@ const useAuthProvider = () => {
 };
 
 // Premium Input Component
-function PremiumInput({ 
-  icon: Icon, 
-  type, 
-  placeholder, 
-  value, 
-  onChange, 
+function PremiumInput({
+  icon: Icon,
+  type,
+  placeholder,
+  value,
+  onChange,
   error,
   showToggle,
   onToggle,
-  disabled 
-}: { 
+  disabled,
+}: {
   icon: React.ElementType;
   type: string;
   placeholder: string;
@@ -222,8 +242,12 @@ function PremiumInput({
 
   return (
     <div className="relative">
-      <div className={`relative transition-all duration-200 ${isFocused ? 'transform -translate-y-0.5' : ''}`}>
-        <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${isFocused ? 'text-primary' : 'text-muted-foreground'}`}>
+      <div
+        className={`relative transition-all duration-200 ${isFocused ? "transform -translate-y-0.5" : ""}`}
+      >
+        <div
+          className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${isFocused ? "text-primary" : "text-muted-foreground"}`}
+        >
           <Icon size={18} strokeWidth={1.5} />
         </div>
         <input
@@ -237,13 +261,14 @@ function PremiumInput({
           className={`
             w-full pl-12 pr-12 py-4 bg-white border-2 rounded-2xl outline-none transition-all duration-200
             input-premium font-medium text-sm
-            ${error 
-              ? 'border-destructive/50 focus:border-destructive focus:ring-4 focus:ring-destructive/10' 
-              : isFocused 
-                ? 'border-primary/30 focus:border-primary focus:ring-4 focus:ring-primary/10' 
-                : 'border-border/60 focus:border-primary/30'
+            ${
+              error
+                ? "border-destructive/50 focus:border-destructive focus:ring-4 focus:ring-destructive/10"
+                : isFocused
+                  ? "border-primary/30 focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  : "border-border/60 focus:border-primary/30"
             }
-            ${disabled ? 'bg-muted/30 cursor-not-allowed' : 'bg-white'}
+            ${disabled ? "bg-muted/30 cursor-not-allowed" : "bg-white"}
           `}
         />
         {isPassword && (
@@ -267,26 +292,26 @@ function PremiumInput({
 }
 
 // Premium Button Component
-function PremiumButton({ 
-  children, 
-  onClick, 
-  isLoading, 
+function PremiumButton({
+  children,
+  onClick,
+  isLoading,
   disabled,
-  variant = 'primary',
-  type = 'button'
-}: { 
+  variant = "primary",
+  type = "button",
+}: {
   children: React.ReactNode;
   onClick?: (e?: React.FormEvent) => void | Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline';
-  type?: 'button' | 'submit' | 'reset';
+  variant?: "primary" | "secondary" | "outline";
+  type?: "button" | "submit" | "reset";
 }) {
   const baseClasses = `
     w-full py-4 rounded-2xl font-bold text-sm transition-all duration-200
     btn-premium flex items-center justify-center gap-2
   `;
-  
+
   const variants = {
     primary: `
       bg-gradient-to-r from-primary to-primary/90 text-primary-foreground
@@ -300,7 +325,7 @@ function PremiumButton({
     outline: `
       border-2 border-border text-foreground
       hover:border-primary/30 hover:bg-primary/5
-    `
+    `,
   };
 
   return (
@@ -315,19 +340,21 @@ function PremiumButton({
           <Loader2 size={18} className="animate-spin" />
           Iniciando sesión...
         </>
-      ) : children}
+      ) : (
+        children
+      )}
     </button>
   );
 }
 
 // Particle Component for background effect
-function Particle({ 
-  size, 
-  color, 
-  position, 
-  delay, 
-  duration 
-}: { 
+function Particle({
+  size,
+  color,
+  position,
+  delay,
+  duration,
+}: {
   size: number;
   color: string;
   position: { x: string; y: string };
@@ -348,17 +375,19 @@ function Particle({
   return (
     <div
       className="absolute rounded-full animate-particle pointer-events-none"
-      style={{
-        width: size,
-        height: size,
-        left: position.x,
-        top: position.y,
-        backgroundColor: color,
-        '--tx': `${tx}px`,
-        '--ty': `${ty}px`,
-        '--duration': `${duration}s`,
-        '--delay': `${delay}s`,
-      } as React.CSSProperties}
+      style={
+        {
+          width: size,
+          height: size,
+          left: position.x,
+          top: position.y,
+          backgroundColor: color,
+          "--tx": `${tx}px`,
+          "--ty": `${ty}px`,
+          "--duration": `${duration}s`,
+          "--delay": `${delay}s`,
+        } as React.CSSProperties
+      }
     />
   );
 }
@@ -370,7 +399,7 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  
+
   const { login } = useAuth();
 
   useEffect(() => {
@@ -380,7 +409,7 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!email.trim()) {
       setError("Por favor ingresa tu correo electrónico");
       return;
@@ -406,7 +435,11 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
       await login(email.trim(), password);
       onLoginSuccess();
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "No se pudo iniciar sesión.");
+      setError(
+        loginError instanceof Error
+          ? loginError.message
+          : "No se pudo iniciar sesión.",
+      );
     }
     setIsLoading(false);
   };
@@ -415,7 +448,9 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const particles = Array.from({ length: 20 }, (_, i) => ({
     id: i,
     size: Math.random() * 6 + 2,
-    color: ['#003F91', '#00A8B5', '#FFCD00', '#FFFFFF'][Math.floor(Math.random() * 4)],
+    color: ["#003F91", "#00A8B5", "#FFCD00", "#FFFFFF"][
+      Math.floor(Math.random() * 4)
+    ],
     position: {
       x: `${Math.random() * 100}%`,
       y: `${Math.random() * 100}%`,
@@ -461,22 +496,24 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
       </div>
 
       {/* Login Container */}
-      <div className={`
+      <div
+        className={`
         relative min-h-screen flex items-center justify-center p-4
         transition-all duration-700
-        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
-      `}>
+        ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
+      `}
+      >
         <div className="w-full max-w-md">
           {/* Logo Section with Glow */}
           <div className="text-center mb-8">
             {/* Glow effect behind logo */}
             <div className="relative inline-block mb-6">
               <div className="absolute inset-0 scale-125 bg-gradient-to-r from-primary via-secondary to-primary blur-2xl opacity-55 animate-glow-pulse rounded-3xl" />
-              
+
               {/* Logo container */}
-              <div 
+              <div
                 className="relative animate-fade-in-up"
-                style={{ animationDelay: '0.1s' }}
+                style={{ animationDelay: "0.1s" }}
               >
                 <img
                   src={`${import.meta.env.BASE_URL}logo-tropicolors.png`}
@@ -485,29 +522,29 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
                 />
               </div>
             </div>
-            
-            <h1 
+
+            <h1
               className="text-2xl font-display font-bold text-white mb-2 animate-fade-in-up"
-              style={{ animationDelay: '0.2s' }}
+              style={{ animationDelay: "0.2s" }}
             >
               Panel de Administración
             </h1>
-            <p 
+            <p
               className="text-white/50 text-sm font-medium animate-fade-in-up"
-              style={{ animationDelay: '0.25s' }}
+              style={{ animationDelay: "0.25s" }}
             >
               Ingresa tus credenciales para continuar
             </p>
           </div>
 
           {/* Form Card with Premium Glass Effect */}
-          <div 
+          <div
             className="
             relative bg-white/90 backdrop-blur-2xl rounded-2xl 
             border border-white/20 shadow-2xl shadow-black/20
             p-6 animate-fade-in-scale
-          " 
-            style={{ animationDelay: '0.3s' }}
+          "
+            style={{ animationDelay: "0.3s" }}
           >
             {/* Subtle shine effect */}
             <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
@@ -523,7 +560,10 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
+                <div
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: "0.35s" }}
+                >
                   <PremiumInput
                     icon={Mail}
                     type="email"
@@ -534,8 +574,11 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
                     disabled={isLoading}
                   />
                 </div>
-                
-                <div className="animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+
+                <div
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: "0.4s" }}
+                >
                   <PremiumInput
                     icon={Lock}
                     type="password"
@@ -550,23 +593,28 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
                 {error && email && password && (
                   <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl animate-slide-in-right">
                     <AlertCircle size={16} className="text-destructive" />
-                    <p className="text-xs text-destructive font-medium">{error}</p>
+                    <p className="text-xs text-destructive font-medium">
+                      {error}
+                    </p>
                   </div>
                 )}
 
-                <PremiumButton 
-                  onClick={handleSubmit} 
+                <PremiumButton
+                  onClick={handleSubmit}
                   isLoading={isLoading}
                   type="submit"
                 >
-                  {isLoading ? 'Iniciando...' : 'Iniciar sesión'}
+                  {isLoading ? "Iniciando..." : "Iniciar sesión"}
                   {!isLoading && <ArrowRight size={18} />}
                 </PremiumButton>
               </form>
 
-              <div className="mt-6 text-center animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-                <a 
-                  href="/" 
+              <div
+                className="mt-6 text-center animate-fade-in-up"
+                style={{ animationDelay: "0.5s" }}
+              >
+                <a
+                  href="/"
                   className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
                 >
                   Volver al sitio web
@@ -576,7 +624,10 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
           </div>
 
           {/* Footer */}
-          <p className="text-center text-white/30 text-xs mt-8 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+          <p
+            className="text-center text-white/30 text-xs mt-8 animate-fade-in-up"
+            style={{ animationDelay: "0.6s" }}
+          >
             © 2024 TropicColors. Todos los derechos reservados.
           </p>
         </div>
@@ -586,15 +637,15 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
 }
 
 // Metric Card Component
-function MetricCard({ 
-  icon: Icon, 
-  label, 
-  value, 
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
   trend,
   color,
   bgColor,
-  delay 
-}: { 
+  delay,
+}: {
   icon: React.ElementType;
   label: string;
   value: string | number;
@@ -611,40 +662,50 @@ function MetricCard({
   }, [delay]);
 
   return (
-    <div 
+    <div
       className={`
         bg-white rounded-xl p-4 border border-border/50 shadow-sm card-premium
         transition-all duration-500
-        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+        ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
       `}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 ${bgColor} rounded-xl flex items-center justify-center`}>
+        <div
+          className={`w-10 h-10 ${bgColor} rounded-xl flex items-center justify-center`}
+        >
           <Icon size={20} className={color} strokeWidth={1.5} />
         </div>
         {trend && (
-          <div className={`flex items-center gap-1 text-xs font-bold ${trend.isPositive ? 'text-green-600' : 'text-red-500'}`}>
-            {trend.isPositive ? <TrendingUp size={12} /> : <TrendingUp size={12} className="rotate-180" />}
+          <div
+            className={`flex items-center gap-1 text-xs font-bold ${trend.isPositive ? "text-green-600" : "text-red-500"}`}
+          >
+            {trend.isPositive ? (
+              <TrendingUp size={12} />
+            ) : (
+              <TrendingUp size={12} className="rotate-180" />
+            )}
             {Math.abs(trend.value)}%
           </div>
         )}
       </div>
-      <p className="text-2xl font-display font-bold text-foreground mb-0.5">{value}</p>
+      <p className="text-2xl font-display font-bold text-foreground mb-0.5">
+        {value}
+      </p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }
 
 // Empty State Component
-function EmptyState({ 
-  icon: Icon, 
-  title, 
-  description, 
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
   features,
   color,
   bgColor,
-  delay
-}: { 
+  delay,
+}: {
   icon: React.ElementType;
   title: string;
   description: string;
@@ -661,30 +722,34 @@ function EmptyState({
   }, [delay]);
 
   return (
-    <div 
+    <div
       className={`
         text-center py-16 px-8 transition-all duration-500
-        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+        ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
       `}
     >
       <div className="relative inline-flex mb-6">
-        <div className={`w-24 h-24 ${bgColor} rounded-3xl flex items-center justify-center`}>
+        <div
+          className={`w-24 h-24 ${bgColor} rounded-3xl flex items-center justify-center`}
+        >
           <Icon size={40} className={color} strokeWidth={1.5} />
         </div>
-        <div className={`absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-white`} />
+        <div
+          className={`absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-white`}
+        />
       </div>
-      
+
       <h2 className="text-2xl font-display font-bold text-foreground mb-3">
         {title}
       </h2>
       <p className="text-muted-foreground text-sm max-w-md mx-auto leading-relaxed mb-8">
         {description}
       </p>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto">
         {features.map((feature, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className="bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50 rounded-2xl px-4 py-3 text-xs font-semibold text-foreground flex items-center justify-center gap-2"
           >
             <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
@@ -696,9 +761,20 @@ function EmptyState({
   );
 }
 
-type DashboardView = "resumen" | "pedidos" | "facturas" | "clientes" | "estadisticas" | "configuracion";
-type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado";
-type ModalActivo = null | "detallePedido" | "crearFactura" | "verFactura" | "nuevoPedido" | "cliente";
+type DashboardView =
+  | "resumen"
+  | "pedidos"
+  | "facturas"
+  | "clientes"
+  | "estadisticas"
+  | "configuracion";
+type ModalActivo =
+  | null
+  | "detallePedido"
+  | "crearFactura"
+  | "verFactura"
+  | "nuevoPedido"
+  | "cliente";
 
 type OrderProduct = {
   name: string;
@@ -719,7 +795,9 @@ type AdminOrder = {
 type AdminInvoice = {
   id: string;
   orderId: string;
-  customer: string | { name?: string; email?: string; phone?: string; address?: string };
+  customer:
+    | string
+    | { name?: string; email?: string; phone?: string; address?: string };
   total: number;
   status: "pagada" | "pendiente";
   items: OrderProduct[];
@@ -774,7 +852,10 @@ function ModalShell({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20 animate-fade-in-scale"
         onClick={(event) => event.stopPropagation()}
@@ -782,7 +863,9 @@ function ModalShell({
       >
         <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
           <div>
-            <h3 className="text-xl font-display font-bold text-slate-950">{title}</h3>
+            <h3 className="text-xl font-display font-bold text-slate-950">
+              {title}
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
           </div>
           <button
@@ -814,7 +897,9 @@ function DashboardSection({
     <div className="p-6 sm:p-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-2xl font-display font-bold text-slate-950">{title}</h2>
+          <h2 className="text-2xl font-display font-bold text-slate-950">
+            {title}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
         {action}
@@ -834,9 +919,30 @@ function SummaryView({
   const recentOrders = orders.slice(0, 3);
 
   const shortcuts = [
-    { label: "Estadísticas de ventas", description: "Ventas por día y rendimiento", icon: TrendingUp, view: "estadisticas" as DashboardView, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Gestión de pedidos", description: "Revisar y actualizar estados", icon: Package, view: "pedidos" as DashboardView, color: "text-secondary", bg: "bg-secondary/10" },
-    { label: "Análisis de clientes", description: "Segmentación y seguimiento", icon: Users, view: "clientes" as DashboardView, color: "text-purple-600", bg: "bg-purple-50" },
+    {
+      label: "Estadísticas de ventas",
+      description: "Ventas por día y rendimiento",
+      icon: TrendingUp,
+      view: "estadisticas" as DashboardView,
+      color: "text-primary",
+      bg: "bg-primary/10",
+    },
+    {
+      label: "Gestión de pedidos",
+      description: "Revisar y actualizar estados",
+      icon: Package,
+      view: "pedidos" as DashboardView,
+      color: "text-secondary",
+      bg: "bg-secondary/10",
+    },
+    {
+      label: "Análisis de clientes",
+      description: "Segmentación y seguimiento",
+      icon: Users,
+      view: "clientes" as DashboardView,
+      color: "text-purple-600",
+      bg: "bg-purple-50",
+    },
   ];
 
   return (
@@ -851,13 +957,18 @@ function SummaryView({
               <Activity size={22} />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Panel listo</p>
-              <h3 className="mt-1 text-xl font-display font-bold">Operación centralizada</h3>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
+                Panel listo
+              </p>
+              <h3 className="mt-1 text-xl font-display font-bold">
+                Operación centralizada
+              </h3>
             </div>
           </div>
           <p className="mt-5 max-w-2xl text-sm leading-relaxed text-white/70">
-            Desde aquí puedes revisar pedidos, facturas, clientes y métricas clave sin navegar a otras rutas.
-            Todo se mantiene en la misma pantalla con cambios suaves de vista.
+            Desde aquí puedes revisar pedidos, facturas, clientes y métricas
+            clave sin navegar a otras rutas. Todo se mantiene en la misma
+            pantalla con cambios suaves de vista.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {shortcuts.map((shortcut) => (
@@ -867,11 +978,17 @@ function SummaryView({
                 onClick={() => onSelectView(shortcut.view)}
                 className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:shadow-lg"
               >
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${shortcut.bg} ${shortcut.color}`}>
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${shortcut.bg} ${shortcut.color}`}
+                >
                   <shortcut.icon size={18} />
                 </div>
-                <p className="mt-4 text-sm font-semibold text-white">{shortcut.label}</p>
-                <p className="mt-1 text-xs leading-relaxed text-white/60">{shortcut.description}</p>
+                <p className="mt-4 text-sm font-semibold text-white">
+                  {shortcut.label}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-white/60">
+                  {shortcut.description}
+                </p>
               </button>
             ))}
           </div>
@@ -880,8 +997,12 @@ function SummaryView({
         <div className="rounded-3xl border border-border/50 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-display font-bold text-slate-950">Pedidos recientes</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Últimas compras registradas.</p>
+              <h3 className="text-lg font-display font-bold text-slate-950">
+                Pedidos recientes
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Últimas compras registradas.
+              </p>
             </div>
             <button
               type="button"
@@ -893,15 +1014,26 @@ function SummaryView({
           </div>
           <div className="mt-5 space-y-3">
             {recentOrders.map((order) => (
-              <div key={order.id} className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+              <div
+                key={order.id}
+                className="rounded-2xl border border-border/50 bg-muted/20 p-4"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-950">{order.customer}</p>
-                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">{order.id}</p>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {order.customer}
+                    </p>
+                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      {order.id}
+                    </p>
                   </div>
-                  <span className="text-sm font-bold text-slate-950">${order.total.toLocaleString("es-MX")}</span>
+                  <span className="text-sm font-bold text-slate-950">
+                    ${order.total.toLocaleString("es-MX")}
+                  </span>
                 </div>
-                <span className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${orderStatusClasses(order.status)}`}>
+                <span
+                  className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${orderStatusClasses(order.status)}`}
+                >
                   {statusLabel(order.status)}
                 </span>
               </div>
@@ -948,13 +1080,20 @@ function OrdersView({
           <span>Acción</span>
         </div>
         {orders.map((order) => (
-          <div key={order.id} className="grid grid-cols-[1.15fr_1.2fr_0.8fr_0.95fr_0.7fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20">
+          <div
+            key={order.id}
+            className="grid grid-cols-[1.15fr_1.2fr_0.8fr_0.95fr_0.7fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
+          >
             <span className="font-semibold text-slate-950">{order.id}</span>
             <span className="text-slate-600">{order.customer}</span>
-            <span className="font-semibold text-slate-950">${order.total.toLocaleString("es-MX")}</span>
+            <span className="font-semibold text-slate-950">
+              ${order.total.toLocaleString("es-MX")}
+            </span>
             <select
               value={order.status}
-              onChange={(event) => onStatusChange(order.id, event.target.value as OrderStatus)}
+              onChange={(event) =>
+                onStatusChange(order.id, event.target.value as OrderStatus)
+              }
               className={`rounded-xl border px-3 py-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(order.status)}`}
             >
               <option value="pendiente">Pendiente</option>
@@ -1004,24 +1143,43 @@ function InvoicesView({
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {invoices.map((invoice) => (
-          <div key={invoice.invoiceNumber} className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+          <div
+            key={invoice.invoiceNumber}
+            className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{invoice.invoiceNumber}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  {invoice.invoiceNumber}
+                </p>
                 <h3 className="mt-2 text-lg font-display font-bold text-slate-950">
-                  {typeof invoice.customer === 'object' ? invoice.customer?.name : invoice.customer || 'Cliente sin nombre'}
+                  {typeof invoice.customer === "object"
+                    ? invoice.customer?.name
+                    : invoice.customer || "Cliente sin nombre"}
                 </h3>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusClasses(invoice.status === 'paid' ? 'pagada' : 'pendiente')}`}>
-                {invoice.status === 'paid' ? 'Pagada' : 'Pendiente'}
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusClasses(invoice.status === "paid" ? "pagada" : "pendiente")}`}
+              >
+                {invoice.status === "paid" ? "Pagada" : "Pendiente"}
               </span>
             </div>
-            <p className="mt-4 text-3xl font-display font-bold text-slate-950">${Number(invoice.total || 0).toLocaleString("es-MX")}</p>
+            <p className="mt-4 text-3xl font-display font-bold text-slate-950">
+              ${Number(invoice.total || 0).toLocaleString("es-MX")}
+            </p>
             <div className="mt-5 flex items-center justify-between">
-              <button type="button" onClick={() => onPreviewInvoice(invoice.invoiceNumber)} className="text-sm font-semibold text-primary transition-colors hover:text-primary/80">
+              <button
+                type="button"
+                onClick={() => onPreviewInvoice(invoice.invoiceNumber)}
+                className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+              >
                 Ver factura
               </button>
-              <button type="button" onClick={() => onDownloadInvoice(invoice.invoiceNumber)} className="rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5">
+              <button
+                type="button"
+                onClick={() => onDownloadInvoice(invoice.invoiceNumber)}
+                className="rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5"
+              >
                 Descargar PDF
               </button>
             </div>
@@ -1041,7 +1199,9 @@ function ClientsView({
 }) {
   const [search, setSearch] = useState("");
   const filteredClients = clients.filter((client) =>
-    `${client.name} ${client.email}`.toLowerCase().includes(search.toLowerCase()),
+    `${client.name} ${client.email}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
 
   return (
@@ -1070,16 +1230,27 @@ function ClientsView({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {filteredClients.map((client) => (
-          <div key={client.id} className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+          <div
+            key={client.id}
+            className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{client.id}</p>
-                <h3 className="mt-2 text-lg font-display font-bold text-slate-950">{client.name}</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  {client.id}
+                </p>
+                <h3 className="mt-2 text-lg font-display font-bold text-slate-950">
+                  {client.name}
+                </h3>
                 <p className="mt-1 text-sm text-slate-600">{client.email}</p>
               </div>
               <div className="rounded-2xl bg-purple-50 px-3 py-2 text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-purple-700">Pedidos</p>
-                <p className="mt-1 text-xl font-bold text-purple-700">{client.orders}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-purple-700">
+                  Pedidos
+                </p>
+                <p className="mt-1 text-xl font-bold text-purple-700">
+                  {client.orders}
+                </p>
               </div>
             </div>
           </div>
@@ -1101,10 +1272,26 @@ function StatisticsView({ orders }: { orders: AdminOrder[] }) {
   ];
 
   const orderStatus = [
-    { label: "Pendiente", value: orders.filter((order) => order.status === "pendiente").length, tone: "bg-amber-400" },
-    { label: "Pagado", value: orders.filter((order) => order.status === "pagado").length, tone: "bg-sky-500" },
-    { label: "Enviado", value: orders.filter((order) => order.status === "enviado").length, tone: "bg-emerald-500" },
-    { label: "Entregado", value: orders.filter((order) => order.status === "entregado").length, tone: "bg-violet-500" },
+    {
+      label: "Pendiente",
+      value: orders.filter((order) => order.status === "pendiente").length,
+      tone: "bg-amber-400",
+    },
+    {
+      label: "Pagado",
+      value: orders.filter((order) => order.status === "pagado").length,
+      tone: "bg-sky-500",
+    },
+    {
+      label: "Enviado",
+      value: orders.filter((order) => order.status === "enviado").length,
+      tone: "bg-emerald-500",
+    },
+    {
+      label: "Entregado",
+      value: orders.filter((order) => order.status === "entregado").length,
+      tone: "bg-violet-500",
+    },
   ];
 
   const maxValue = Math.max(...salesByDay.map((entry) => entry.value));
@@ -1121,13 +1308,20 @@ function StatisticsView({ orders }: { orders: AdminOrder[] }) {
               <BarChart3 size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-display font-bold text-slate-950">Ventas por día</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Simulación de comportamiento semanal.</p>
+              <h3 className="text-lg font-display font-bold text-slate-950">
+                Ventas por día
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Simulación de comportamiento semanal.
+              </p>
             </div>
           </div>
           <div className="mt-8 flex h-72 items-end gap-3">
             {salesByDay.map((entry) => (
-              <div key={entry.day} className="flex flex-1 flex-col items-center gap-3">
+              <div
+                key={entry.day}
+                className="flex flex-1 flex-col items-center gap-3"
+              >
                 <div className="flex h-60 w-full items-end">
                   <div
                     className="w-full rounded-t-2xl bg-gradient-to-t from-primary to-secondary transition-all duration-300 hover:opacity-90"
@@ -1135,7 +1329,9 @@ function StatisticsView({ orders }: { orders: AdminOrder[] }) {
                   />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-slate-900">{entry.value}</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {entry.value}
+                  </p>
                   <p className="text-xs text-muted-foreground">{entry.day}</p>
                 </div>
               </div>
@@ -1144,19 +1340,30 @@ function StatisticsView({ orders }: { orders: AdminOrder[] }) {
         </div>
 
         <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-display font-bold text-slate-950">Pedidos por estado</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Distribución actual del flujo operativo.</p>
+          <h3 className="text-lg font-display font-bold text-slate-950">
+            Pedidos por estado
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Distribución actual del flujo operativo.
+          </p>
           <div className="mt-6 space-y-4">
             {orderStatus.map((status) => {
               const percentage = Math.max(10, Math.min(100, status.value));
               return (
                 <div key={status.label}>
                   <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="font-semibold text-slate-800">{status.label}</span>
-                    <span className="text-muted-foreground">{status.value}</span>
+                    <span className="font-semibold text-slate-800">
+                      {status.label}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {status.value}
+                    </span>
                   </div>
                   <div className="h-3 rounded-full bg-muted/60">
-                    <div className={`h-3 rounded-full ${status.tone}`} style={{ width: `${percentage}%` }} />
+                    <div
+                      className={`h-3 rounded-full ${status.tone}`}
+                      style={{ width: `${percentage}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -1169,9 +1376,13 @@ function StatisticsView({ orders }: { orders: AdminOrder[] }) {
 }
 
 function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
-  const { userProfile, saveUserProfile, changeUserPassword, isLoggingOut } = useAuth();
+  const { userProfile, saveUserProfile, changeUserPassword, isLoggingOut } =
+    useAuth();
   const [profileForm, setProfileForm] = useState(userProfile);
-  const [passwordForm, setPasswordForm] = useState({ password: "", confirmPassword: "" });
+  const [passwordForm, setPasswordForm] = useState({
+    password: "",
+    confirmPassword: "",
+  });
   const [profileMessage, setProfileMessage] = useState<string>("");
   const [securityMessage, setSecurityMessage] = useState<string>("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -1203,7 +1414,10 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
       });
       setProfileMessage("Cambios guardados correctamente.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo guardar el perfil.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el perfil.";
       setProfileMessage(message);
     } finally {
       setIsSavingProfile(false);
@@ -1214,7 +1428,9 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
     setSecurityMessage("");
 
     if (passwordForm.password.length < 6) {
-      setSecurityMessage("La nueva contraseña debe tener al menos 6 caracteres.");
+      setSecurityMessage(
+        "La nueva contraseña debe tener al menos 6 caracteres.",
+      );
       return;
     }
 
@@ -1229,7 +1445,10 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
       setSecurityMessage("Contraseña actualizada correctamente.");
       setPasswordForm({ password: "", confirmPassword: "" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo cambiar la contraseña.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo cambiar la contraseña.";
       setSecurityMessage(message);
     } finally {
       setIsSavingPassword(false);
@@ -1259,8 +1478,12 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               <Settings size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-display font-bold text-slate-950">Datos del usuario</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Actualiza tu información base del panel.</p>
+              <h3 className="text-lg font-display font-bold text-slate-950">
+                Datos del usuario
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Actualiza tu información base del panel.
+              </p>
             </div>
           </div>
 
@@ -1270,7 +1493,12 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               type="text"
               placeholder="Nombre completo"
               value={profileForm.name}
-              onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event) =>
+                setProfileForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
               disabled={isSavingProfile}
             />
             <PremiumInput
@@ -1278,7 +1506,12 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               type="email"
               placeholder="Correo electrónico"
               value={profileForm.email}
-              onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))}
+              onChange={(event) =>
+                setProfileForm((current) => ({
+                  ...current,
+                  email: event.target.value,
+                }))
+              }
               disabled={isSavingProfile}
             />
             <PremiumInput
@@ -1286,13 +1519,20 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               type="text"
               placeholder="Teléfono (opcional)"
               value={profileForm.phone}
-              onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))}
+              onChange={(event) =>
+                setProfileForm((current) => ({
+                  ...current,
+                  phone: event.target.value,
+                }))
+              }
               disabled={isSavingProfile}
             />
           </div>
 
           {profileMessage ? (
-            <p className={`mt-4 text-sm ${profileMessage.includes("correctamente") ? "text-emerald-600" : "text-destructive"}`}>
+            <p
+              className={`mt-4 text-sm ${profileMessage.includes("correctamente") ? "text-emerald-600" : "text-destructive"}`}
+            >
               {profileMessage}
             </p>
           ) : null}
@@ -1303,7 +1543,11 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
             disabled={isSavingProfile}
             className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-secondary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
           >
-            {isSavingProfile ? <Loader2 size={16} className="animate-spin" /> : <Settings size={16} />}
+            {isSavingProfile ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Settings size={16} />
+            )}
             Guardar cambios
           </button>
         </div>
@@ -1314,8 +1558,12 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               <Shield size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-display font-bold text-slate-950">Seguridad</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Cambia tu contraseña para reforzar el acceso.</p>
+              <h3 className="text-lg font-display font-bold text-slate-950">
+                Seguridad
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Cambia tu contraseña para reforzar el acceso.
+              </p>
             </div>
           </div>
 
@@ -1325,7 +1573,12 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               type="password"
               placeholder="Nueva contraseña"
               value={passwordForm.password}
-              onChange={(event) => setPasswordForm((current) => ({ ...current, password: event.target.value }))}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  password: event.target.value,
+                }))
+              }
               disabled={isSavingPassword}
             />
             <PremiumInput
@@ -1333,13 +1586,20 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               type="password"
               placeholder="Confirmar contraseña"
               value={passwordForm.confirmPassword}
-              onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  confirmPassword: event.target.value,
+                }))
+              }
               disabled={isSavingPassword}
             />
           </div>
 
           {securityMessage ? (
-            <p className={`mt-4 text-sm ${securityMessage.includes("correctamente") ? "text-emerald-600" : "text-destructive"}`}>
+            <p
+              className={`mt-4 text-sm ${securityMessage.includes("correctamente") ? "text-emerald-600" : "text-destructive"}`}
+            >
               {securityMessage}
             </p>
           ) : null}
@@ -1350,7 +1610,11 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
             disabled={isSavingPassword}
             className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
           >
-            {isSavingPassword ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+            {isSavingPassword ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Shield size={16} />
+            )}
             Guardar nueva contraseña
           </button>
         </div>
@@ -1364,16 +1628,24 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [vistaActiva, setVistaActiva] = useState<DashboardView>("resumen");
   const [modalActivo, setModalActivo] = useState<ModalActivo>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
+    null,
+  );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
-  
+
   // Hook para obtener pedidos desde Firestore en tiempo real (colección: orders)
-  const { orders, setOrders, isLoading: isLoadingOrders, error: errorOrders } = useOrders();
-  
+  const {
+    orders,
+    setOrders,
+    isLoading: isLoadingOrders,
+    error: errorOrders,
+  } = useOrders();
+
   // Hook para obtener facturas generadas automáticamente desde pedidos
-  const { facturas: facturasData, isLoading: loadingFacturas } = useFacturasFromOrders();
+  const { facturas: facturasData, isLoading: loadingFacturas } =
+    useFacturasFromOrders();
   const [facturas, setFacturas] = useState<InvoiceData[]>(facturasData);
 
   // Sincronizar cuando lleguen los datos del hook
@@ -1383,8 +1655,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     }
   }, [facturasData, loadingFacturas]);
   // Hook para obtener clientes dinámicamente desde Firestore (agrupados por email desde orders)
-  const { clientes: clientesRaw, isLoading: loadingClientes } = useClientesFromOrders();
-  
+  const { clientes: clientesRaw, isLoading: loadingClientes } =
+    useClientesFromOrders();
+
   // Mapear ClienteAgrupado a AdminClient para compatibilidad con el componente
   const clientesDesdePedidos: AdminClient[] = clientesRaw.map((c) => ({
     id: c.id,
@@ -1392,21 +1665,51 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     email: c.email,
     orders: c.pedidos,
   }));
-  
+
   const [clientes, setClientes] = useState<AdminClient[]>(clientesDesdePedidos);
 
   // Sincronizar cuando lleguen los datos del hook
   useEffect(() => {
     if (!loadingClientes && clientesRaw.length > 0) {
-      setClientes(clientesRaw.map((c) => ({
-        id: c.id,
-        name: c.nombre,
-        email: c.email,
-        orders: c.pedidos,
-      })));
+      setClientes(
+        clientesRaw.map((c) => ({
+          id: c.id,
+          name: c.nombre,
+          email: c.email,
+          orders: c.pedidos,
+        })),
+      );
     }
   }, [clientesRaw, loadingClientes]);
   const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState("");
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{
+    orderId: string;
+    newStatus: OrderStatus;
+  } | null>(null);
+  const [shippingForm, setShippingForm] = useState({
+    paqueteria: "",
+    tipoEnvio: "",
+    guia: "",
+  });
+
+  // Cerrar modales con ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showStatusConfirm) {
+          setShowStatusConfirm(false);
+          setPendingStatusUpdate(null);
+          setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+        } else if (modalActivo) {
+          setModalActivo(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showStatusConfirm, modalActivo]);
+
   const [newOrderForm, setNewOrderForm] = useState({
     customer: "",
     email: "",
@@ -1419,16 +1722,50 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [newClientForm, setNewClientForm] = useState({ name: "", email: "" });
 
   const stats = [
-    { icon: DollarSign, label: "Ingresos Totales", value: `${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString("es-MX")}`, trend: { value: 12.5, isPositive: true }, color: "text-primary", bgColor: "bg-primary/10" },
-    { icon: ShoppingBag, label: "Pedidos Totales", value: String(orders.length), trend: { value: 8.2, isPositive: true }, color: "text-secondary", bgColor: "bg-secondary/10" },
-    { icon: Clock, label: "Pendientes", value: String(orders.filter((order) => order.status === "pendiente").length), trend: { value: 3.1, isPositive: false }, color: "text-amber-600", bgColor: "bg-amber-50" },
-    { icon: Users, label: "Clientes Nuevos", value: String(clientes.length), trend: { value: 15.3, isPositive: true }, color: "text-purple-600", bgColor: "bg-purple-50" },
+    {
+      icon: DollarSign,
+      label: "Ingresos Totales",
+      value: `${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString("es-MX")}`,
+      trend: { value: 12.5, isPositive: true },
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    {
+      icon: ShoppingBag,
+      label: "Pedidos Totales",
+      value: String(orders.length),
+      trend: { value: 8.2, isPositive: true },
+      color: "text-secondary",
+      bgColor: "bg-secondary/10",
+    },
+    {
+      icon: Clock,
+      label: "Pendientes",
+      value: String(
+        orders.filter((order) => order.status === "pendiente").length,
+      ),
+      trend: { value: 3.1, isPositive: false },
+      color: "text-amber-600",
+      bgColor: "bg-amber-50",
+    },
+    {
+      icon: Users,
+      label: "Clientes Nuevos",
+      value: String(clientes.length),
+      trend: { value: 15.3, isPositive: true },
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+    },
   ];
 
-  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
+  const selectedOrder =
+    orders.find((order) => order.id === selectedOrderId) ?? null;
   // Buscar la factura seleccionada usando invoiceNumber como id
-  const selectedInvoice = facturas.find((invoice) => invoice.invoiceNumber === selectedInvoiceId) ?? null;
-  const selectedInvoiceOrder = orders.find((order) => order.id === selectedInvoiceOrderId) ?? null;
+  const selectedInvoice =
+    facturas.find((invoice) => invoice.invoiceNumber === selectedInvoiceId) ??
+    null;
+  const selectedInvoiceOrder =
+    orders.find((order) => order.id === selectedInvoiceOrderId) ?? null;
 
   const handleViewChange = (view: DashboardView) => {
     setIsTransitioning(true);
@@ -1443,8 +1780,110 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setModalActivo("detallePedido");
   };
 
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+    // Si el nuevo estado es "enviado", mostrar formulario de envío
+    if (newStatus === "enviado") {
+      setPendingStatusUpdate({ orderId, newStatus });
+      setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+      setShowStatusConfirm(true);
+    } else {
+      // Para otros estados, mostrar confirmación simple
+      setPendingStatusUpdate({ orderId, newStatus });
+      setShowStatusConfirm(true);
+    }
+  };
+
+  const confirmStatusUpdate = async () => {
+    if (!pendingStatusUpdate) return;
+
+    const { orderId, newStatus } = pendingStatusUpdate;
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    // Construir dirección completa
+    const direccionCompleta = order.address
+      ? `${order.address}${order.neighborhood ? `, ${order.neighborhood}` : ""}${order.municipality ? `, ${order.municipality}` : ""}${order.state ? `, ${order.state}` : ""}`
+      : "Dirección no disponible";
+
+    // Mapear el estado para el correo (primera letra mayúscula)
+    const estadoMap: Record<OrderStatus, string> = {
+      pendiente: "Pendiente",
+      pagado: "Pagado",
+      enviado: "Enviado",
+      entregado: "Entregado",
+    };
+
+    // Preparar datos de envío si es necesario
+    const shippingData =
+      newStatus === "enviado"
+        ? {
+            paqueteria: shippingForm.paqueteria,
+            tipoEnvio: shippingForm.tipoEnvio,
+            guia: shippingForm.guia,
+          }
+        : undefined;
+
+    // Actualizar en Firebase
+    try {
+      await updateOrderStatusDB(orderId, newStatus, shippingData);
+      console.log("[Admin] Estado actualizado en Firebase:", newStatus);
+    } catch (error) {
+      console.error("[Admin] Error al actualizar estado en Firebase:", error);
+    }
+
+    // Actualizar estado local
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === orderId ? { ...order, status: newStatus } : order,
+      ),
+    );
+
+    // Enviar correo de estado (no bloquante)
+    try {
+      const customerName =
+        typeof order.customer === "object"
+          ? order.customer.name
+          : order.customer;
+      const customerEmail =
+        typeof order.customer === "object" ? order.customer.email : order.email;
+
+      await enviarCorreoEstadoPedido({
+        nombre: customerName,
+        email: customerEmail,
+        estado: estadoMap[newStatus],
+        productos: order.items.map((item) => ({
+          nombre: item.name,
+          cantidad: item.quantity,
+          precio: item.price,
+        })),
+        total: order.total,
+        direccion: direccionCompleta,
+        paqueteria: shippingData?.paqueteria,
+        tipoEnvio: shippingData?.tipoEnvio,
+        guia: shippingData?.guia,
+        numeroPedido: order.id,
+      });
+      console.log("[Admin] Correo de estado enviado:", newStatus);
+    } catch (emailError) {
+      console.error("[Admin] Error al enviar correo de estado:", emailError);
+    }
+
+    // Cerrar modales
+    setShowStatusConfirm(false);
+    setPendingStatusUpdate(null);
+    setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+    setModalActivo(null);
+  };
+
+  const cancelStatusUpdate = () => {
+    setShowStatusConfirm(false);
+    setPendingStatusUpdate(null);
+    setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+  };
+
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, status } : order)));
+    // Esta función ahora solo llama a handleStatusChange
+    handleStatusChange(orderId, status);
   };
 
   const openCreateInvoiceModal = () => {
@@ -1457,13 +1896,19 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     if (!selectedInvoiceOrder) return;
 
     // Mapear correctamente los datos del pedido al formato InvoiceData
-    const customerData = typeof selectedInvoiceOrder.customer === 'object' 
-      ? selectedInvoiceOrder.customer 
-      : { name: selectedInvoiceOrder.customer, email: selectedInvoiceOrder.email, phone: selectedInvoiceOrder.phone, address: selectedInvoiceOrder.address };
+    const customerData =
+      typeof selectedInvoiceOrder.customer === "object"
+        ? selectedInvoiceOrder.customer
+        : {
+            name: selectedInvoiceOrder.customer,
+            email: selectedInvoiceOrder.email,
+            phone: selectedInvoiceOrder.phone,
+            address: selectedInvoiceOrder.address,
+          };
 
     const invoiceNumber = `FAC-${String(facturas.length + 124).padStart(5, "0")}`;
     const orderTotal = Number(selectedInvoiceOrder.total) || 0;
-    
+
     // Calcular subtotal e IVA
     const subtotal = orderTotal / 1.16;
     const taxAmount = orderTotal - subtotal;
@@ -1474,7 +1919,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       const quantity = Number(item.quantity) || 1;
       return {
         id: `item-${index}`,
-        name: item.name || 'Producto sin nombre',
+        name: item.name || "Producto sin nombre",
         quantity: quantity,
         unitPrice: unitPrice,
         subtotal: unitPrice * quantity,
@@ -1485,8 +1930,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       invoiceNumber: invoiceNumber,
       invoiceNumberFormatted: invoiceNumber,
       issueDate: new Date().toISOString().slice(0, 10),
-      paymentMethod: 'transferencia',
-      status: 'pending',
+      paymentMethod: "transferencia",
+      status: "pending",
       company: {
         name: empresa.nombre,
         address: empresa.direccion,
@@ -1495,10 +1940,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         rfc: empresa.rfc,
       },
       customer: {
-        name: customerData.name || selectedInvoiceOrder.customer || 'Cliente sin nombre',
-        email: selectedInvoiceOrder.email || '',
-        phone: selectedInvoiceOrder.phone || '',
-        address: selectedInvoiceOrder.address || '',
+        name:
+          customerData.name ||
+          selectedInvoiceOrder.customer ||
+          "Cliente sin nombre",
+        email: selectedInvoiceOrder.email || "",
+        phone: selectedInvoiceOrder.phone || "",
+        address: selectedInvoiceOrder.address || "",
       },
       items: mappedItems,
       subtotal: subtotal,
@@ -1508,10 +1956,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       orderId: selectedInvoiceOrder.id,
     };
 
-    console.log('[generateInvoice] 📄 Generando factura para pedido:', selectedInvoiceOrder.id);
-    console.log('[generateInvoice] 👤 Cliente:', nextInvoice.customer);
-    console.log('[generateInvoice] 💰 Total:', nextInvoice.total);
-    console.log('[generateInvoice] 📦 Items:', nextInvoice.items);
+    console.log(
+      "[generateInvoice] 📄 Generando factura para pedido:",
+      selectedInvoiceOrder.id,
+    );
+    console.log("[generateInvoice] 👤 Cliente:", nextInvoice.customer);
+    console.log("[generateInvoice] 💰 Total:", nextInvoice.total);
+    console.log("[generateInvoice] 📦 Items:", nextInvoice.items);
 
     setFacturas((current) => [nextInvoice, ...current]);
     setSelectedInvoiceId(nextInvoice.invoiceNumber);
@@ -1523,20 +1974,28 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
   // Datos de la empresa centralizados
   const empresa = {
-    nombre: 'Tropicolors',
-    direccion: 'Ecatepec, Edo. Mex.',
-    telefono: '+52 55 5114 6856',
-    email: 'm_tropicolors1@hotmail.com',
-    rfc: 'TCO20240315ABC',
+    nombre: "Tropicolors",
+    direccion: "Ecatepec, Edo. Mex.",
+    telefono: "+52 55 5114 6856",
+    email: "m_tropicolors1@hotmail.com",
+    rfc: "TCO20240315ABC",
   };
 
   const createOrderFromModal = async () => {
-    if (!newOrderForm.customer.trim() || !newOrderForm.products.trim() || !newOrderForm.total.trim()) return;
+    if (
+      !newOrderForm.customer.trim() ||
+      !newOrderForm.products.trim() ||
+      !newOrderForm.total.trim()
+    )
+      return;
 
     const total = Number(newOrderForm.total);
     if (Number.isNaN(total)) return;
 
-    const productNames = newOrderForm.products.split(",").map((item) => item.trim()).filter(Boolean);
+    const productNames = newOrderForm.products
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
     const averagePrice = Math.round(total / Math.max(1, productNames.length));
 
     try {
@@ -1545,11 +2004,16 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         customerName: newOrderForm.customer.trim(),
         customerEmail: newOrderForm.email.trim() || "sin-correo@cliente.com",
         customerPhone: newOrderForm.phone?.trim() || "",
-        customerAddress: newOrderForm.address.trim() || "Dirección pendiente de captura",
+        customerAddress:
+          newOrderForm.address.trim() || "Dirección pendiente de captura",
         total,
         status: "pendiente",
         metodoPago: newOrderForm.metodoPago || "efectivo",
-        items: productNames.map((name) => ({ name, quantity: 1, price: averagePrice })),
+        items: productNames.map((name) => ({
+          name,
+          quantity: 1,
+          price: averagePrice,
+        })),
         createdAt: new Date(),
       };
 
@@ -1561,10 +2025,15 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         id: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
         customer: newOrderForm.customer.trim(),
         email: newOrderForm.email.trim() || "sin-correo@cliente.com",
-        address: newOrderForm.address.trim() || "Dirección pendiente de captura",
+        address:
+          newOrderForm.address.trim() || "Dirección pendiente de captura",
         total,
         status: "pendiente",
-        items: productNames.map((name) => ({ name, quantity: 1, price: averagePrice })),
+        items: productNames.map((name) => ({
+          name,
+          quantity: 1,
+          price: averagePrice,
+        })),
         phone: newOrderForm.phone?.trim() || "",
         paymentMethod: newOrderForm.metodoPago || "efectivo",
         createdAt: new Date().toISOString(),
@@ -1577,7 +2046,15 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       return;
     }
 
-    setNewOrderForm({ customer: "", email: "", phone: "", address: "", products: "", total: "", metodoPago: "efectivo" });
+    setNewOrderForm({
+      customer: "",
+      email: "",
+      phone: "",
+      address: "",
+      products: "",
+      total: "",
+      metodoPago: "efectivo",
+    });
     setVistaActiva("pedidos");
     setModalActivo(null);
   };
@@ -1603,7 +2080,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     try {
       await onLogout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
       setIsLoggingOut(false);
     }
@@ -1634,7 +2111,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       body.style.right = "0";
       body.style.width = "100%";
     } else {
-      const lockedScrollY = body.style.top ? Math.abs(parseInt(body.style.top, 10)) : 0;
+      const lockedScrollY = body.style.top
+        ? Math.abs(parseInt(body.style.top, 10))
+        : 0;
       html.style.overflow = "";
       body.style.overflow = "";
       body.style.position = "";
@@ -1648,7 +2127,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     }
 
     return () => {
-      const lockedScrollY = body.style.top ? Math.abs(parseInt(body.style.top, 10)) : 0;
+      const lockedScrollY = body.style.top
+        ? Math.abs(parseInt(body.style.top, 10))
+        : 0;
       html.style.overflow = "";
       body.style.overflow = "";
       body.style.position = "";
@@ -1688,13 +2169,18 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                     Sesión activa
                   </span>
                 </div>
-                <h1 className="mt-1.5 text-lg font-display font-bold tracking-tight text-slate-950">Panel Administrativo</h1>
-                <p className="mt-0.5 max-w-xl text-xs text-muted-foreground">Supervisa pedidos, facturación y operaciones desde una interfaz clara y moderna.</p>
+                <h1 className="mt-1.5 text-lg font-display font-bold tracking-tight text-slate-950">
+                  Panel Administrativo
+                </h1>
+                <p className="mt-0.5 max-w-xl text-xs text-muted-foreground">
+                  Supervisa pedidos, facturación y operaciones desde una
+                  interfaz clara y moderna.
+                </p>
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:flex-none">
-              <a 
-                href="/" 
+              <a
+                href="/"
                 className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-white/85 px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
               >
                 Ver sitio
@@ -1704,9 +2190,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 disabled={isLoggingOut}
                 className={`
                   group inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-bold transition-all duration-200
-                  ${isLoggingOut 
-                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400' 
-                    : 'border-slate-300 bg-slate-950 text-white shadow-sm hover:-translate-y-0.5 hover:border-slate-950 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/15 active:translate-y-0'
+                  ${
+                    isLoggingOut
+                      ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                      : "border-slate-300 bg-slate-950 text-white shadow-sm hover:-translate-y-0.5 hover:border-slate-950 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/15 active:translate-y-0"
                   }
                 `}
               >
@@ -1717,7 +2204,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   </>
                 ) : (
                   <>
-                    <LogOut size={14} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
+                    <LogOut
+                      size={14}
+                      className="transition-transform duration-200 group-hover:-translate-x-0.5"
+                    />
                     Cerrar sesión
                   </>
                 )}
@@ -1730,20 +2220,23 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Tabs */}
         <div className="flex gap-1 bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-border/30 shadow-sm mb-4 w-fit">
-          {([
-            { key: "resumen", label: "Resumen", icon: LayoutDashboard },
-            { key: "pedidos", label: "Pedidos", icon: Package },
-            { key: "facturas", label: "Facturas", icon: FileText },
-            { key: "configuracion", label: "Configuración", icon: Settings },
-          ] as const).map((tab) => (
+          {(
+            [
+              { key: "resumen", label: "Resumen", icon: LayoutDashboard },
+              { key: "pedidos", label: "Pedidos", icon: Package },
+              { key: "facturas", label: "Facturas", icon: FileText },
+              { key: "configuracion", label: "Configuración", icon: Settings },
+            ] as const
+          ).map((tab) => (
             <button
               key={tab.key}
               onClick={() => handleViewChange(tab.key)}
               className={`
                 relative isolate flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300
-                ${vistaActiva === tab.key 
-                  ? 'bg-slate-950 text-white shadow-sm hover:bg-slate-900' 
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                ${
+                  vistaActiva === tab.key
+                    ? "bg-slate-950 text-white shadow-sm hover:bg-slate-900"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }
               `}
             >
@@ -1758,21 +2251,21 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           {stats.map((stat, i) => (
-            <MetricCard
-              key={i}
-              {...stat}
-              delay={i * 100 + 200}
-            />
+            <MetricCard key={i} {...stat} delay={i * 100 + 200} />
           ))}
         </div>
 
         {/* Content Card */}
         <div className="bg-white rounded-xl border border-border/30 shadow-sm overflow-hidden">
-          <div className={`
+          <div
+            className={`
             transition-all duration-300
-            ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}
-          `}>
-            {vistaActiva === "resumen" && <SummaryView onSelectView={handleViewChange} orders={orders} />}
+            ${isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"}
+          `}
+          >
+            {vistaActiva === "resumen" && (
+              <SummaryView onSelectView={handleViewChange} orders={orders} />
+            )}
             {vistaActiva === "pedidos" && (
               <OrdersView
                 orders={orders}
@@ -1808,17 +2301,36 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 }}
               />
             )}
-            {vistaActiva === "estadisticas" && <StatisticsView orders={orders} />}
-            {vistaActiva === "configuracion" && <SettingsView onLogout={handleLogout} />}
+            {vistaActiva === "estadisticas" && (
+              <StatisticsView orders={orders} />
+            )}
+            {vistaActiva === "configuracion" && (
+              <SettingsView onLogout={handleLogout} />
+            )}
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { icon: Package, label: "Nuevo Pedido", color: "from-blue-500 to-blue-600", view: "pedidos" as DashboardView },
-            { icon: FileText, label: "Crear Factura", color: "from-amber-500 to-amber-600", view: "facturas" as DashboardView },
-            { icon: Users, label: "Agregar Cliente", color: "from-purple-500 to-purple-600", view: "clientes" as DashboardView },
+            {
+              icon: Package,
+              label: "Nuevo Pedido",
+              color: "from-blue-500 to-blue-600",
+              view: "pedidos" as DashboardView,
+            },
+            {
+              icon: FileText,
+              label: "Crear Factura",
+              color: "from-amber-500 to-amber-600",
+              view: "facturas" as DashboardView,
+            },
+            {
+              icon: Users,
+              label: "Agregar Cliente",
+              color: "from-purple-500 to-purple-600",
+              view: "clientes" as DashboardView,
+            },
           ].map((action, i) => (
             <button
               key={i}
@@ -1866,12 +2378,20 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">ID del pedido</p>
-                <p className="mt-2 text-lg font-display font-bold text-slate-950">{selectedOrder.id}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  ID del pedido
+                </p>
+                <p className="mt-2 text-lg font-display font-bold text-slate-950">
+                  {selectedOrder.id}
+                </p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Estado actual</p>
-                <span className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${orderStatusClasses(selectedOrder.status)}`}>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  Estado actual
+                </p>
+                <span
+                  className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${orderStatusClasses(selectedOrder.status)}`}
+                >
                   {statusLabel(selectedOrder.status)}
                 </span>
               </div>
@@ -1883,14 +2403,18 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   <User size={16} />
                   <p className="font-semibold">{selectedOrder.customer}</p>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">{selectedOrder.email}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {selectedOrder.email}
+                </p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-slate-950">
                   <MapPin size={16} />
                   <p className="font-semibold">Dirección completa</p>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{selectedOrder.address}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {selectedOrder.address}
+                </p>
               </div>
             </div>
 
@@ -1901,12 +2425,21 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               </div>
               <div className="mt-4 space-y-3">
                 {selectedOrder.items.map((item, index) => (
-                  <div key={`${item.name}-${index}`} className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/20 px-4 py-3">
+                  <div
+                    key={`${item.name}-${index}`}
+                    className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/20 px-4 py-3"
+                  >
                     <div>
-                      <p className="text-sm font-semibold text-slate-950">{item.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {item.name}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Cantidad: {item.quantity}
+                      </p>
                     </div>
-                    <p className="text-sm font-bold text-slate-950">${item.price.toLocaleString("es-MX")}</p>
+                    <p className="text-sm font-bold text-slate-950">
+                      ${item.price.toLocaleString("es-MX")}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -1915,12 +2448,19 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             <div className="flex flex-col gap-4 border-t border-border/50 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-3xl font-display font-bold text-slate-950">${selectedOrder.total.toLocaleString("es-MX")}</p>
+                <p className="text-3xl font-display font-bold text-slate-950">
+                  ${selectedOrder.total.toLocaleString("es-MX")}
+                </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <select
                   value={selectedOrder.status}
-                  onChange={(event) => updateOrderStatus(selectedOrder.id, event.target.value as OrderStatus)}
+                  onChange={(event) =>
+                    updateOrderStatus(
+                      selectedOrder.id,
+                      event.target.value as OrderStatus,
+                    )
+                  }
                   className={`rounded-2xl border px-4 py-3 text-sm font-semibold outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(selectedOrder.status)}`}
                 >
                   <option value="pendiente">Pendiente</option>
@@ -1949,10 +2489,14 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       >
         <div className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Pedido</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Pedido
+            </label>
             <select
               value={selectedInvoiceOrderId}
-              onChange={(event) => setSelectedInvoiceOrderId(event.target.value)}
+              onChange={(event) =>
+                setSelectedInvoiceOrderId(event.target.value)
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
             >
               {orders.map((order) => (
@@ -1967,19 +2511,34 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             <div className="rounded-3xl border border-border/50 bg-muted/20 p-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cliente</p>
-                  <p className="mt-2 text-lg font-display font-bold text-slate-950">{selectedInvoiceOrder.customer}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    Cliente
+                  </p>
+                  <p className="mt-2 text-lg font-display font-bold text-slate-950">
+                    {selectedInvoiceOrder.customer}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Total</p>
-                  <p className="mt-2 text-lg font-display font-bold text-slate-950">${selectedInvoiceOrder.total.toLocaleString("es-MX")}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    Total
+                  </p>
+                  <p className="mt-2 text-lg font-display font-bold text-slate-950">
+                    ${selectedInvoiceOrder.total.toLocaleString("es-MX")}
+                  </p>
                 </div>
               </div>
               <div className="mt-5 space-y-3">
                 {selectedInvoiceOrder.items.map((item, index) => (
-                  <div key={`${item.name}-${index}`} className="flex items-center justify-between rounded-2xl border border-border/40 bg-white px-4 py-3">
-                    <span className="text-sm font-semibold text-slate-900">{item.name}</span>
-                    <span className="text-sm text-slate-600">x{item.quantity}</span>
+                  <div
+                    key={`${item.name}-${index}`}
+                    className="flex items-center justify-between rounded-2xl border border-border/40 bg-white px-4 py-3"
+                  >
+                    <span className="text-sm font-semibold text-slate-900">
+                      {item.name}
+                    </span>
+                    <span className="text-sm text-slate-600">
+                      x{item.quantity}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -2005,35 +2564,35 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         onClose={() => setModalActivo(null)}
       >
         {selectedInvoice && (
-          <Invoice 
-              data={{
-                invoiceNumber: selectedInvoice.invoiceNumber,
-                invoiceNumberFormatted: selectedInvoice.invoiceNumberFormatted,
-                issueDate: selectedInvoice.issueDate,
-                paymentMethod: selectedInvoice.paymentMethod,
-                status: selectedInvoice.status,
-                company: selectedInvoice.company,
-                customer: selectedInvoice.customer,
-                // Mapear items con validación para evitar NaN
-                items: selectedInvoice.items.map((item, index) => {
-                  const unitPrice = Number(item.unitPrice) || 0;
-                  const quantity = Number(item.quantity) || 1;
-                  return {
-                    id: item.id || `item-${index}`,
-                    name: item.name || 'Producto sin nombre',
-                    quantity: quantity,
-                    unitPrice: unitPrice,
-                    subtotal: item.subtotal || (unitPrice * quantity),
-                  };
-                }),
-                subtotal: Number(selectedInvoice.subtotal) || 0,
-                taxRate: Number(selectedInvoice.taxRate) || 0,
-                taxAmount: Number(selectedInvoice.taxAmount) || 0,
-                total: Number(selectedInvoice.total) || 0,
-                orderId: selectedInvoice.orderId,
-              }}
-              showActions={true}
-            />
+          <Invoice
+            data={{
+              invoiceNumber: selectedInvoice.invoiceNumber,
+              invoiceNumberFormatted: selectedInvoice.invoiceNumberFormatted,
+              issueDate: selectedInvoice.issueDate,
+              paymentMethod: selectedInvoice.paymentMethod,
+              status: selectedInvoice.status,
+              company: selectedInvoice.company,
+              customer: selectedInvoice.customer,
+              // Mapear items con validación para evitar NaN
+              items: selectedInvoice.items.map((item, index) => {
+                const unitPrice = Number(item.unitPrice) || 0;
+                const quantity = Number(item.quantity) || 1;
+                return {
+                  id: item.id || `item-${index}`,
+                  name: item.name || "Producto sin nombre",
+                  quantity: quantity,
+                  unitPrice: unitPrice,
+                  subtotal: item.subtotal || unitPrice * quantity,
+                };
+              }),
+              subtotal: Number(selectedInvoice.subtotal) || 0,
+              taxRate: Number(selectedInvoice.taxRate) || 0,
+              taxAmount: Number(selectedInvoice.taxAmount) || 0,
+              total: Number(selectedInvoice.total) || 0,
+              orderId: selectedInvoice.orderId,
+            }}
+            showActions={true}
+          />
         )}
       </ModalShell>
 
@@ -2045,56 +2604,98 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Cliente</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Cliente
+            </label>
             <input
               value={newOrderForm.customer}
-              onChange={(event) => setNewOrderForm((current) => ({ ...current, customer: event.target.value }))}
+              onChange={(event) =>
+                setNewOrderForm((current) => ({
+                  ...current,
+                  customer: event.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
               placeholder="Nombre del cliente"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Correo</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Correo
+            </label>
             <input
               value={newOrderForm.email}
-              onChange={(event) => setNewOrderForm((current) => ({ ...current, email: event.target.value }))}
+              onChange={(event) =>
+                setNewOrderForm((current) => ({
+                  ...current,
+                  email: event.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
               placeholder="correo@cliente.com"
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Dirección</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Dirección
+            </label>
             <input
               value={newOrderForm.address}
-              onChange={(event) => setNewOrderForm((current) => ({ ...current, address: event.target.value }))}
+              onChange={(event) =>
+                setNewOrderForm((current) => ({
+                  ...current,
+                  address: event.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
               placeholder="Dirección completa"
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Productos</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Productos
+            </label>
             <textarea
               value={newOrderForm.products}
-              onChange={(event) => setNewOrderForm((current) => ({ ...current, products: event.target.value }))}
+              onChange={(event) =>
+                setNewOrderForm((current) => ({
+                  ...current,
+                  products: event.target.value,
+                }))
+              }
               className="min-h-[110px] w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
               placeholder="Escribe los productos separados por coma"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Total</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Total
+            </label>
             <input
               value={newOrderForm.total}
-              onChange={(event) => setNewOrderForm((current) => ({ ...current, total: event.target.value }))}
+              onChange={(event) =>
+                setNewOrderForm((current) => ({
+                  ...current,
+                  total: event.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
               placeholder="0"
               inputMode="numeric"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Método de Pago</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Método de Pago
+            </label>
             <select
               value={newOrderForm.metodoPago}
-              onChange={(event) => setNewOrderForm((current) => ({ ...current, metodoPago: event.target.value }))}
+              onChange={(event) =>
+                setNewOrderForm((current) => ({
+                  ...current,
+                  metodoPago: event.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
             >
               <option value="efectivo">Efectivo</option>
@@ -2124,19 +2725,33 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Nombre</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Nombre
+            </label>
             <input
               value={newClientForm.name}
-              onChange={(event) => setNewClientForm((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event) =>
+                setNewClientForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
               placeholder="Nombre completo"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-900">Correo</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-900">
+              Correo
+            </label>
             <input
               value={newClientForm.email}
-              onChange={(event) => setNewClientForm((current) => ({ ...current, email: event.target.value }))}
+              onChange={(event) =>
+                setNewClientForm((current) => ({
+                  ...current,
+                  email: event.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
               placeholder="correo@cliente.com"
             />
@@ -2152,6 +2767,105 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           </div>
         </div>
       </ModalShell>
+
+      {/* Modal de confirmación de cambio de estado */}
+      <ModalShell
+        open={showStatusConfirm}
+        title="Confirmar cambio de estado"
+        subtitle={
+          pendingStatusUpdate?.newStatus === "enviado"
+            ? "Ingresa los datos del envío para notificar al cliente"
+            : "¿Estás seguro de que deseas cambiar el estado de este pedido?"
+        }
+        onClose={cancelStatusUpdate}
+      >
+        <div className="space-y-5">
+          {pendingStatusUpdate?.newStatus === "enviado" && (
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-900">
+                  Paquetería
+                </label>
+                <select
+                  value={shippingForm.paqueteria}
+                  onChange={(e) =>
+                    setShippingForm((f) => ({
+                      ...f,
+                      paqueteria: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                >
+                  <option value="">Selecciona una paquetería</option>
+                  <option value="DHL">DHL</option>
+                  <option value="FedEx">FedEx</option>
+                  <option value="Estafeta">Estafeta</option>
+                  <option value="UPS">UPS</option>
+                  <option value="Correos de México">Correos de México</option>
+                  <option value="Paquetería Local">Paquetería Local</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-900">
+                  Tipo de envío
+                </label>
+                <select
+                  value={shippingForm.tipoEnvio}
+                  onChange={(e) =>
+                    setShippingForm((f) => ({
+                      ...f,
+                      tipoEnvio: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                >
+                  <option value="">Selecciona tipo de envío</option>
+                  <option value="Express">Express (1-2 días)</option>
+                  <option value="Estándar">Estándar (3-5 días)</option>
+                  <option value="Económico">Económico (5-10 días)</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-900">
+                  Número de guía
+                </label>
+                <input
+                  value={shippingForm.guia}
+                  onChange={(e) =>
+                    setShippingForm((f) => ({ ...f, guia: e.target.value }))
+                  }
+                  className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  placeholder="Ingresa el número de guía"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={cancelStatusUpdate}
+              className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={confirmStatusUpdate}
+              disabled={
+                pendingStatusUpdate?.newStatus === "enviado" &&
+                (!shippingForm.paqueteria ||
+                  !shippingForm.tipoEnvio ||
+                  !shippingForm.guia)
+              }
+              className="rounded-2xl bg-[#0d1340] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e] disabled:opacity-50"
+            >
+              Confirmar y enviar correo
+            </button>
+          </div>
+        </div>
+      </ModalShell>
     </div>
   );
 }
@@ -2159,7 +2873,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 // Main Admin Component with Auth
 export default function Admin() {
   const authState = useAuthProvider();
-  const { isAuthenticated, login, logout, isLoading, isLoggingOut, authReady } = authState;
+  const { isAuthenticated, login, logout, isLoading, isLoggingOut, authReady } =
+    authState;
   const [showDashboard, setShowDashboard] = useState(false);
 
   useEffect(() => {
@@ -2178,7 +2893,9 @@ export default function Admin() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 size={32} className="text-primary animate-spin" />
-          <p className="text-muted-foreground text-sm">{authReady ? "Cargando dashboard..." : "Verificando sesión..."}</p>
+          <p className="text-muted-foreground text-sm">
+            {authReady ? "Cargando dashboard..." : "Verificando sesión..."}
+          </p>
         </div>
       </div>
     );
@@ -2194,14 +2911,14 @@ export default function Admin() {
 
   return (
     <AuthContext.Provider value={authState}>
-      <div className={`
+      <div
+        className={`
         transition-all duration-500
-        ${showDashboard ? 'opacity-100' : 'opacity-0'}
-      `}>
+        ${showDashboard ? "opacity-100" : "opacity-0"}
+      `}
+      >
         <Dashboard onLogout={logout} />
       </div>
     </AuthContext.Provider>
   );
 }
-
-

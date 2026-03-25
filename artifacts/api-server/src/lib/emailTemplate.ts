@@ -23,16 +23,16 @@ function generarFilasProductos(productos: Producto[]): string {
     .map(
       (producto, index) => `
     <tr>
-      <td style="padding: 13px 16px; color: #1e293b; font-size: 14px; font-weight: 500; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8faff'};">
+      <td style="padding: 13px 16px; color: #1e293b; font-size: 14px; font-weight: 500; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? "#ffffff" : "#f8faff"};">
         ${producto.nombre}
       </td>
-      <td style="padding: 13px 16px; text-align: center; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8faff'};">
+      <td style="padding: 13px 16px; text-align: center; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? "#ffffff" : "#f8faff"};">
         ${producto.cantidad}
       </td>
-      <td style="padding: 13px 16px; text-align: right; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8faff'};">
+      <td style="padding: 13px 16px; text-align: right; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? "#ffffff" : "#f8faff"};">
         $${producto.precio.toFixed(2)}
       </td>
-      <td style="padding: 13px 16px; text-align: right; color: #1a237e; font-size: 14px; font-weight: 700; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8faff'};">
+      <td style="padding: 13px 16px; text-align: right; color: #1a237e; font-size: 14px; font-weight: 700; border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? "#ffffff" : "#f8faff"};">
         $${(producto.cantidad * producto.precio).toFixed(2)}
       </td>
     </tr>
@@ -313,4 +313,277 @@ export interface EmailPedidoData {
     cantidad: number;
     precio: number;
   }>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NUEVA INTERFAZ Y FUNCIÓN PARA CORREOS DE ESTADO DE PEDIDO
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface DatosEstadoPedido {
+  nombre: string;
+  email: string;
+  estado: string;
+  productos: Array<{ nombre: string; cantidad: number; precio: number }>;
+  total: number;
+  direccion: string;
+  paqueteria?: string;
+  tipoEnvio?: string;
+  guia?: string;
+  numeroPedido?: string;
+}
+
+export interface EmailEstadoData extends DatosEstadoPedido {}
+
+function generarIconoEstado(estado: string): string {
+  const iconos: Record<string, string> = {
+    Pendente: "⏳",
+    Pagado: "✅",
+    Enviado: "📦",
+    Entregado: "🎉",
+  };
+  return iconos[estado] || "📋";
+}
+
+function generarMensajeEstado(estado: string): string {
+  const mensajes: Record<string, string> = {
+    Pendiente: "Tu pedido está siendo procesado y espera confirmación de pago.",
+    Pagado:
+      "¡Excelente! Tu pago ha sido confirmado y tu pedido está siendo preparado.",
+    Enviado: "¡Tu pedido está en camino! Estamos ansiosos por que lo recibas.",
+    Entregado:
+      "¡Tu pedido ha sido entregado! Gracias por confiar en Tropicolors.",
+  };
+  return mensajes[estado] || "Estado actualizado";
+}
+
+function generarTituloEstado(estado: string): string {
+  const titulos: Record<string, string> = {
+    Pendiente: "Pedido Pendiente",
+    Pagado: "Pago Confirmado",
+    Enviado: "Pedido Enviado",
+    Entregado: "Pedido Entregado",
+  };
+  return titulos[estado] || "Estado Actualizado";
+}
+
+function obtenerColorEstado(estado: string): string {
+  const colores: Record<string, string> = {
+    Pendiente: "#f59e0b",
+    Pagado: "#10b981",
+    Enviado: "#3b82f6",
+    Entregado: "#8b5cf6",
+  };
+  return colores[estado] || "#6b7280";
+}
+
+export function generarEmailEstadoPedido(data: DatosEstadoPedido): string {
+  const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
+  const productosHtml = data.productos
+    .map(
+      (p, i) => `
+    <tr>
+      <td style="padding: 12px 16px; color: #1e293b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">
+        ${p.nombre}
+      </td>
+      <td style="padding: 12px 16px; text-align: center; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">
+        ${p.cantidad}
+      </td>
+      <td style="padding: 12px 16px; text-align: right; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">
+        $${p.precio.toFixed(2)}
+      </td>
+      <td style="padding: 12px 16px; text-align: right; color: #1a237e; font-size: 14px; font-weight: 700; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">
+        $${(p.cantidad * p.precio).toFixed(2)}
+      </td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  const colorEstado = obtenerColorEstado(data.estado);
+  const icono = generarIconoEstado(data.estado);
+  const titulo = generarTituloEstado(data.estado);
+  const mensaje = generarMensajeEstado(data.estado);
+  const mostrarDatosEnvio = data.estado === "Enviado" && data.paqueteria;
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${titulo} - Tropicolors</title>
+</head>
+<body style="margin:0; padding:0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color:#0d1340;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #0d1340 0%, #1a237e 40%, #0e4a6e 70%, #006064 100%); min-height: 100vh; padding: 40px 16px;">
+    <tr>
+      <td align="center" valign="top">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px;">
+
+          <!-- HEADER -->
+          <tr>
+            <td style="background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%); border: 1px solid rgba(255,255,255,0.25); border-radius: 20px 20px 0 0; padding: 40px 32px 32px; text-align: center; backdrop-filter: blur(20px);">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 24px;">
+                <tr>
+                  <td align="center" style="background: radial-gradient(circle, rgba(0,172,193,0.3) 0%, transparent 75%); border-radius: 50%; padding: 14px;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background: #ffffff; border-radius: 20px; padding: 10px; line-height: 0;">
+                          <img src="${logoUrl}" alt="Tropicolors" width="88" style="display: block; border-radius: 12px;">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Badge de estado -->
+              <div style="display: inline-block; background: ${colorEstado}; border-radius: 50px; padding: 6px 20px; margin-bottom: 16px;">
+                <span style="color: #ffffff; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">
+                  ${icono} &nbsp;${titulo}
+                </span>
+              </div>
+
+              <h1 style="margin: 0 0 10px; color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">
+                Hola, <span style="color: #f97316;">${data.nombre}</span>!
+              </h1>
+              <p style="margin: 0; color: rgba(255,255,255,0.65); font-size: 14px; line-height: 1.6;">
+                ${mensaje}
+              </p>
+              ${data.numeroPedido ? `<p style="margin: 8px 0 0; color: rgba(255,255,255,0.5); font-size: 12px;">Pedido: <strong style="color: #00acc1;">${data.numeroPedido}</strong></p>` : ""}
+            </td>
+          </tr>
+
+          <!-- Separador -->
+          <tr>
+            <td style="height: 3px; background: linear-gradient(90deg, #1a237e, ${colorEstado}, #1a237e); padding: 0;"></td>
+          </tr>
+
+          <!-- DATOS DE ENVÍO (solo si está enviado) -->
+          ${
+            mostrarDatosEnvio
+              ? `
+          <tr>
+            <td style="background: rgba(255,255,255,0.97); padding: 28px 32px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f0f4ff 0%, #e8f4f8 100%); border-radius: 12px; border-left: 4px solid ${colorEstado}; overflow: hidden;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <p style="margin: 0 0 14px; color: #1a237e; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                      🚚 &nbsp;Información de Envío
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="33%" style="padding: 0 8px 10px 0; vertical-align: top;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">Paquetería</span>
+                          <span style="color: #1e293b; font-size: 14px; font-weight: 600;">${data.paqueteria}</span>
+                        </td>
+                        <td width="33%" style="padding: 0 8px 10px 8px; vertical-align: top;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">Tipo de envío</span>
+                          <span style="color: #1e293b; font-size: 14px;">${data.tipoEnvio}</span>
+                        </td>
+                        <td width="34%" style="padding: 0 0 10px 8px; vertical-align: top;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">No. Guía</span>
+                          <span style="color: #1a237e; font-size: 14px; font-weight: 700;">${data.guia}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          `
+              : ""
+          }
+
+          <!-- DATOS DE ENTREGA -->
+          <tr>
+            <td style="background: rgba(255,255,255,0.97); padding: ${mostrarDatosEnvio ? "0" : "28px"} 32px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f0f4ff 0%, #e8f4f8 100%); border-radius: 12px; border-left: 4px solid #00acc1; overflow: hidden;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <p style="margin: 0 0 14px; color: #1a237e; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                      📦 &nbsp;Datos de Entrega
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td colspan="2" style="padding-bottom: 8px;">
+                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;">Dirección de entrega</span>
+                          <span style="color: #1e293b; font-size: 14px;">${data.direccion}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- TABLA PRODUCTOS -->
+          <tr>
+            <td style="background: rgba(255,255,255,0.97); padding: 0 32px 24px;">
+              <p style="margin: 0 0 12px; color: #1a237e; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                🛒 &nbsp;Productos
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <thead>
+                  <tr style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%);">
+                    <th style="padding: 12px 16px; text-align: left; color: #ffffff; font-size: 11px; font-weight: 600;">Producto</th>
+                    <th style="padding: 12px 16px; text-align: center; color: #ffffff; font-size: 11px; font-weight: 600;">Cant.</th>
+                    <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 600;">P. Unit.</th>
+                    <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 600;">Importe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${productosHtml}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+
+          <!-- TOTAL -->
+          <tr>
+            <td style="background: rgba(255,255,255,0.97); padding: 0 32px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #1a237e 0%, #0e3060 50%, #006064 100%); border-radius: 12px;">
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <span style="color: #ffffff; font-size: 16px; font-weight: 700;">Total</span>
+                        </td>
+                        <td style="text-align: right;">
+                          <span style="color: #f97316; font-size: 28px; font-weight: 800;">
+                            $${data.total.toFixed(2)}
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%); border: 1px solid rgba(255,255,255,0.2); border-radius: 0 0 20px 20px; padding: 28px 32px; text-align: center;">
+              <div style="height: 2px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); margin-bottom: 20px;"></div>
+              <img src="${logoUrl}" alt="Tropicolors" width="44" style="display:inline-block; border-radius: 8px; background: rgba(255,255,255,0.9); padding: 4px; margin-bottom: 12px;">
+              <p style="margin: 0 0 4px; color: #ffffff; font-size: 15px; font-weight: 700;">Tropicolors</p>
+              <p style="margin: 0 0 16px; color: rgba(255,255,255,0.5); font-size: 12px;">Colorantes para la Industria Alimentaria</p>
+              <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px;">
+                <p style="margin: 0; color: rgba(255,255,255,0.3); font-size: 11px;">Este correo fue enviado a ${data.email}</p>
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+`;
 }
