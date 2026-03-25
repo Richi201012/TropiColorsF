@@ -12,10 +12,24 @@ export type ProductoPedido = {
 export type DatosPedidoCorreo = {
   nombre: string;
   email: string;
+  telefono?: string;
   direccion: string;
   total: number;
-  numeroPedido?: string; // ID del pedido (opcional)
+  numeroPedido?: string;
   productos: ProductoPedido[];
+};
+
+export type DatosEstadoPedidoCorreo = {
+  nombre: string;
+  email: string;
+  estado: string;
+  productos: ProductoPedido[];
+  total: number;
+  direccion: string;
+  paqueteria?: string;
+  tipoEnvio?: string;
+  guia?: string;
+  numeroPedido?: string;
 };
 
 export type CorreoRespuesta = {
@@ -31,7 +45,10 @@ export async function enviarCorreoConfirmacion(
   datosPedido: DatosPedidoCorreo,
 ): Promise<CorreoRespuesta> {
   try {
-    console.log("[Email Service] Enviando correo de confirmación...", datosPedido);
+    console.log(
+      "[Email Service] Enviando correo de confirmación...",
+      datosPedido,
+    );
 
     if (!datosPedido.email || !datosPedido.nombre) {
       console.error("[Email Service] Datos inválidos:", datosPedido);
@@ -41,7 +58,6 @@ export async function enviarCorreoConfirmacion(
       };
     }
 
-    // ── URL directa — el proxy de Vite redirige /api → localhost:3000 ──
     const url = "/api/enviar-correo-pedido";
     console.log("[Email Service] URL:", url);
 
@@ -53,7 +69,6 @@ export async function enviarCorreoConfirmacion(
       body: JSON.stringify(datosPedido),
     });
 
-    // ── Parseo seguro — evita crash si la respuesta no es JSON ──────────
     const text = await response.text();
     let data: Record<string, unknown> = {};
     try {
@@ -72,7 +87,9 @@ export async function enviarCorreoConfirmacion(
       console.error("[Email Service] Error del servidor:", data);
       return {
         success: false,
-        error: (data.error as string) || `Error ${response.status} al enviar el correo`,
+        error:
+          (data.error as string) ||
+          `Error ${response.status} al enviar el correo`,
       };
     }
 
@@ -85,6 +102,74 @@ export async function enviarCorreoConfirmacion(
     const errorMessage =
       error instanceof Error ? error.message : "Error desconocido";
     console.error("[Email Service] Error:", errorMessage);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Envía el correo de actualización de estado de pedido al cliente
+ */
+export async function enviarCorreoEstadoPedido(
+  datosEstado: DatosEstadoPedidoCorreo,
+): Promise<CorreoRespuesta> {
+  try {
+    console.log("[Email Estado] Enviando correo de estado...", datosEstado);
+
+    if (!datosEstado.email || !datosEstado.nombre || !datosEstado.estado) {
+      console.error("[Email Estado] Datos inválidos:", datosEstado);
+      return {
+        success: false,
+        error: "El email, nombre y estado son requeridos",
+      };
+    }
+
+    const url = "/api/enviar-correo-estado";
+    console.log("[Email Estado] URL:", url);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosEstado),
+    });
+
+    const text = await response.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error("[Email Estado] Respuesta no es JSON:", text);
+      return {
+        success: false,
+        error: `Error del servidor (${response.status}): respuesta inesperada`,
+      };
+    }
+
+    console.log("[Email Estado] Respuesta:", data);
+
+    if (!response.ok) {
+      console.error("[Email Estado] Error del servidor:", data);
+      return {
+        success: false,
+        error:
+          (data.error as string) ||
+          `Error ${response.status} al enviar el correo`,
+      };
+    }
+
+    console.log("[Email Estado] Correo de estado enviado exitosamente");
+    return {
+      success: true,
+      message: `Correo de estado "${datosEstado.estado}" enviado correctamente`,
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    console.error("[Email Estado] Error:", errorMessage);
     return {
       success: false,
       error: errorMessage,

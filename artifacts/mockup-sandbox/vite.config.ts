@@ -59,6 +59,14 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    // ── Proxy hacia el api-server en puerto 3000 ──────────────────
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      }
+    },
+    // ─────────────────────────────────────────────────────────────
     fs: {
       strict: true,
       deny: ["**/.*"],

@@ -1648,11 +1648,14 @@ export function CartDrawer() {
       // Enviar correo de confirmación del pedido
       try {
         const direccionCompleta = `${data.shippingAddress}, ${data.shippingNeighborhood}, ${data.shippingMunicipality}, ${data.shippingState}`;
+        const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
         await enviarCorreoConfirmacion({
           nombre: data.customerName,
           email: data.customerEmail,
+          telefono: data.customerPhone,
           direccion: direccionCompleta,
           total: cartTotal,
+          numeroPedido: numeroPedido,
           productos: items.map((item) => ({
             nombre: item.productName,
             cantidad: item.quantity,

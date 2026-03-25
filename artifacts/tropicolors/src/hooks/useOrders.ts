@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  QuerySnapshot, 
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  QuerySnapshot,
   DocumentData,
-  Timestamp 
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -16,8 +16,8 @@ type FirestoreOrder = {
   customerEmail?: string;
   customerPhone?: string;
   // Campos de dirección - aceptar ambos formatos
-  customerAddress?: string;     // Formato legacy
-  shippingAddress?: string;     // Formato nuevo desde CartDrawer
+  customerAddress?: string; // Formato legacy
+  shippingAddress?: string; // Formato nuevo desde CartDrawer
   shippingPostalCode?: string;
   shippingNeighborhood?: string;
   shippingMunicipality?: string;
@@ -25,8 +25,8 @@ type FirestoreOrder = {
   currency?: string;
   createdAt?: Timestamp | string;
   paymentMethod?: string; // Nuevo campo para método de pago
-  metodoPago?: string;    // Alternativa para método de pago
-  status?: string;        // Estado del pedido
+  metodoPago?: string; // Alternativa para método de pago
+  status?: string; // Estado del pedido
   items?: Array<{
     productName?: string;
     price?: number;
@@ -49,16 +49,22 @@ export type OrderProduct = {
 
 export type AdminOrder = {
   id: string;
-  customer: string;
+  customer: string | { name: string; email: string; phone?: string };
   email: string;
   phone?: string;
   address: string;
+  neighborhood?: string;
+  municipality?: string;
+  state?: string;
   total: number;
   status: OrderStatus;
   items: OrderProduct[];
   createdAt: string;
-  paymentMethod?: string;  // Método de pago desde Firestore
-  metodoPago?: string;      // Alternativa
+  paymentMethod?: string;
+  metodoPago?: string;
+  paqueteria?: string;
+  tipoEnvio?: string;
+  guia?: string;
 };
 
 /**
@@ -77,7 +83,7 @@ export function useOrders() {
 
     // Referencia a la colección "orders"
     const ordersRef = collection(db, "orders");
-    
+
     // Query para ordenar por fecha de creación (más recientes primero)
     const q = query(ordersRef, orderBy("createdAt", "desc"));
 
@@ -85,10 +91,14 @@ export function useOrders() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        console.log(`[useOrders] ✅ Recibidos ${snapshot.size} documentos de Firestore`);
-        
+        console.log(
+          `[useOrders] ✅ Recibidos ${snapshot.size} documentos de Firestore`,
+        );
+
         if (snapshot.empty) {
-          console.warn("[useOrders] ⚠️ No hay documentos en la colección 'orders'");
+          console.warn(
+            "[useOrders] ⚠️ No hay documentos en la colección 'orders'",
+          );
           setOrders([]);
           setIsLoading(false);
           return;
@@ -96,18 +106,20 @@ export function useOrders() {
 
         const ordersData: AdminOrder[] = snapshot.docs.map((doc) => {
           const data = doc.data() as FirestoreOrder;
-          
+
           console.log(`[useOrders] 📄 Procesando documento: ${doc.id}`, data);
 
           // Calcular total desde el array de items
           const calculatedTotal = calcularTotal(data.items);
-          
+
           // Mapear items al formato que espera el UI
-          const mappedItems: OrderProduct[] = (data.items || []).map((item) => ({
-            name: item.productName || "Producto sin nombre",
-            quantity: item.quantity || 1,
-            price: item.price || 0,
-          }));
+          const mappedItems: OrderProduct[] = (data.items || []).map(
+            (item) => ({
+              name: item.productName || "Producto sin nombre",
+              quantity: item.quantity || 1,
+              price: item.price || 0,
+            }),
+          );
 
           // Transformar createdAt a string
           const createdAtString = formatearFecha(data.createdAt);
@@ -115,34 +127,34 @@ export function useOrders() {
           // Construir dirección completa desde campos de envío
           const buildAddress = (): string => {
             const parts: string[] = [];
-            
+
             // Usar shippingAddress (prioridad) o customerAddress (fallback)
             if (data.shippingAddress) {
               parts.push(data.shippingAddress);
             } else if (data.customerAddress) {
               parts.push(data.customerAddress);
             }
-            
+
             // Agregar colonia si existe
             if (data.shippingNeighborhood) {
               parts.push(data.shippingNeighborhood);
             }
-            
+
             // Agregar municipio/ciudad si existe
             if (data.shippingMunicipality) {
               parts.push(data.shippingMunicipality);
             }
-            
+
             // Agregar estado si existe
             if (data.shippingState) {
               parts.push(data.shippingState);
             }
-            
+
             // Agregar código postal si existe
             if (data.shippingPostalCode) {
               parts.push(`C.P. ${data.shippingPostalCode}`);
             }
-            
+
             return parts.length > 0 ? parts.join(", ") : "Sin dirección";
           };
 
@@ -171,7 +183,7 @@ export function useOrders() {
         console.error("[useOrders] Código de error:", err.code);
         setError(err.message);
         setIsLoading(false);
-      }
+      },
     );
 
     // Cleanup: cancelar suscripción al desmontar componente
@@ -187,7 +199,9 @@ export function useOrders() {
 /**
  * Calcula el total del pedido a partir del array de items
  */
-function calcularTotal(items?: Array<{ price?: number; quantity?: number }>): number {
+function calcularTotal(
+  items?: Array<{ price?: number; quantity?: number }>,
+): number {
   if (!items || !Array.isArray(items) || items.length === 0) {
     return 0;
   }
@@ -195,7 +209,7 @@ function calcularTotal(items?: Array<{ price?: number; quantity?: number }>): nu
   return items.reduce((total, item) => {
     const price = item.price || 0;
     const quantity = item.quantity || 1;
-    return total + (price * quantity);
+    return total + price * quantity;
   }, 0);
 }
 
@@ -204,16 +218,16 @@ function calcularTotal(items?: Array<{ price?: number; quantity?: number }>): nu
  */
 function mapOrderStatus(status?: string): OrderStatus {
   const statusMap: Record<string, OrderStatus> = {
-    "pagado": "pagado",
-    "paid": "pagado",
-    "enviado": "enviado",
-    "shipped": "enviado",
-    "entregado": "entregado",
-    "delivered": "entregado",
-    "pendiente": "pendiente",
-    "pending": "pendiente",
-    "cancelado": "pendiente",
-    "cancelled": "pendiente",
+    pagado: "pagado",
+    paid: "pagado",
+    enviado: "enviado",
+    shipped: "enviado",
+    entregado: "entregado",
+    delivered: "entregado",
+    pendiente: "pendiente",
+    pending: "pendiente",
+    cancelado: "pendiente",
+    cancelled: "pendiente",
   };
   return statusMap[status?.toLowerCase() || ""] || "pendiente";
 }

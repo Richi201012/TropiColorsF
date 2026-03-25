@@ -1,4 +1,10 @@
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 type OrderItemInput = {
@@ -58,4 +64,30 @@ export async function createOrder(input: CreateOrderInput) {
   const docRef = await addDoc(collection(db, "orders"), payload);
 
   return docRef.id;
+}
+
+export type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado";
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  shippingData?: {
+    paqueteria?: string;
+    tipoEnvio?: string;
+    guia?: string;
+  },
+) {
+  const orderRef = doc(db, "orders", orderId);
+  const payload: Record<string, unknown> = {
+    status,
+    updatedAt: serverTimestamp(),
+  };
+
+  if (shippingData) {
+    if (shippingData.paqueteria) payload.paqueteria = shippingData.paqueteria;
+    if (shippingData.tipoEnvio) payload.tipoEnvio = shippingData.tipoEnvio;
+    if (shippingData.guia) payload.guia = shippingData.guia;
+  }
+
+  await updateDoc(orderRef, payload);
 }

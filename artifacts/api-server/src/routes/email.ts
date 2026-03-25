@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import {
   generarEmailConfirmacion,
+  generarEmailEstadoPedido,
   type EmailPedidoData,
+  type EmailEstadoData,
 } from "../lib/emailTemplate";
 
 const router: IRouter = Router();
@@ -20,6 +22,7 @@ const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || "Tropicolors";
 async function enviarCorreoBrevoAPI(
   toEmail: string,
   toName: string,
+  subject: string,
   htmlContent: string,
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
@@ -40,7 +43,7 @@ async function enviarCorreoBrevoAPI(
             name: toName,
           },
         ],
-        subject: "Pedido Confirmado - Tropicolors",
+        subject: subject,
         htmlContent: htmlContent,
       }),
     });
@@ -70,7 +73,7 @@ async function enviarCorreoBrevoAPI(
 }
 
 /**
- * Función para enviar correo de confirmación de pedido
+ * Función para enviar correo de confirmación de pedido (ya existente)
  * Tipo: https.onCall (simulado con POST)
  * NO guarda información del correo en base de datos
  */
@@ -78,7 +81,6 @@ router.post("/enviar-correo-pedido", async (req, res) => {
   console.log("[Email] Recibida solicitud de envío de correo de pedido");
   console.log("[Email] Body:", JSON.stringify(req.body, null, 2));
 
-  // Validar que Brevo esté configurado
   if (!BREVO_API_KEY) {
     console.error("[Email] ERROR: API Key de Brevo no configurada");
     res.status(500).json({
@@ -89,9 +91,15 @@ router.post("/enviar-correo-pedido", async (req, res) => {
   }
 
   try {
-    // Validar datos del pedido
-    const { nombre, email, direccion, total, productos } =
-      req.body as EmailPedidoData;
+    const {
+      nombre,
+      email,
+      telefono,
+      direccion,
+      total,
+      productos,
+      numeroPedido,
+    } = req.body as EmailPedidoData;
 
     if (
       !nombre ||
@@ -109,7 +117,6 @@ router.post("/enviar-correo-pedido", async (req, res) => {
       return;
     }
 
-    // Validar que cada producto tenga los campos necesarios
     for (const producto of productos) {
       if (!producto.nombre || !producto.cantidad || !producto.precio) {
         console.error("[Email] ERROR: Producto inválido:", producto);
@@ -121,25 +128,29 @@ router.post("/enviar-correo-pedido", async (req, res) => {
       }
     }
 
-    // Generar HTML del correo
     console.log("[Email] Generando HTML del correo...");
     const html = generarEmailConfirmacion({
       nombre,
       email,
+      telefono,
       direccion,
       productos,
       total,
+      numeroPedido,
     });
 
-    // Log de configuración para debugging
     console.log(
       "[Email] Remitente:",
       `"${BREVO_SENDER_NAME}" <${BREVO_SENDER_EMAIL}>`,
     );
 
-    // Enviar correo usando la API de Brevo
     console.log("[Email] Enviando correo a:", email);
-    const result = await enviarCorreoBrevoAPI(email, nombre, html);
+    const result = await enviarCorreoBrevoAPI(
+      email,
+      nombre,
+      "Pedido Confirmado - Tropicolors",
+      html,
+    );
 
     if (!result.success) {
       console.error("[Email] ERROR al enviar correo:", result.error);
@@ -153,7 +164,6 @@ router.post("/enviar-correo-pedido", async (req, res) => {
     console.log("[Email] Correo enviado exitosamente!");
     console.log("[Email] Message ID:", result.messageId);
 
-    // Responder éxito (NO guardamos información del correo)
     res.json({
       success: true,
       message: "Correo de confirmación enviado exitosamente",
@@ -161,11 +171,116 @@ router.post("/enviar-correo-pedido", async (req, res) => {
     });
   } catch (error) {
     console.error("[Email] ERROR al enviar correo:", error);
-
-    // Manejo de errores con detalles
     const errorMessage =
       error instanceof Error ? error.message : "Error desconocido";
+    res.status(500).json({
+      error: "Error al enviar correo",
+      message: errorMessage,
+    });
+  }
+});
 
+/**
+ * NUEVA: Función para enviar correo de actualización de estado de pedido
+ * Tipo: https.onCall (simulado con POST)
+ * NO guarda información del correo en base de datos
+ */
+router.post("/enviar-correo-estado", async (req, res) => {
+  console.log("[Email Estado] Recibida solicitud de envío de correo de estado");
+  console.log("[Email Estado] Body:", JSON.stringify(req.body, null, 2));
+
+  if (!BREVO_API_KEY) {
+    console.error("[Email Estado] ERROR: API Key de Brevo no configurada");
+    res.status(500).json({
+      error: "Servicio de correo no configurado",
+      message: "La API Key de Brevo no está disponible",
+    });
+    return;
+  }
+
+  try {
+    const {
+      nombre,
+      email,
+      estado,
+      productos,
+      total,
+      direccion,
+      paqueteria,
+      tipoEnvio,
+      guia,
+      numeroPedido,
+    } = req.body as EmailEstadoData;
+
+    if (!nombre || !email || !estado || !productos || !total || !direccion) {
+      console.error("[Email Estado] ERROR: Datos incompletos");
+      res.status(400).json({
+        error: "Datos incompletos",
+        message: "Faltan datos requeridos del pedido",
+      });
+      return;
+    }
+
+    const estadosValidos = ["Pendiente", "Pagado", "Enviado", "Entregado"];
+    if (!estadosValidos.includes(estado)) {
+      console.error("[Email Estado] ERROR: Estado inválido:", estado);
+      res.status(400).json({
+        error: "Estado inválido",
+        message: "El estado debe ser: Pendiente, Pagado, Enviado o Entregado",
+      });
+      return;
+    }
+
+    console.log("[Email Estado] Generando HTML para estado:", estado);
+    const html = generarEmailEstadoPedido({
+      nombre,
+      email,
+      estado,
+      productos,
+      total,
+      direccion,
+      paqueteria,
+      tipoEnvio,
+      guia,
+      numeroPedido,
+    });
+
+    const asuntos: Record<string, string> = {
+      Pendiente: "Tu pedido está pendiente - Tropicolors",
+      Pagado: "Tu pago ha sido confirmado - Tropicolors",
+      Enviado: "Tu pedido ha sido enviado - Tropicolors",
+      Entregado: "Tu pedido ha sido entregado - Tropicolors",
+    };
+
+    console.log("[Email Estado] Enviando correo a:", email, "Estado:", estado);
+    const result = await enviarCorreoBrevoAPI(
+      email,
+      nombre,
+      asuntos[estado],
+      html,
+    );
+
+    if (!result.success) {
+      console.error("[Email Estado] ERROR al enviar correo:", result.error);
+      res.status(500).json({
+        error: "Error al enviar correo",
+        message: result.error,
+      });
+      return;
+    }
+
+    console.log("[Email Estado] Correo enviado exitosamente!");
+    console.log("[Email Estado] Message ID:", result.messageId);
+
+    res.json({
+      success: true,
+      message: `Correo de estado "${estado}" enviado exitosamente`,
+      messageId: result.messageId,
+    });
+  } catch (error) {
+    console.error("[Email Estado] ERROR al enviar correo:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
     res.status(500).json({
       error: "Error al enviar correo",
       message: errorMessage,
