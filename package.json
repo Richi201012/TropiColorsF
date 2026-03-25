@@ -6,7 +6,12 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "dev": "concurrently --kill-others --names \"API,VITE\" --prefix-colors \"cyan,blue\" \"pnpm run dev:api\" \"pnpm run dev:client\"",
+    "dev:api": "cd artifacts/api-server && npx tsx watch src/index.ts",
+    "dev:client": "wait-on http://localhost:3000/api/healthz && cd artifacts/tropicolors && npx vite --config vite.config.ts",
+    "dev:api:wait": "wait-on http://localhost:3000/api/health && pnpm run dev:api",
+    "dev:client:wait": "wait-on http://localhost:3000/api/health && pnpm run dev:client"
   },
   "private": true,
   "pnpm": {
@@ -17,8 +22,10 @@
   },
   "devDependencies": {
     "@esbuild/win32-x64": "0.27.3",
+    "concurrently": "^9.2.1",
     "prettier": "^3.8.1",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "wait-on": "^8.0.5"
   },
   "dependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.59.0"
