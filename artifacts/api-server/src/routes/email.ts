@@ -20,10 +20,6 @@ const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || "Tropicolors";
 // Correo del administrador
 const ADMIN_EMAIL = "m_tropicolors1@hotmail.com";
 
-// URL del servidor para imágenes
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
-const IMAGE_BASE_URL = `${SERVER_URL}/images`;
-
 /**
  * Función para enviar correo usando la API REST de Brevo
  */
@@ -145,7 +141,6 @@ router.post("/enviar-correo-pedido", async (req, res) => {
       productos,
       total,
       numeroPedido,
-      imageBaseUrl: IMAGE_BASE_URL,
     });
 
     console.log(
@@ -185,7 +180,6 @@ router.post("/enviar-correo-pedido", async (req, res) => {
       productos,
       total,
       numeroPedido,
-      imageBaseUrl: IMAGE_BASE_URL,
     });
 
     const adminResult = await enviarCorreoBrevoAPI(
@@ -283,7 +277,6 @@ router.post("/enviar-correo-estado", async (req, res) => {
       tipoEnvio,
       guia,
       numeroPedido,
-      imageBaseUrl: IMAGE_BASE_URL,
     });
 
     const asuntos: Record<string, string> = {

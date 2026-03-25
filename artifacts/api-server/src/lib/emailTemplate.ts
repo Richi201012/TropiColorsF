@@ -18,7 +18,6 @@ export interface DatosPedido {
   productos: Producto[];
   total: number;
   numeroPedido?: string;
-  imageBaseUrl?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -49,8 +48,7 @@ function generarFilasProductos(productos: Producto[]): string {
 }
 
 export function generarEmailConfirmacion(pedido: DatosPedido): string {
-  const imageBaseUrl = pedido.imageBaseUrl || "";
-  const logoUrl = `${imageBaseUrl}/images/logo-tropicolors.png`;
+  const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
   const productosHtml = generarFilasProductos(pedido.productos);
   const fecha = new Date().toLocaleDateString("es-MX", {
     year: "numeric",
@@ -193,7 +191,7 @@ export function generarEmailConfirmacion(pedido: DatosPedido): string {
           <tr>
             <td style="background: #ffffff; padding: 0 32px 36px; text-align: center;">
               <p style="margin: 0 0 18px; color: #64748b; font-size: 14px; line-height: 1.6;">¿Tienes dudas sobre tu pedido? Estamos aquí para ayudarte.</p>
-              <a href="https://wa.me/52551146856" style="display: inline-block; background: linear-gradient(135deg, #0d1340 0%, #1a237e 100%); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 50px; font-size: 14px; font-weight: 700;">Contáctanos por WhatsApp ↗</a>
+              <a href="https://wa.me/+52551146856?text=Hola,%20tengo%20una%20consulta%20sobre%20mi%20pedido%20${pedido.numeroPedido ? `-%20${pedido.numeroPedido}` : ""}" style="display: inline-block; background: linear-gradient(135deg, #0d1340 0%, #1a237e 100%); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 50px; font-size: 14px; font-weight: 700;">Contáctanos por WhatsApp ↗</a>
             </td>
           </tr>
 
@@ -248,7 +246,6 @@ export interface DatosEstadoPedido {
   tipoEnvio?: string;
   guia?: string;
   numeroPedido?: string;
-  imageBaseUrl?: string;
 }
 
 export interface EmailEstadoData extends DatosEstadoPedido {}
@@ -257,8 +254,7 @@ export interface EmailEstadoData extends DatosEstadoPedido {}
  * Genera correo de notificación al administrador cuando se recibe un nuevo pedido
  */
 export function generarEmailAdminNuevoPedido(pedido: DatosPedido): string {
-  const imageBaseUrl = pedido.imageBaseUrl || "";
-  const logoUrl = `${imageBaseUrl}/images/logo-tropicolors.png`;
+  const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
   const productosHtml = generarFilasProductos(pedido.productos);
   const fecha = new Date().toLocaleDateString("es-MX", {
     year: "numeric",
@@ -459,8 +455,7 @@ function obtenerColorEstado(estado: string): string {
 }
 
 export function generarEmailEstadoPedido(data: DatosEstadoPedido): string {
-  const imageBaseUrl = data.imageBaseUrl || "";
-  const logoUrl = `${imageBaseUrl}/images/logo-tropicolors.png`;
+  const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
   const productosHtml = data.productos
     .map(
       (p, i) => `
