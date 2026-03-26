@@ -31,7 +31,21 @@ import {
   Settings,
   Phone,
   Shield,
+  ArrowLeft,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { Invoice } from "@/components/Invoice";
 import type { InvoiceData } from "@/types/invoice";
 import { useInvoicePDF } from "@/hooks/useInvoicePDF";
@@ -46,7 +60,11 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, addDoc, collection } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { useOrders, type OrderStatus } from "@/hooks/useOrders";
+import {
+  useOrders,
+  type OrderStatus,
+  type AdminOrder,
+} from "@/hooks/useOrders";
 import {
   useClientesFromOrders,
   filtrarClientes,
@@ -782,16 +800,6 @@ type OrderProduct = {
   price: number;
 };
 
-type AdminOrder = {
-  id: string;
-  customer: string;
-  email: string;
-  address: string;
-  total: number;
-  status: OrderStatus;
-  items: OrderProduct[];
-};
-
 type AdminInvoice = {
   id: string;
   orderId: string;
@@ -912,133 +920,291 @@ function DashboardSection({
 function SummaryView({
   onSelectView,
   orders,
+  clientes,
 }: {
   onSelectView: (view: DashboardView) => void;
   orders: AdminOrder[];
+  clientes: AdminClient[];
 }) {
-  const recentOrders = orders.slice(0, 3);
+  const recentOrders = orders.slice(0, 5);
 
-  const shortcuts = [
-    {
-      label: "Estadísticas de ventas",
-      description: "Ventas por día y rendimiento",
-      icon: TrendingUp,
-      view: "estadisticas" as DashboardView,
-      color: "text-primary",
-      bg: "bg-primary/10",
-    },
-    {
-      label: "Gestión de pedidos",
-      description: "Revisar y actualizar estados",
-      icon: Package,
-      view: "pedidos" as DashboardView,
-      color: "text-secondary",
-      bg: "bg-secondary/10",
-    },
-    {
-      label: "Análisis de clientes",
-      description: "Segmentación y seguimiento",
-      icon: Users,
-      view: "clientes" as DashboardView,
-      color: "text-purple-600",
-      bg: "bg-purple-50",
-    },
-  ];
+  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const pendingCount = orders.filter((o) => o.status === "pendiente").length;
+  const paidCount = orders.filter((o) => o.status === "pagado").length;
+  const shippedCount = orders.filter((o) => o.status === "enviado").length;
+  const deliveredCount = orders.filter((o) => o.status === "entregado").length;
+
+  const orderStatusData = [
+    { name: "Pendiente", value: pendingCount, color: "#f59e0b" },
+    { name: "Pagado", value: paidCount, color: "#0ea5e9" },
+    { name: "Enviado", value: shippedCount, color: "#3b82f6" },
+    { name: "Entregado", value: deliveredCount, color: "#10b981" },
+  ].filter((item) => item.value > 0);
+
+  const salesByDay = (() => {
+    const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const totals = days.map((day) => ({ day, ventas: 0, pedidos: 0 }));
+    orders.forEach((order) => {
+      const ts = (order as any).createdAt;
+      if (!ts) return;
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return;
+      const idx = d.getDay();
+      totals[idx].ventas += order.total;
+      totals[idx].pedidos += 1;
+    });
+    return totals;
+  })();
+
+  const maxSale = Math.max(...salesByDay.map((d) => d.ventas), 1);
 
   return (
     <DashboardSection
       title="Resumen general"
-      subtitle="Monitorea el estado del negocio y entra a cada módulo sin salir del dashboard."
+      subtitle="Monitorea el estado del negocio con métricas y gráficas en tiempo real."
     >
-      <div className="grid gap-4 lg:grid-cols-[1.35fr_0.95fr]">
-        <div className="rounded-3xl border border-border/50 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 text-white shadow-xl shadow-slate-900/10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-              <Activity size={22} />
+      {/* Charts Row */}
+      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr] mb-4">
+        {/* Sales Bar Chart */}
+        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <BarChart3 size={20} />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
-                Panel listo
-              </p>
-              <h3 className="mt-1 text-xl font-display font-bold">
-                Operación centralizada
+              <h3 className="text-base font-display font-bold text-slate-950">
+                Ventas por día de la semana
               </h3>
+              <p className="text-xs text-muted-foreground">
+                Basado en pedidos registrados
+              </p>
             </div>
           </div>
-          <p className="mt-5 max-w-2xl text-sm leading-relaxed text-white/70">
-            Desde aquí puedes revisar pedidos, facturas, clientes y métricas
-            clave sin navegar a otras rutas. Todo se mantiene en la misma
-            pantalla con cambios suaves de vista.
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={salesByDay}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 12, fill: "#64748b" }}
+                axisLine={{ stroke: "#e2e8f0" }}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#64748b" }}
+                axisLine={{ stroke: "#e2e8f0" }}
+                tickFormatter={(v: number) => `$${v.toLocaleString("es-MX")}`}
+              />
+              <Tooltip
+                formatter={(value: number) => [
+                  `$${value.toLocaleString("es-MX")}`,
+                  "Ventas",
+                ]}
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  fontSize: "13px",
+                }}
+              />
+              <Bar
+                dataKey="ventas"
+                fill="url(#barGradient)"
+                radius={[8, 8, 0, 0]}
+              />
+              <defs>
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0d1340" />
+                  <stop offset="100%" stopColor="#1a237e" />
+                </linearGradient>
+              </defs>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Orders by Status Pie Chart */}
+        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-display font-bold text-slate-950 mb-1">
+            Pedidos por estado
+          </h3>
+          <p className="text-xs text-muted-foreground mb-2">
+            Distribución actual del flujo operativo
           </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {shortcuts.map((shortcut) => (
-              <button
-                key={shortcut.label}
-                type="button"
-                onClick={() => onSelectView(shortcut.view)}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:shadow-lg"
-              >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${shortcut.bg} ${shortcut.color}`}
+          {orderStatusData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={orderStatusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={95}
+                  paddingAngle={4}
+                  dataKey="value"
+                  label={({ name, value }: { name: string; value: number }) =>
+                    `${name}: ${value}`
+                  }
                 >
-                  <shortcut.icon size={18} />
-                </div>
-                <p className="mt-4 text-sm font-semibold text-white">
-                  {shortcut.label}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-white/60">
-                  {shortcut.description}
-                </p>
-              </button>
+                  {orderStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => [value, "Pedidos"]}
+                  contentStyle={{
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    fontSize: "13px",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[260px] text-muted-foreground text-sm">
+              No hay pedidos registrados aún
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Cards Row - Inline Data */}
+      <div className="grid gap-4 md:grid-cols-3 mb-4">
+        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <TrendingUp size={18} className="text-primary" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-950">Ventas</h3>
+          </div>
+          <p className="text-2xl font-display font-bold text-slate-950">
+            ${totalRevenue.toLocaleString("es-MX")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Total acumulado de {orders.length} pedidos
+          </p>
+          <div className="mt-3 space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Pendientes</span>
+              <span className="font-semibold text-amber-600">
+                {pendingCount}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Completados</span>
+              <span className="font-semibold text-emerald-600">
+                {deliveredCount}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
+              <Package size={18} className="text-secondary" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-950">Pedidos</h3>
+          </div>
+          <p className="text-2xl font-display font-bold text-slate-950">
+            {orders.length}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Pedidos registrados
+          </p>
+          <div className="mt-3 space-y-2">
+            {orderStatusData.map((s) => (
+              <div key={s.name} className="flex items-center gap-2 text-xs">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: s.color }}
+                />
+                <span className="text-muted-foreground flex-1">{s.name}</span>
+                <span className="font-semibold">{s.value}</span>
+              </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-border/50 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-display font-bold text-slate-950">
-                Pedidos recientes
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Últimas compras registradas.
-              </p>
+        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50">
+              <Users size={18} className="text-purple-600" />
             </div>
-            <button
-              type="button"
-              onClick={() => onSelectView("pedidos")}
-              className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
-            >
-              Ver todos
-            </button>
+            <h3 className="text-sm font-bold text-slate-950">Clientes</h3>
           </div>
-          <div className="mt-5 space-y-3">
-            {recentOrders.map((order) => (
+          <p className="text-2xl font-display font-bold text-slate-950">
+            {clientes.length}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Clientes únicos registrados
+          </p>
+          <div className="mt-3 space-y-2">
+            {clientes.slice(0, 4).map((c) => (
               <div
-                key={order.id}
-                className="rounded-2xl border border-border/50 bg-muted/20 p-4"
+                key={c.id}
+                className="flex items-center gap-2 text-xs truncate"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">
-                      {order.customer}
-                    </p>
-                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      {order.id}
-                    </p>
-                  </div>
-                  <span className="text-sm font-bold text-slate-950">
-                    ${order.total.toLocaleString("es-MX")}
-                  </span>
+                <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-[10px]">
+                  {c.name.charAt(0).toUpperCase()}
                 </div>
-                <span
-                  className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${orderStatusClasses(order.status)}`}
-                >
-                  {statusLabel(order.status)}
+                <span className="text-slate-700 truncate flex-1">{c.name}</span>
+                <span className="text-muted-foreground">
+                  {c.orders} pedidos
                 </span>
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Recent Orders */}
+      <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-display font-bold text-slate-950">
+              Pedidos recientes
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Últimas compras registradas
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelectView("pedidos")}
+            className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+          >
+            Ver todos
+          </button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {recentOrders.map((order) => (
+            <div
+              key={order.id}
+              className="rounded-2xl border border-border/50 bg-muted/20 p-4"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-950 truncate">
+                    {order.customer}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    {order.id}
+                  </p>
+                </div>
+                <span className="text-sm font-bold text-slate-950 shrink-0">
+                  ${order.total.toLocaleString("es-MX")}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${orderStatusClasses(order.status)}`}
+                >
+                  {statusLabel(order.status)}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {order.items.length} producto
+                  {order.items.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </DashboardSection>
@@ -1260,50 +1426,101 @@ function ClientsView({
   );
 }
 
-function StatisticsView({ orders }: { orders: AdminOrder[] }) {
-  const salesByDay = [
-    { day: "Lun", value: 35 },
-    { day: "Mar", value: 52 },
-    { day: "Mié", value: 46 },
-    { day: "Jue", value: 67 },
-    { day: "Vie", value: 84 },
-    { day: "Sáb", value: 58 },
-    { day: "Dom", value: 41 },
-  ];
+function StatisticsView({
+  orders,
+  onBack,
+}: {
+  orders: AdminOrder[];
+  onBack: () => void;
+}) {
+  const salesByDay = (() => {
+    const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const totals = days.map((day) => ({ day, ventas: 0, pedidos: 0 }));
+    orders.forEach((order) => {
+      const ts = (order as any).createdAt;
+      if (!ts) return;
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return;
+      const idx = d.getDay();
+      totals[idx].ventas += order.total;
+      totals[idx].pedidos += 1;
+    });
+    return totals;
+  })();
 
-  const orderStatus = [
+  const orderStatusData = [
     {
-      label: "Pendiente",
-      value: orders.filter((order) => order.status === "pendiente").length,
-      tone: "bg-amber-400",
+      name: "Pendiente",
+      value: orders.filter((o) => o.status === "pendiente").length,
+      color: "#f59e0b",
     },
     {
-      label: "Pagado",
-      value: orders.filter((order) => order.status === "pagado").length,
-      tone: "bg-sky-500",
+      name: "Pagado",
+      value: orders.filter((o) => o.status === "pagado").length,
+      color: "#0ea5e9",
     },
     {
-      label: "Enviado",
-      value: orders.filter((order) => order.status === "enviado").length,
-      tone: "bg-emerald-500",
+      name: "Enviado",
+      value: orders.filter((o) => o.status === "enviado").length,
+      color: "#3b82f6",
     },
     {
-      label: "Entregado",
-      value: orders.filter((order) => order.status === "entregado").length,
-      tone: "bg-violet-500",
+      name: "Entregado",
+      value: orders.filter((o) => o.status === "entregado").length,
+      color: "#10b981",
     },
-  ];
+  ].filter((item) => item.value > 0);
 
-  const maxValue = Math.max(...salesByDay.map((entry) => entry.value));
+  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
+  const avgOrder = orders.length > 0 ? totalRevenue / orders.length : 0;
 
   return (
     <DashboardSection
       title="Estadísticas"
-      subtitle="Visualiza el rendimiento comercial con métricas rápidas y gráficas mock del negocio."
+      subtitle="Visualiza el rendimiento comercial con métricas y gráficas del negocio."
+      action={
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
+        >
+          <ArrowLeft size={16} />
+          Volver al resumen
+        </button>
+      }
     >
+      {/* Summary Metrics */}
+      <div className="grid gap-3 sm:grid-cols-3 mb-4">
+        <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Ingresos totales
+          </p>
+          <p className="mt-2 text-2xl font-display font-bold text-slate-950">
+            ${totalRevenue.toLocaleString("es-MX")}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Pedidos totales
+          </p>
+          <p className="mt-2 text-2xl font-display font-bold text-slate-950">
+            {orders.length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Ticket promedio
+          </p>
+          <p className="mt-2 text-2xl font-display font-bold text-slate-950">
+            ${avgOrder.toLocaleString("es-MX", { maximumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
+        {/* Bar Chart */}
         <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-4">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <BarChart3 size={20} />
             </div>
@@ -1311,64 +1528,98 @@ function StatisticsView({ orders }: { orders: AdminOrder[] }) {
               <h3 className="text-lg font-display font-bold text-slate-950">
                 Ventas por día
               </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Simulación de comportamiento semanal.
+              <p className="text-sm text-muted-foreground">
+                Monto acumulado por día de la semana
               </p>
             </div>
           </div>
-          <div className="mt-8 flex h-72 items-end gap-3">
-            {salesByDay.map((entry) => (
-              <div
-                key={entry.day}
-                className="flex flex-1 flex-col items-center gap-3"
-              >
-                <div className="flex h-60 w-full items-end">
-                  <div
-                    className="w-full rounded-t-2xl bg-gradient-to-t from-primary to-secondary transition-all duration-300 hover:opacity-90"
-                    style={{ height: `${(entry.value / maxValue) * 100}%` }}
-                  />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {entry.value}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{entry.day}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={salesByDay}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 12, fill: "#64748b" }}
+                axisLine={{ stroke: "#e2e8f0" }}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#64748b" }}
+                axisLine={{ stroke: "#e2e8f0" }}
+                tickFormatter={(v: number) => `$${v.toLocaleString("es-MX")}`}
+              />
+              <Tooltip
+                formatter={(value: number) => [
+                  `$${value.toLocaleString("es-MX")}`,
+                  "Ventas",
+                ]}
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  fontSize: "13px",
+                }}
+              />
+              <Bar
+                dataKey="ventas"
+                fill="url(#statsBarGradient)"
+                radius={[8, 8, 0, 0]}
+              />
+              <defs>
+                <linearGradient
+                  id="statsBarGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="#0d1340" />
+                  <stop offset="100%" stopColor="#1a237e" />
+                </linearGradient>
+              </defs>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
+        {/* Pie Chart for Order Status */}
         <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
           <h3 className="text-lg font-display font-bold text-slate-950">
             Pedidos por estado
           </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Distribución actual del flujo operativo.
+          <p className="text-sm text-muted-foreground mb-2">
+            Distribución actual del flujo operativo
           </p>
-          <div className="mt-6 space-y-4">
-            {orderStatus.map((status) => {
-              const percentage = Math.max(10, Math.min(100, status.value));
-              return (
-                <div key={status.label}>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="font-semibold text-slate-800">
-                      {status.label}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {status.value}
-                    </span>
-                  </div>
-                  <div className="h-3 rounded-full bg-muted/60">
-                    <div
-                      className={`h-3 rounded-full ${status.tone}`}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {orderStatusData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={orderStatusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={90}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, value }: { name: string; value: number }) =>
+                    `${name}: ${value}`
+                  }
+                >
+                  {orderStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => [value, "Pedidos"]}
+                  contentStyle={{
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    fontSize: "13px",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+              No hay pedidos registrados aún
+            </div>
+          )}
         </div>
       </div>
     </DashboardSection>
@@ -1840,12 +2091,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
     // Enviar correo de estado (no bloquante)
     try {
-      const customerName =
-        typeof order.customer === "object"
-          ? order.customer.name
-          : order.customer;
-      const customerEmail =
-        typeof order.customer === "object" ? order.customer.email : order.email;
+      const customerName = order.customer;
+      const customerEmail = order.email;
 
       await enviarCorreoEstadoPedido({
         nombre: customerName,
@@ -1896,15 +2143,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     if (!selectedInvoiceOrder) return;
 
     // Mapear correctamente los datos del pedido al formato InvoiceData
-    const customerData =
-      typeof selectedInvoiceOrder.customer === "object"
-        ? selectedInvoiceOrder.customer
-        : {
-            name: selectedInvoiceOrder.customer,
-            email: selectedInvoiceOrder.email,
-            phone: selectedInvoiceOrder.phone,
-            address: selectedInvoiceOrder.address,
-          };
+    const customerData = {
+      name: selectedInvoiceOrder.customer,
+      email: selectedInvoiceOrder.email,
+      phone: selectedInvoiceOrder.phone,
+      address: selectedInvoiceOrder.address,
+    };
 
     const invoiceNumber = `FAC-${String(facturas.length + 124).padStart(5, "0")}`;
     const orderTotal = Number(selectedInvoiceOrder.total) || 0;
@@ -2264,7 +2508,11 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           `}
           >
             {vistaActiva === "resumen" && (
-              <SummaryView onSelectView={handleViewChange} orders={orders} />
+              <SummaryView
+                onSelectView={handleViewChange}
+                orders={orders}
+                clientes={clientes}
+              />
             )}
             {vistaActiva === "pedidos" && (
               <OrdersView
@@ -2302,7 +2550,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               />
             )}
             {vistaActiva === "estadisticas" && (
-              <StatisticsView orders={orders} />
+              <StatisticsView
+                orders={orders}
+                onBack={() => handleViewChange("resumen")}
+              />
             )}
             {vistaActiva === "configuracion" && (
               <SettingsView onLogout={handleLogout} />
