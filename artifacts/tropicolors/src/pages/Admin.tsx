@@ -39,6 +39,7 @@ import {
   Phone,
   Shield,
   ArrowLeft,
+  Bell,
 } from "lucide-react";
 import {
   BarChart,
@@ -79,6 +80,14 @@ import {
 import { useFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
 import { updateOrderStatus as updateOrderStatusDB } from "@/services/order-service";
 import { enviarCorreoEstadoPedido } from "@/lib/email-service";
+import {
+  createNotification,
+  markAllNotificationsAsRead,
+} from "@/services/notification-service";
+import { useNotifications } from "@/hooks/useNotifications";
+import { NotificationItem } from "@/components/NotificationItem";
+import { NotificationBell } from "@/components/NotificationBell";
+import { toast } from "@/hooks/use-toast";
 
 // Auth Context for session management
 interface AuthContextType {
@@ -792,7 +801,8 @@ type DashboardView =
   | "facturas"
   | "clientes"
   | "estadisticas"
-  | "configuracion";
+  | "configuracion"
+  | "notificaciones";
 type ModalActivo =
   | null
   | "detallePedido"
@@ -1791,6 +1801,76 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
   );
 }
 
+function NotificationsView({
+  notifications,
+  onMarkAllRead,
+}: {
+  notifications: ReturnType<typeof useNotifications>["notifications"];
+  onMarkAllRead: () => Promise<void>;
+}) {
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+
+  const handleMarkAll = async () => {
+    setIsMarkingAll(true);
+    try {
+      await onMarkAllRead();
+    } catch (error) {
+      console.error("[NotificationsView] Error:", error);
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
+  const unreadCount = notifications.filter(
+    (n) => n.estado === "no_leida",
+  ).length;
+
+  return (
+    <DashboardSection
+      title="Notificaciones"
+      subtitle="Mantente al tanto de cada nuevo pedido que llega a tu tienda."
+      action={
+        unreadCount > 0 ? (
+          <button
+            type="button"
+            onClick={handleMarkAll}
+            disabled={isMarkingAll}
+            className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
+          >
+            {isMarkingAll ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <CheckCircle size={16} />
+            )}
+            Marcar todas como leídas
+          </button>
+        ) : undefined
+      }
+    >
+      {notifications.length === 0 ? (
+        <EmptyState
+          icon={Bell}
+          title="Sin notificaciones"
+          description="Cuando lleguen nuevos pedidos, aparecerán aquí como notificaciones en tiempo real."
+          features={["Tiempo real", "Filtrado", "Historial"]}
+          color="text-primary"
+          bgColor="bg-primary/10"
+          delay={200}
+        />
+      ) : (
+        <div className="space-y-3">
+          {notifications.map((notification) => (
+            <NotificationItem
+              key={notification.id}
+              notification={notification}
+            />
+          ))}
+        </div>
+      )}
+    </DashboardSection>
+  );
+}
+
 // Dashboard Component
 // Inactivity timeout constants (in milliseconds)
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
@@ -1878,6 +1958,30 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     isLoading: isLoadingOrders,
     error: errorOrders,
   } = useOrders();
+
+  // Hook para notificaciones en tiempo real
+  const { notifications, unreadCount, newNotification, clearNewNotification } =
+    useNotifications();
+
+  // Toast y sonido cuando llega una nueva notificación
+  useEffect(() => {
+    if (!newNotification) return;
+
+    toast({
+      title: "Nuevo pedido recibido",
+      description: `${newNotification.customerName} realizó un pedido de $${newNotification.total.toLocaleString("es-MX")}`,
+    });
+
+    try {
+      const audio = new Audio(
+        "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6djXdoYWNxg5acnJOGdGFbXnOFmZ6cloh1YVpdcoOYnZyVh3RgWl1ygpidnJWHdGBaXXKDl52blYh0YFpdcYKXnZuViHRgWl1xgpedm5WIdGBaXXGCl52blYh0YFpdcYKXnZuViA==",
+      );
+      audio.volume = 0.3;
+      audio.play().catch(() => {});
+    } catch {}
+
+    clearNewNotification();
+  }, [newNotification, clearNewNotification]);
 
   // Hook para obtener facturas generadas automáticamente desde pedidos
   const { facturas: facturasData, isLoading: loadingFacturas } =
@@ -2249,6 +2353,17 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       await addDoc(collection(db, "orders"), orderData);
       console.log("Pedido guardado en Firestore:", orderData);
 
+      // Crear notificación del pedido
+      try {
+        await createNotification({
+          orderId: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+          customerName: newOrderForm.customer.trim(),
+          total,
+        });
+      } catch (notifError) {
+        console.error("Error al crear notificación:", notifError);
+      }
+
       // También actualizar el estado local
       const nextOrder: AdminOrder = {
         id: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
@@ -2408,6 +2523,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:flex-none">
+              <NotificationBell
+                count={unreadCount}
+                onClick={() => handleViewChange("notificaciones")}
+              />
               <a
                 href="/"
                 className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-white/85 px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
@@ -2454,6 +2573,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               { key: "resumen", label: "Resumen", icon: LayoutDashboard },
               { key: "pedidos", label: "Pedidos", icon: Package },
               { key: "facturas", label: "Facturas", icon: FileText },
+              { key: "notificaciones", label: "Notificaciones", icon: Bell },
               { key: "configuracion", label: "Configuración", icon: Settings },
             ] as const
           ).map((tab) => (
@@ -2538,6 +2658,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               <StatisticsView
                 orders={orders}
                 onBack={() => handleViewChange("resumen")}
+              />
+            )}
+            {vistaActiva === "notificaciones" && (
+              <NotificationsView
+                notifications={notifications}
+                onMarkAllRead={markAllNotificationsAsRead}
               />
             )}
             {vistaActiva === "configuracion" && (
