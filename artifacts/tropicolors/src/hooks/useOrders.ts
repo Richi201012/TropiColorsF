@@ -49,7 +49,7 @@ export type OrderProduct = {
 
 export type AdminOrder = {
   id: string;
-  customer: string | { name: string; email: string; phone?: string };
+  customer: string;
   email: string;
   phone?: string;
   address: string;
@@ -59,7 +59,7 @@ export type AdminOrder = {
   total: number;
   status: OrderStatus;
   items: OrderProduct[];
-  createdAt: string;
+  createdAt?: string;
   paymentMethod?: string;
   metodoPago?: string;
   paqueteria?: string;

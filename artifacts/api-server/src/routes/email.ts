@@ -52,7 +52,10 @@ async function enviarCorreoBrevoAPI(
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      message?: string;
+      messageId?: string;
+    };
 
     if (!response.ok) {
       console.error("[Brevo API] Error:", data);
