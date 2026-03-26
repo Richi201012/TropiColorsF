@@ -1,4 +1,11 @@
-﻿import React, { useState, useEffect, createContext, useContext } from "react";
+﻿import React, {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  useRef,
+  useCallback,
+} from "react";
 import {
   Lock,
   TrendingUp,
@@ -1064,96 +1071,6 @@ function SummaryView({
         </div>
       </div>
 
-      {/* Cards Row - Inline Data */}
-      <div className="grid gap-4 md:grid-cols-3 mb-4">
-        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <TrendingUp size={18} className="text-primary" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-950">Ventas</h3>
-          </div>
-          <p className="text-2xl font-display font-bold text-slate-950">
-            ${totalRevenue.toLocaleString("es-MX")}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Total acumulado de {orders.length} pedidos
-          </p>
-          <div className="mt-3 space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Pendientes</span>
-              <span className="font-semibold text-amber-600">
-                {pendingCount}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Completados</span>
-              <span className="font-semibold text-emerald-600">
-                {deliveredCount}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
-              <Package size={18} className="text-secondary" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-950">Pedidos</h3>
-          </div>
-          <p className="text-2xl font-display font-bold text-slate-950">
-            {orders.length}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pedidos registrados
-          </p>
-          <div className="mt-3 space-y-2">
-            {orderStatusData.map((s) => (
-              <div key={s.name} className="flex items-center gap-2 text-xs">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span className="text-muted-foreground flex-1">{s.name}</span>
-                <span className="font-semibold">{s.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50">
-              <Users size={18} className="text-purple-600" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-950">Clientes</h3>
-          </div>
-          <p className="text-2xl font-display font-bold text-slate-950">
-            {clientes.length}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Clientes únicos registrados
-          </p>
-          <div className="mt-3 space-y-2">
-            {clientes.slice(0, 4).map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center gap-2 text-xs truncate"
-              >
-                <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-[10px]">
-                  {c.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-slate-700 truncate flex-1">{c.name}</span>
-                <span className="text-muted-foreground">
-                  {c.orders} pedidos
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Recent Orders */}
       <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
@@ -1875,6 +1792,10 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
 }
 
 // Dashboard Component
+// Inactivity timeout constants (in milliseconds)
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_WARNING = 14 * 60 * 1000; // Show warning at 14 minutes
+
 function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [vistaActiva, setVistaActiva] = useState<DashboardView>("resumen");
   const [modalActivo, setModalActivo] = useState<ModalActivo>(null);
@@ -1885,6 +1806,70 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
+
+  // Inactivity logout state
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(60);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warningTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearInactivityTimers = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+    if (warningTimerRef.current) {
+      clearInterval(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+  }, []);
+
+  const resetInactivityTimer = useCallback(() => {
+    clearInactivityTimers();
+    setShowInactivityWarning(false);
+    setRemainingSeconds(60);
+
+    inactivityTimerRef.current = setTimeout(() => {
+      setShowInactivityWarning(true);
+      setRemainingSeconds(60);
+
+      warningTimerRef.current = setInterval(() => {
+        setRemainingSeconds((prev) => {
+          if (prev <= 1) {
+            clearInactivityTimers();
+            handleLogout();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }, INACTIVITY_WARNING);
+  }, [clearInactivityTimers]);
+
+  const handleContinueSession = useCallback(() => {
+    resetInactivityTimer();
+  }, [resetInactivityTimer]);
+
+  // Activity event listeners for inactivity tracking
+  useEffect(() => {
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+
+    const onActivity = () => {
+      if (!showInactivityWarning) {
+        resetInactivityTimer();
+      }
+    };
+
+    events.forEach((event) =>
+      window.addEventListener(event, onActivity, { passive: true }),
+    );
+    resetInactivityTimer();
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, onActivity));
+      clearInactivityTimers();
+    };
+  }, [resetInactivityTimer, clearInactivityTimers, showInactivityWarning]);
 
   // Hook para obtener pedidos desde Firestore en tiempo real (colección: orders)
   const {
@@ -3113,6 +3098,47 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               className="rounded-2xl bg-[#0d1340] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e] disabled:opacity-50"
             >
               Confirmar y enviar correo
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* Inactivity Warning Modal */}
+      <ModalShell
+        open={showInactivityWarning}
+        title="Sesión por expirar"
+        subtitle="Tu sesión se cerrará automáticamente por inactividad"
+        onClose={handleContinueSession}
+      >
+        <div className="flex flex-col items-center gap-6 p-6">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
+            <Clock size={40} className="text-amber-600" />
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-slate-950">
+              Tu sesión se cerrará en{" "}
+              <span className="text-amber-600">{remainingSeconds}</span>{" "}
+              segundos
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Has estado inactivo durante un tiempo. Haz clic en "Continuar"
+              para mantener tu sesión activa.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleContinueSession}
+              className="rounded-2xl bg-[#0d1340] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e]"
+            >
+              Continuar sesión
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-2xl border border-slate-300 bg-slate-100 px-6 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+            >
+              Cerrar sesión
             </button>
           </div>
         </div>
