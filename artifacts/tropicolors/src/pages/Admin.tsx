@@ -1,4 +1,11 @@
-﻿import React, { useState, useEffect, createContext, useContext } from "react";
+﻿import React, {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  useRef,
+  useCallback,
+} from "react";
 import {
   Lock,
   TrendingUp,
@@ -32,6 +39,7 @@ import {
   Phone,
   Shield,
   ArrowLeft,
+  Bell,
 } from "lucide-react";
 import {
   BarChart,
@@ -72,6 +80,14 @@ import {
 import { useFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
 import { updateOrderStatus as updateOrderStatusDB } from "@/services/order-service";
 import { enviarCorreoEstadoPedido } from "@/lib/email-service";
+import {
+  createNotification,
+  markAllNotificationsAsRead,
+} from "@/services/notification-service";
+import { useNotifications } from "@/hooks/useNotifications";
+import { NotificationItem } from "@/components/NotificationItem";
+import { NotificationBell } from "@/components/NotificationBell";
+import { toast } from "@/hooks/use-toast";
 
 // Auth Context for session management
 interface AuthContextType {
@@ -785,7 +801,8 @@ type DashboardView =
   | "facturas"
   | "clientes"
   | "estadisticas"
-  | "configuracion";
+  | "configuracion"
+  | "notificaciones";
 type ModalActivo =
   | null
   | "detallePedido"
@@ -1061,96 +1078,6 @@ function SummaryView({
               No hay pedidos registrados aún
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Cards Row - Inline Data */}
-      <div className="grid gap-4 md:grid-cols-3 mb-4">
-        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <TrendingUp size={18} className="text-primary" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-950">Ventas</h3>
-          </div>
-          <p className="text-2xl font-display font-bold text-slate-950">
-            ${totalRevenue.toLocaleString("es-MX")}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Total acumulado de {orders.length} pedidos
-          </p>
-          <div className="mt-3 space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Pendientes</span>
-              <span className="font-semibold text-amber-600">
-                {pendingCount}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Completados</span>
-              <span className="font-semibold text-emerald-600">
-                {deliveredCount}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
-              <Package size={18} className="text-secondary" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-950">Pedidos</h3>
-          </div>
-          <p className="text-2xl font-display font-bold text-slate-950">
-            {orders.length}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pedidos registrados
-          </p>
-          <div className="mt-3 space-y-2">
-            {orderStatusData.map((s) => (
-              <div key={s.name} className="flex items-center gap-2 text-xs">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span className="text-muted-foreground flex-1">{s.name}</span>
-                <span className="font-semibold">{s.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50">
-              <Users size={18} className="text-purple-600" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-950">Clientes</h3>
-          </div>
-          <p className="text-2xl font-display font-bold text-slate-950">
-            {clientes.length}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Clientes únicos registrados
-          </p>
-          <div className="mt-3 space-y-2">
-            {clientes.slice(0, 4).map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center gap-2 text-xs truncate"
-              >
-                <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-[10px]">
-                  {c.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-slate-700 truncate flex-1">{c.name}</span>
-                <span className="text-muted-foreground">
-                  {c.orders} pedidos
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -1874,7 +1801,81 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
   );
 }
 
+function NotificationsView({
+  notifications,
+  onMarkAllRead,
+}: {
+  notifications: ReturnType<typeof useNotifications>["notifications"];
+  onMarkAllRead: () => Promise<void>;
+}) {
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+
+  const handleMarkAll = async () => {
+    setIsMarkingAll(true);
+    try {
+      await onMarkAllRead();
+    } catch (error) {
+      console.error("[NotificationsView] Error:", error);
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
+  const unreadCount = notifications.filter(
+    (n) => n.estado === "no_leida",
+  ).length;
+
+  return (
+    <DashboardSection
+      title="Notificaciones"
+      subtitle="Mantente al tanto de cada nuevo pedido que llega a tu tienda."
+      action={
+        unreadCount > 0 ? (
+          <button
+            type="button"
+            onClick={handleMarkAll}
+            disabled={isMarkingAll}
+            className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
+          >
+            {isMarkingAll ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <CheckCircle size={16} />
+            )}
+            Marcar todas como leídas
+          </button>
+        ) : undefined
+      }
+    >
+      {notifications.length === 0 ? (
+        <EmptyState
+          icon={Bell}
+          title="Sin notificaciones"
+          description="Cuando lleguen nuevos pedidos, aparecerán aquí como notificaciones en tiempo real."
+          features={["Tiempo real", "Filtrado", "Historial"]}
+          color="text-primary"
+          bgColor="bg-primary/10"
+          delay={200}
+        />
+      ) : (
+        <div className="space-y-3">
+          {notifications.map((notification) => (
+            <NotificationItem
+              key={notification.id}
+              notification={notification}
+            />
+          ))}
+        </div>
+      )}
+    </DashboardSection>
+  );
+}
+
 // Dashboard Component
+// Inactivity timeout constants (in milliseconds)
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_WARNING = 14 * 60 * 1000; // Show warning at 14 minutes
+
 function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [vistaActiva, setVistaActiva] = useState<DashboardView>("resumen");
   const [modalActivo, setModalActivo] = useState<ModalActivo>(null);
@@ -1886,6 +1887,70 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
 
+  // Inactivity logout state
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(60);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warningTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearInactivityTimers = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+    if (warningTimerRef.current) {
+      clearInterval(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+  }, []);
+
+  const resetInactivityTimer = useCallback(() => {
+    clearInactivityTimers();
+    setShowInactivityWarning(false);
+    setRemainingSeconds(60);
+
+    inactivityTimerRef.current = setTimeout(() => {
+      setShowInactivityWarning(true);
+      setRemainingSeconds(60);
+
+      warningTimerRef.current = setInterval(() => {
+        setRemainingSeconds((prev) => {
+          if (prev <= 1) {
+            clearInactivityTimers();
+            handleLogout();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }, INACTIVITY_WARNING);
+  }, [clearInactivityTimers]);
+
+  const handleContinueSession = useCallback(() => {
+    resetInactivityTimer();
+  }, [resetInactivityTimer]);
+
+  // Activity event listeners for inactivity tracking
+  useEffect(() => {
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+
+    const onActivity = () => {
+      if (!showInactivityWarning) {
+        resetInactivityTimer();
+      }
+    };
+
+    events.forEach((event) =>
+      window.addEventListener(event, onActivity, { passive: true }),
+    );
+    resetInactivityTimer();
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, onActivity));
+      clearInactivityTimers();
+    };
+  }, [resetInactivityTimer, clearInactivityTimers, showInactivityWarning]);
+
   // Hook para obtener pedidos desde Firestore en tiempo real (colección: orders)
   const {
     orders,
@@ -1893,6 +1958,30 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     isLoading: isLoadingOrders,
     error: errorOrders,
   } = useOrders();
+
+  // Hook para notificaciones en tiempo real
+  const { notifications, unreadCount, newNotification, clearNewNotification } =
+    useNotifications();
+
+  // Toast y sonido cuando llega una nueva notificación
+  useEffect(() => {
+    if (!newNotification) return;
+
+    toast({
+      title: "Nuevo pedido recibido",
+      description: `${newNotification.customerName} realizó un pedido de $${newNotification.total.toLocaleString("es-MX")}`,
+    });
+
+    try {
+      const audio = new Audio(
+        "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6djXdoYWNxg5acnJOGdGFbXnOFmZ6cloh1YVpdcoOYnZyVh3RgWl1ygpidnJWHdGBaXXKDl52blYh0YFpdcYKXnZuViHRgWl1xgpedm5WIdGBaXXGCl52blYh0YFpdcYKXnZuViA==",
+      );
+      audio.volume = 0.3;
+      audio.play().catch(() => {});
+    } catch {}
+
+    clearNewNotification();
+  }, [newNotification, clearNewNotification]);
 
   // Hook para obtener facturas generadas automáticamente desde pedidos
   const { facturas: facturasData, isLoading: loadingFacturas } =
@@ -2264,6 +2353,17 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       await addDoc(collection(db, "orders"), orderData);
       console.log("Pedido guardado en Firestore:", orderData);
 
+      // Crear notificación del pedido
+      try {
+        await createNotification({
+          orderId: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+          customerName: newOrderForm.customer.trim(),
+          total,
+        });
+      } catch (notifError) {
+        console.error("Error al crear notificación:", notifError);
+      }
+
       // También actualizar el estado local
       const nextOrder: AdminOrder = {
         id: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
@@ -2423,6 +2523,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:flex-none">
+              <NotificationBell
+                count={unreadCount}
+                onClick={() => handleViewChange("notificaciones")}
+              />
               <a
                 href="/"
                 className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-white/85 px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
@@ -2469,6 +2573,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               { key: "resumen", label: "Resumen", icon: LayoutDashboard },
               { key: "pedidos", label: "Pedidos", icon: Package },
               { key: "facturas", label: "Facturas", icon: FileText },
+              { key: "notificaciones", label: "Notificaciones", icon: Bell },
               { key: "configuracion", label: "Configuración", icon: Settings },
             ] as const
           ).map((tab) => (
@@ -2553,6 +2658,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               <StatisticsView
                 orders={orders}
                 onBack={() => handleViewChange("resumen")}
+              />
+            )}
+            {vistaActiva === "notificaciones" && (
+              <NotificationsView
+                notifications={notifications}
+                onMarkAllRead={markAllNotificationsAsRead}
               />
             )}
             {vistaActiva === "configuracion" && (
@@ -3113,6 +3224,47 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               className="rounded-2xl bg-[#0d1340] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e] disabled:opacity-50"
             >
               Confirmar y enviar correo
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* Inactivity Warning Modal */}
+      <ModalShell
+        open={showInactivityWarning}
+        title="Sesión por expirar"
+        subtitle="Tu sesión se cerrará automáticamente por inactividad"
+        onClose={handleContinueSession}
+      >
+        <div className="flex flex-col items-center gap-6 p-6">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
+            <Clock size={40} className="text-amber-600" />
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-slate-950">
+              Tu sesión se cerrará en{" "}
+              <span className="text-amber-600">{remainingSeconds}</span>{" "}
+              segundos
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Has estado inactivo durante un tiempo. Haz clic en "Continuar"
+              para mantener tu sesión activa.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleContinueSession}
+              className="rounded-2xl bg-[#0d1340] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e]"
+            >
+              Continuar sesión
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-2xl border border-slate-300 bg-slate-100 px-6 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+            >
+              Cerrar sesión
             </button>
           </div>
         </div>

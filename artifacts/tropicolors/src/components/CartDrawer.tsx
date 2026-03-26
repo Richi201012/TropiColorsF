@@ -25,6 +25,7 @@ import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { createOrder } from "@/services/order-service";
+import { createNotification } from "@/services/notification-service";
 import { enviarCorreoConfirmacion } from "@/lib/email-service";
 
 function VaciarCarritoModal({
@@ -1644,6 +1645,18 @@ export function CartDrawer() {
               }
             : null,
       });
+
+      // Crear notificación para el admin
+      try {
+        const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
+        await createNotification({
+          orderId: numeroPedido,
+          customerName: data.customerName,
+          total: cartTotal,
+        });
+      } catch (notifError) {
+        console.error("[CartDrawer] Error al crear notificación:", notifError);
+      }
 
       // Enviar correo de confirmación del pedido
       try {
