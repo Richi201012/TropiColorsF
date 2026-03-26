@@ -1,4 +1,4 @@
-import { Bell, Package, Clock } from "lucide-react";
+import { Package, Clock } from "lucide-react";
 import { markNotificationAsRead } from "@/services/notification-service";
 import type { Notification } from "@/hooks/useNotifications";
 
@@ -23,30 +23,43 @@ function formatRelativeTime(dateString: string): string {
 
 export function NotificationItem({
   notification,
+  onViewOrder,
 }: {
   notification: Notification;
+  onViewOrder?: (orderId: string) => void;
 }) {
   const isUnread = notification.estado === "no_leida";
 
-  const handleMarkAsRead = async () => {
-    if (!isUnread) return;
-    try {
-      await markNotificationAsRead(notification.id);
-    } catch (error) {
-      console.error("[NotificationItem] Error al marcar como leída:", error);
+  const handleClick = async () => {
+    if (isUnread) {
+      try {
+        await markNotificationAsRead(notification.id);
+      } catch (error) {
+        console.error("[NotificationItem] Error al marcar como leída:", error);
+      }
     }
+    onViewOrder?.(notification.orderId);
   };
 
   return (
     <div
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       className={`
-        group relative rounded-2xl border p-4 transition-all duration-200
+        group relative cursor-pointer rounded-2xl border p-4 transition-all duration-200
         ${
           isUnread
             ? "border-primary/20 bg-primary/5 shadow-sm"
             : "border-border/50 bg-white"
         }
-        hover:shadow-md hover:-translate-y-0.5
+        hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30
       `}
     >
       <div className="flex items-start gap-3">
@@ -77,21 +90,9 @@ export function NotificationItem({
             </span>
           </div>
 
-          <div className="mt-2 flex items-center justify-between">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock size={12} />
-              {formatRelativeTime(notification.createdAt)}
-            </div>
-
-            {isUnread && (
-              <button
-                type="button"
-                onClick={handleMarkAsRead}
-                className="text-xs font-semibold text-primary transition-colors hover:text-primary/80"
-              >
-                Marcar como leída
-              </button>
-            )}
+          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock size={12} />
+            {formatRelativeTime(notification.createdAt)}
           </div>
         </div>
 

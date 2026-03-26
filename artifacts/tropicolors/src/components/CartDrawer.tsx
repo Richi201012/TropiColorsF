@@ -1648,9 +1648,8 @@ export function CartDrawer() {
 
       // Crear notificación para el admin
       try {
-        const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
         await createNotification({
-          orderId: numeroPedido,
+          orderId: orderDocumentId,
           customerName: data.customerName,
           total: cartTotal,
         });
