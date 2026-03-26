@@ -84,7 +84,7 @@ export async function updateOrderStatus(
     updatedAt: serverTimestamp(),
     historial: arrayUnion({
       estado: status,
-      fecha: serverTimestamp(),
+      fecha: new Date().toISOString(),
     }),
   };
 

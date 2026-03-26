@@ -1,11 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-} from "firebase/firestore";
+import { collection, query, onSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export type Notification = {
@@ -22,7 +16,7 @@ type FirestoreNotification = {
   customerName?: string;
   total?: number;
   estado?: string;
-  createdAt?: Timestamp | string;
+  createdAt?: Timestamp | string | { seconds: number; nanoseconds?: number };
   [key: string]: unknown;
 };
 
@@ -37,10 +31,8 @@ export function useNotifications() {
   const prevCount = useRef(0);
 
   useEffect(() => {
-    const q = query(
-      collection(db, "notifications"),
-      orderBy("createdAt", "desc"),
-    );
+    // Query SIN orderBy para evitar fallos si algún documento no tiene createdAt
+    const q = query(collection(db, "notifications"));
 
     const unsubscribe = onSnapshot(
       q,
@@ -48,9 +40,26 @@ export function useNotifications() {
         const items: Notification[] = snapshot.docs.map((docSnap) => {
           const data = docSnap.data() as FirestoreNotification;
           let fecha = "";
+
+          // Timestamp de Firebase (instancia)
           if (data.createdAt instanceof Timestamp) {
             fecha = data.createdAt.toDate().toISOString();
-          } else if (typeof data.createdAt === "string") {
+          }
+          // Objeto serializado con seconds (Firestore Timestamp)
+          else if (
+            data.createdAt &&
+            typeof data.createdAt === "object" &&
+            "seconds" in data.createdAt &&
+            typeof (data.createdAt as Record<string, unknown>).seconds ===
+              "number"
+          ) {
+            fecha = new Date(
+              ((data.createdAt as Record<string, unknown>).seconds as number) *
+                1000,
+            ).toISOString();
+          }
+          // String ISO
+          else if (typeof data.createdAt === "string") {
             fecha = data.createdAt;
           }
 
@@ -62,6 +71,16 @@ export function useNotifications() {
             estado: data.estado === "leida" ? "leida" : "no_leida",
             createdAt: fecha,
           };
+        });
+
+        // Ordenar localmente por fecha (más recientes primero)
+        items.sort((a, b) => {
+          if (!a.createdAt && !b.createdAt) return 0;
+          if (!a.createdAt) return 1;
+          if (!b.createdAt) return -1;
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
         });
 
         if (!isFirstLoad.current && items.length > prevCount.current) {

@@ -32,6 +32,18 @@ export type DatosEstadoPedidoCorreo = {
   numeroPedido?: string;
 };
 
+export type DatosFacturaCorreo = {
+  nombre: string;
+  email: string;
+  numeroFactura: string;
+  numeroPedido?: string;
+  fecha: string;
+  productos: ProductoPedido[];
+  subtotal: number;
+  iva: number;
+  total: string;
+};
+
 export type CorreoRespuesta = {
   success: boolean;
   message?: string;
@@ -170,6 +182,78 @@ export async function enviarCorreoEstadoPedido(
     const errorMessage =
       error instanceof Error ? error.message : "Error desconocido";
     console.error("[Email Estado] Error:", errorMessage);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Envía la factura al cliente por correo
+ */
+export async function enviarFacturaCorreo(
+  datosFactura: DatosFacturaCorreo,
+): Promise<CorreoRespuesta> {
+  try {
+    console.log("[Email Factura] Enviando factura...", datosFactura);
+
+    if (
+      !datosFactura.email ||
+      !datosFactura.nombre ||
+      !datosFactura.numeroFactura
+    ) {
+      console.error("[Email Factura] Datos inválidos:", datosFactura);
+      return {
+        success: false,
+        error: "El email, nombre y número de factura son requeridos",
+      };
+    }
+
+    const url = "/api/enviar-correo-factura";
+    console.log("[Email Factura] URL:", url);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosFactura),
+    });
+
+    const text = await response.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error("[Email Factura] Respuesta no es JSON:", text);
+      return {
+        success: false,
+        error: `Error del servidor (${response.status}): respuesta inesperada`,
+      };
+    }
+
+    console.log("[Email Factura] Respuesta:", data);
+
+    if (!response.ok) {
+      console.error("[Email Factura] Error del servidor:", data);
+      return {
+        success: false,
+        error:
+          (data.error as string) ||
+          `Error ${response.status} al enviar la factura`,
+      };
+    }
+
+    console.log("[Email Factura] Factura enviada exitosamente");
+    return {
+      success: true,
+      message: "Factura enviada correctamente al cliente",
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    console.error("[Email Factura] Error:", errorMessage);
     return {
       success: false,
       error: errorMessage,
