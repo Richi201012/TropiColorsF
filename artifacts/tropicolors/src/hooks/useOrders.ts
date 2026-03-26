@@ -10,6 +10,11 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
+export type HistorialEntry = {
+  estado: string;
+  fecha: string;
+};
+
 // Tipo de dato desde Firestore (estructura real del proyecto)
 type FirestoreOrder = {
   customerName?: string;
@@ -27,6 +32,10 @@ type FirestoreOrder = {
   paymentMethod?: string; // Nuevo campo para método de pago
   metodoPago?: string; // Alternativa para método de pago
   status?: string; // Estado del pedido
+  historial?: Array<{
+    estado?: string;
+    fecha?: Timestamp | string;
+  }>;
   items?: Array<{
     productName?: string;
     price?: number;
@@ -60,11 +69,13 @@ export type AdminOrder = {
   status: OrderStatus;
   items: OrderProduct[];
   createdAt?: string;
+  createdAtRaw?: Timestamp | string;
   paymentMethod?: string;
   metodoPago?: string;
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
+  historial?: HistorialEntry[];
 };
 
 /**
@@ -124,6 +135,14 @@ export function useOrders() {
           // Transformar createdAt a string
           const createdAtString = formatearFecha(data.createdAt);
 
+          // Mapear historial
+          const mappedHistorial: HistorialEntry[] = (data.historial || []).map(
+            (entry) => ({
+              estado: entry.estado || "pendiente",
+              fecha: formatearFecha(entry.fecha),
+            }),
+          );
+
           // Construir dirección completa desde campos de envío
           const buildAddress = (): string => {
             const parts: string[] = [];
@@ -168,8 +187,13 @@ export function useOrders() {
             status: mapOrderStatus(data.status),
             items: mappedItems,
             createdAt: createdAtString,
+            createdAtRaw: data.createdAt,
             paymentMethod: data.paymentMethod || data.metodoPago || "efectivo",
             metodoPago: data.metodoPago || data.paymentMethod || "efectivo",
+            paqueteria: data.paqueteria as string | undefined,
+            tipoEnvio: data.tipoEnvio as string | undefined,
+            guia: data.guia as string | undefined,
+            historial: mappedHistorial,
           };
         });
 
@@ -236,9 +260,9 @@ function mapOrderStatus(status?: string): OrderStatus {
  * Convierte el campo createdAt a string legible
  * Soporta Timestamp de Firebase o string
  */
-function formatearFecha(createdAt?: Timestamp | string): string {
+function formatearFecha(createdAt?: Timestamp | string | null): string {
   if (!createdAt) {
-    return new Date().toISOString();
+    return "";
   }
 
   // Si es un Timestamp de Firebase
@@ -246,12 +270,23 @@ function formatearFecha(createdAt?: Timestamp | string): string {
     return createdAt.toDate().toISOString();
   }
 
+  // Si es un objeto con seconds (Timestamp serializado)
+  if (
+    typeof createdAt === "object" &&
+    "seconds" in createdAt &&
+    typeof (createdAt as Record<string, unknown>).seconds === "number"
+  ) {
+    return new Date(
+      ((createdAt as Record<string, unknown>).seconds as number) * 1000,
+    ).toISOString();
+  }
+
   // Si ya es un string
   if (typeof createdAt === "string") {
     return createdAt;
   }
 
-  return new Date().toISOString();
+  return "";
 }
 
 // Export por defecto

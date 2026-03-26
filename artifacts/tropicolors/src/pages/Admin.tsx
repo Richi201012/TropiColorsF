@@ -40,6 +40,10 @@ import {
   Shield,
   ArrowLeft,
   Bell,
+  Download,
+  Filter,
+  Calendar,
+  CreditCard,
 } from "lucide-react";
 import {
   BarChart,
@@ -66,7 +70,14 @@ import {
   updatePassword,
   updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, addDoc, collection } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import {
   useOrders,
@@ -796,6 +807,43 @@ function EmptyState({
   );
 }
 
+function TableSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="animate-pulse">
+      <div className="grid grid-cols-5 gap-4 bg-slate-950 px-5 py-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-3 bg-white/20 rounded" />
+        ))}
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          className="grid grid-cols-5 gap-4 border-t border-border/40 px-5 py-4"
+        >
+          {Array.from({ length: 5 }).map((_, j) => (
+            <div key={j} className="h-4 bg-slate-100 rounded animate-pulse" />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CardSkeleton() {
+  return (
+    <div className="animate-pulse rounded-3xl border border-border/50 bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2 flex-1">
+          <div className="h-3 bg-slate-100 rounded w-24" />
+          <div className="h-5 bg-slate-100 rounded w-40" />
+        </div>
+        <div className="h-6 bg-slate-100 rounded-full w-20" />
+      </div>
+      <div className="mt-4 h-8 bg-slate-100 rounded w-32" />
+    </div>
+  );
+}
+
 type DashboardView =
   | "resumen"
   | "pedidos"
@@ -859,6 +907,81 @@ function invoiceStatusClasses(status: "pagada" | "pendiente") {
   return status === "pagada"
     ? "bg-emerald-50 text-emerald-700"
     : "bg-amber-50 text-amber-700";
+}
+
+function formatDateShort(dateString?: string): string {
+  if (!dateString) return "Sin fecha";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} - ${hours}:${minutes}`;
+}
+
+function formatDateOnly(dateString?: string): string {
+  if (!dateString) return "Sin fecha";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatTimeOnly(dateString?: string): string {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function exportOrdersToCSV(orders: AdminOrder[]) {
+  const headers = [
+    "ID",
+    "Cliente",
+    "Email",
+    "Teléfono",
+    "Dirección",
+    "Total",
+    "Estado",
+    "Método de Pago",
+    "Fecha",
+    "Productos",
+  ];
+
+  const rows = orders.map((order) => [
+    order.id,
+    order.customer,
+    order.email,
+    order.phone || "",
+    order.address,
+    order.total,
+    order.status,
+    order.paymentMethod || "N/A",
+    formatDateShort(order.createdAt),
+    order.items.map((i) => `${i.name} x${i.quantity}`).join("; "),
+  ]);
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+    ),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `pedidos_tropicolors_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function ModalShell({
@@ -1127,8 +1250,7 @@ function SummaryView({
                   {statusLabel(order.status)}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  {order.items.length} producto
-                  {order.items.length !== 1 ? "s" : ""}
+                  {formatDateShort(order.createdAt)}
                 </span>
               </div>
             </div>
@@ -1150,61 +1272,143 @@ function OrdersView({
   onStatusChange: (orderId: string, status: OrderStatus) => void;
   onCreateOrder: () => void;
 }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("todos");
+
+  const filteredOrders = orders.filter((order) => {
+    const matchesSearch =
+      !searchTerm ||
+      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "todos" || order.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <DashboardSection
       title="Pedidos"
       subtitle="Consulta pedidos, ajusta su estado y accede al detalle desde la misma vista."
       action={
-        <button
-          type="button"
-          onClick={onCreateOrder}
-          className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-        >
-          <Package size={16} />
-          Nuevo pedido
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => exportOrdersToCSV(orders)}
+            className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/5 hover:text-primary hover:shadow-md"
+            title="Exportar pedidos a CSV"
+          >
+            <Download size={16} />
+            Exportar CSV
+          </button>
+          <button
+            type="button"
+            onClick={onCreateOrder}
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <Package size={16} />
+            Nuevo pedido
+          </button>
+        </div>
       }
     >
+      {/* Filters */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm flex-1">
+          <Search size={16} className="text-muted-foreground shrink-0" />
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por cliente, ID o correo..."
+            className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="text-muted-foreground hover:text-slate-900 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter size={14} className="text-muted-foreground" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+          >
+            <option value="todos">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="pagado">Pagado</option>
+            <option value="enviado">Enviado</option>
+            <option value="entregado">Entregado</option>
+          </select>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-3xl border border-border/50">
-        <div className="grid grid-cols-[1.15fr_1.2fr_0.8fr_0.95fr_0.7fr] gap-4 bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/70">
+        <div className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr] gap-4 bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/70">
           <span>ID</span>
           <span>Cliente</span>
+          <span>Fecha</span>
           <span>Total</span>
           <span>Estado</span>
           <span>Acción</span>
         </div>
-        {orders.map((order) => (
-          <div
-            key={order.id}
-            className="grid grid-cols-[1.15fr_1.2fr_0.8fr_0.95fr_0.7fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
-          >
-            <span className="font-semibold text-slate-950">{order.id}</span>
-            <span className="text-slate-600">{order.customer}</span>
-            <span className="font-semibold text-slate-950">
-              ${order.total.toLocaleString("es-MX")}
-            </span>
-            <select
-              value={order.status}
-              onChange={(event) =>
-                onStatusChange(order.id, event.target.value as OrderStatus)
-              }
-              className={`rounded-xl border px-3 py-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(order.status)}`}
-            >
-              <option value="pendiente">Pendiente</option>
-              <option value="pagado">Pagado</option>
-              <option value="enviado">Enviado</option>
-              <option value="entregado">Entregado</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => onViewDetail(order.id)}
-              className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
-            >
-              Ver detalle
-            </button>
+        {filteredOrders.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+            {searchTerm || statusFilter !== "todos"
+              ? "No se encontraron pedidos con los filtros aplicados."
+              : "No hay pedidos registrados."}
           </div>
-        ))}
+        ) : (
+          filteredOrders.map((order) => (
+            <div
+              key={order.id}
+              className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
+            >
+              <span className="font-semibold text-slate-950 truncate">
+                {order.id.slice(0, 10)}
+              </span>
+              <span className="text-slate-600 truncate">{order.customer}</span>
+              <span className="text-xs text-muted-foreground">
+                {formatDateShort(order.createdAt)}
+              </span>
+              <span className="font-semibold text-slate-950">
+                ${order.total.toLocaleString("es-MX")}
+              </span>
+              <select
+                value={order.status}
+                onChange={(event) =>
+                  onStatusChange(order.id, event.target.value as OrderStatus)
+                }
+                className={`rounded-xl border px-3 py-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(order.status)}`}
+              >
+                <option value="pendiente">Pendiente</option>
+                <option value="pagado">Pagado</option>
+                <option value="enviado">Enviado</option>
+                <option value="entregado">Entregado</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => onViewDetail(order.id)}
+                className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
+              >
+                Ver detalle
+              </button>
+            </div>
+          ))
+        )}
       </div>
+      {filteredOrders.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Mostrando {filteredOrders.length} de {orders.length} pedidos
+        </p>
+      )}
     </DashboardSection>
   );
 }
@@ -1812,6 +2016,7 @@ function NotificationsView({
   onViewOrder: (orderId: string) => void;
 }) {
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [filterMode, setFilterMode] = useState<"todas" | "no_leidas">("todas");
 
   const handleMarkAll = async () => {
     setIsMarkingAll(true);
@@ -1827,6 +2032,11 @@ function NotificationsView({
   const unreadCount = notifications.filter(
     (n) => n.estado === "no_leida",
   ).length;
+
+  const filteredNotifications =
+    filterMode === "no_leidas"
+      ? notifications.filter((n) => n.estado === "no_leida")
+      : notifications;
 
   return (
     <DashboardSection
@@ -1850,7 +2060,33 @@ function NotificationsView({
         ) : undefined
       }
     >
-      {notifications.length === 0 ? (
+      {/* Filter tabs */}
+      <div className="mb-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setFilterMode("todas")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            filterMode === "todas"
+              ? "bg-slate-950 text-white shadow-sm"
+              : "bg-white text-muted-foreground border border-border/60 hover:text-foreground"
+          }`}
+        >
+          Todas ({notifications.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterMode("no_leidas")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            filterMode === "no_leidas"
+              ? "bg-slate-950 text-white shadow-sm"
+              : "bg-white text-muted-foreground border border-border/60 hover:text-foreground"
+          }`}
+        >
+          No leídas ({unreadCount})
+        </button>
+      </div>
+
+      {filteredNotifications.length === 0 ? (
         <EmptyState
           icon={Bell}
           title="Sin notificaciones"
@@ -1862,7 +2098,7 @@ function NotificationsView({
         />
       ) : (
         <div className="space-y-3">
-          {notifications.map((notification) => (
+          {filteredNotifications.map((notification) => (
             <NotificationItem
               key={notification.id}
               notification={notification}
@@ -2356,7 +2592,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           quantity: 1,
           price: averagePrice,
         })),
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
       const orderDocRef = await addDoc(collection(db, "orders"), orderData);
@@ -2748,13 +2985,24 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       >
         {selectedOrder && (
           <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
                   ID del pedido
                 </p>
                 <p className="mt-2 text-lg font-display font-bold text-slate-950">
-                  {selectedOrder.id}
+                  {selectedOrder.id.slice(0, 12)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  Fecha
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-950">
+                  {formatDateOnly(selectedOrder.createdAt)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatTimeOnly(selectedOrder.createdAt) || "Sin hora"}
                 </p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
@@ -2778,6 +3026,11 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {selectedOrder.email}
                 </p>
+                {selectedOrder.phone && (
+                  <p className="text-sm text-muted-foreground">
+                    {selectedOrder.phone}
+                  </p>
+                )}
               </div>
               <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-slate-950">
@@ -2788,6 +3041,19 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   {selectedOrder.address}
                 </p>
               </div>
+            </div>
+
+            {/* Payment method */}
+            <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-950">
+                <CreditCard size={16} />
+                <p className="font-semibold">Método de pago</p>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground capitalize">
+                {selectedOrder.paymentMethod ||
+                  selectedOrder.metodoPago ||
+                  "No especificado"}
+              </p>
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
@@ -2816,6 +3082,43 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 ))}
               </div>
             </div>
+
+            {/* Historial Timeline */}
+            {selectedOrder.historial && selectedOrder.historial.length > 0 && (
+              <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2 text-slate-950 mb-4">
+                  <Clock size={16} />
+                  <p className="font-semibold">Historial de estados</p>
+                </div>
+                <div className="space-y-0">
+                  {selectedOrder.historial.map((entry, index) => (
+                    <div key={index} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`w-3 h-3 rounded-full shrink-0 ${
+                            index === (selectedOrder.historial?.length || 0) - 1
+                              ? "bg-primary ring-4 ring-primary/20"
+                              : "bg-slate-300"
+                          }`}
+                        />
+                        {index < (selectedOrder.historial?.length || 0) - 1 && (
+                          <div className="w-0.5 h-8 bg-slate-200" />
+                        )}
+                      </div>
+                      <div className="pb-4">
+                        <p className="text-sm font-semibold text-slate-950 capitalize">
+                          {statusLabel(entry.estado as OrderStatus) ||
+                            entry.estado}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDateShort(entry.fecha)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-4 border-t border-border/50 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div>

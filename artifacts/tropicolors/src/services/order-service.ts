@@ -4,6 +4,7 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -81,6 +82,10 @@ export async function updateOrderStatus(
   const payload: Record<string, unknown> = {
     status,
     updatedAt: serverTimestamp(),
+    historial: arrayUnion({
+      estado: status,
+      fecha: serverTimestamp(),
+    }),
   };
 
   if (shippingData) {
@@ -90,4 +95,44 @@ export async function updateOrderStatus(
   }
 
   await updateDoc(orderRef, payload);
+
+  // Log activity
+  try {
+    await logActivity(`Pedido ${statusLabel(status)}`, orderId);
+  } catch {
+    // Silently fail - activity log is non-critical
+  }
+}
+
+function statusLabel(status: OrderStatus): string {
+  const labels: Record<OrderStatus, string> = {
+    pendiente: "creado",
+    pagado: "marcado como pagado",
+    enviado: "marcado como enviado",
+    entregado: "marcado como entregado",
+  };
+  return labels[status] || status;
+}
+
+export async function logActivity(accion: string, orderId?: string) {
+  await addDoc(collection(db, "activity_logs"), {
+    accion,
+    orderId: orderId || null,
+    fecha: serverTimestamp(),
+  });
+}
+
+export type ProductInput = {
+  nombre: string;
+  stock: number;
+  precio: number;
+};
+
+export async function createProduct(input: ProductInput) {
+  const docRef = await addDoc(collection(db, "products"), {
+    ...input,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return docRef.id;
 }

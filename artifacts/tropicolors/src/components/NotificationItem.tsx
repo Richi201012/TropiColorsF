@@ -1,4 +1,4 @@
-import { Package, Clock } from "lucide-react";
+import { Package, Clock, DollarSign } from "lucide-react";
 import { markNotificationAsRead } from "@/services/notification-service";
 import type { Notification } from "@/hooks/useNotifications";
 
@@ -21,6 +21,19 @@ function formatRelativeTime(dateString: string): string {
   });
 }
 
+function formatFullDate(dateString: string): string {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function NotificationItem({
   notification,
   onViewOrder,
@@ -29,6 +42,7 @@ export function NotificationItem({
   onViewOrder?: (orderId: string) => void;
 }) {
   const isUnread = notification.estado === "no_leida";
+  const isLargeOrder = notification.total > 1000;
 
   const handleClick = async () => {
     if (isUnread) {
@@ -59,6 +73,7 @@ export function NotificationItem({
             ? "border-primary/20 bg-primary/5 shadow-sm"
             : "border-border/50 bg-white"
         }
+        ${isLargeOrder ? "ring-2 ring-amber-200/60" : ""}
         hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30
       `}
     >
@@ -67,9 +82,10 @@ export function NotificationItem({
           className={`
             flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
             ${isUnread ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}
+            ${isLargeOrder ? "bg-amber-50 text-amber-600" : ""}
           `}
         >
-          <Package size={18} />
+          {isLargeOrder ? <DollarSign size={18} /> : <Package size={18} />}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -85,14 +101,30 @@ export function NotificationItem({
               </p>
             </div>
 
-            <span className="shrink-0 text-sm font-bold text-slate-950">
-              ${notification.total.toLocaleString("es-MX")}
-            </span>
+            <div className="shrink-0 text-right">
+              <span
+                className={`text-sm font-bold ${isLargeOrder ? "text-amber-600" : "text-slate-950"}`}
+              >
+                ${notification.total.toLocaleString("es-MX")}
+              </span>
+              {isLargeOrder && (
+                <span className="ml-1 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 ring-1 ring-amber-200">
+                  Grande
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock size={12} />
-            {formatRelativeTime(notification.createdAt)}
+          <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Clock size={12} />
+              {formatRelativeTime(notification.createdAt)}
+            </span>
+            {notification.createdAt && (
+              <span className="hidden sm:inline">
+                {formatFullDate(notification.createdAt)}
+              </span>
+            )}
           </div>
         </div>
 

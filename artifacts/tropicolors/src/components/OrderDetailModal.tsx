@@ -11,12 +11,18 @@ import {
   CreditCard,
   AlertTriangle,
   Printer,
+  Clock,
 } from "lucide-react";
 
 type OrderDetailItem = {
   name: string;
   quantity: number;
   price: number;
+};
+
+type HistorialEntry = {
+  estado: string;
+  fecha: string;
 };
 
 type OrderDetail = {
@@ -30,6 +36,7 @@ type OrderDetail = {
   status: string;
   paymentMethod: string;
   createdAt: string;
+  historial: HistorialEntry[];
 };
 
 type FirestoreOrderData = {
@@ -47,6 +54,10 @@ type FirestoreOrderData = {
   metodoPago?: string;
   total?: number;
   createdAt?: Timestamp | string | Date;
+  historial?: Array<{
+    estado?: string;
+    fecha?: Timestamp | string | Date;
+  }>;
   items?: Array<{
     name?: string;
     productName?: string;
@@ -183,6 +194,13 @@ export function OrderDetailModal({
         console.log("[OrderDetailModal] total:", calculatedTotal);
 
         if (!cancelled) {
+          const mappedHistorial: HistorialEntry[] = (data.historial || []).map(
+            (entry) => ({
+              estado: mapStatus(entry.estado || "pendiente"),
+              fecha: formatDate(entry.fecha),
+            }),
+          );
+
           setOrder({
             id: snapshot.id,
             customer: data.customerName || data.customerEmail || "Cliente",
@@ -194,6 +212,7 @@ export function OrderDetailModal({
             status: mapStatus(data.status || "pendiente"),
             paymentMethod: data.paymentMethod || data.metodoPago || "N/A",
             createdAt: formatDate(data.createdAt),
+            historial: mappedHistorial,
           });
           setIsLoading(false);
         }
@@ -405,6 +424,48 @@ export function OrderDetailModal({
                     </div>
                   ))}
                 </div>
+
+                {/* Historial Timeline */}
+                {order.historial.length > 0 && (
+                  <div className="rounded-2xl border border-border/50 bg-white p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Clock size={14} className="text-primary" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Historial de estados
+                      </span>
+                    </div>
+                    <div className="space-y-0">
+                      {order.historial.map((entry, index) => (
+                        <div key={index} className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div
+                              className={`w-3 h-3 rounded-full shrink-0 ${
+                                index === order.historial.length - 1
+                                  ? "bg-primary ring-4 ring-primary/20"
+                                  : "bg-slate-300"
+                              }`}
+                            />
+                            {index < order.historial.length - 1 && (
+                              <div className="w-0.5 h-8 bg-slate-200" />
+                            )}
+                          </div>
+                          <div
+                            className={
+                              index < order.historial.length - 1 ? "pb-4" : ""
+                            }
+                          >
+                            <p className="text-sm font-semibold text-slate-950">
+                              {entry.estado}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {entry.fecha}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Totals */}
                 <div className="border-t border-border/50 bg-slate-50 px-5 py-4">
