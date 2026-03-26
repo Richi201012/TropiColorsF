@@ -787,6 +787,8 @@ type AdminOrder = {
   customer: string;
   email: string;
   address: string;
+  exterior?: string;
+  interior?: string;
   total: number;
   status: OrderStatus;
   items: OrderProduct[];
@@ -1802,7 +1804,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
     // Construir dirección completa
     const direccionCompleta = order.address
-      ? `${order.address}${order.neighborhood ? `, ${order.neighborhood}` : ""}${order.municipality ? `, ${order.municipality}` : ""}${order.state ? `, ${order.state}` : ""}`
+      ? `${order.address}${order.exterior ? `, No. Ext. ${order.exterior}` : ""}${order.interior ? `, No. Int. ${order.interior}` : ""}${order.neighborhood ? `, ${order.neighborhood}` : ""}${order.municipality ? `, ${order.municipality}` : ""}${order.state ? `, ${order.state}` : ""}`
       : "Dirección no disponible";
 
     // Mapear el estado para el correo (primera letra mayúscula)
