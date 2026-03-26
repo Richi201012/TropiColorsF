@@ -20,6 +20,8 @@ import {
   MapPinned,
   Building2,
   Landmark,
+  Hash,
+  Check,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
@@ -140,6 +142,8 @@ type CheckoutFormData = {
   customerEmail: string;
   customerPhone: string;
   shippingAddress: string;
+  shippingExterior: string;
+  shippingInterior: string;
   shippingPostalCode: string;
   shippingNeighborhood: string;
   shippingMunicipality: string;
@@ -168,6 +172,8 @@ const initialCheckoutValues: CheckoutFormData = {
   customerEmail: "",
   customerPhone: "",
   shippingAddress: "",
+  shippingExterior: "",
+  shippingInterior: "",
   shippingPostalCode: "",
   shippingNeighborhood: "",
   shippingMunicipality: "",
@@ -210,6 +216,11 @@ function validateCheckoutField(
       if (!values.shippingAddress.trim()) return "Ingresa tu direccion.";
       if (values.shippingAddress.trim().length < 10)
         return "La direccion debe tener al menos 10 caracteres.";
+      return null;
+    case "shippingExterior":
+      if (!values.shippingExterior.trim()) return "Ingresa el numero exterior.";
+      return null;
+    case "shippingInterior":
       return null;
     case "shippingPostalCode":
       if (!values.shippingPostalCode.trim()) return "Ingresa tu codigo postal.";
@@ -375,6 +386,8 @@ function CheckoutModal({
   onClose: () => void;
 }) {
   const [step, setStep] = useState<CheckoutStep>(1);
+  const [successModalEmail, setSuccessModalEmail] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [formValues, setFormValues] = useState<CheckoutFormData>(
     initialCheckoutValues,
   );
@@ -1038,7 +1051,7 @@ function CheckoutModal({
                           )}
                         </div>
 
-                        <div className="sm:col-span-2">
+                        <div className="sm:col-span-1">
                           <FieldShell
                             icon={<MapPinHouse className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingAddress)}
@@ -1062,6 +1075,48 @@ function CheckoutModal({
                               {errors.shippingAddress}
                             </p>
                           )}
+                        </div>
+
+                        <div className="sm:col-span-1">
+                          <FieldShell
+                            icon={<Hash className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingExterior)}
+                            isValid={isFieldValid("shippingExterior")}
+                          >
+                            <input
+                              value={formValues.shippingExterior}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingExterior",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => handleFieldBlur("shippingExterior")}
+                              placeholder="No. Ext."
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          {errors.shippingExterior && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingExterior}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="sm:col-span-1">
+                          <FieldShell icon={<Hash className="h-4 w-4" />}>
+                            <input
+                              value={formValues.shippingInterior}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingInterior",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder="No. Int. (opcional)"
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
                         </div>
 
                         <div>
@@ -1619,6 +1674,8 @@ export function CartDrawer() {
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone,
         shippingAddress: data.shippingAddress,
+        shippingExterior: data.shippingExterior,
+        shippingInterior: data.shippingInterior || null,
         shippingPostalCode: data.shippingPostalCode,
         shippingNeighborhood: data.shippingNeighborhood,
         shippingMunicipality: data.shippingMunicipality,
@@ -1647,7 +1704,7 @@ export function CartDrawer() {
 
       // Enviar correo de confirmación del pedido
       try {
-        const direccionCompleta = `${data.shippingAddress}, ${data.shippingNeighborhood}, ${data.shippingMunicipality}, ${data.shippingState}`;
+        const direccionCompleta = `${data.shippingAddress}, No. Ext. ${data.shippingExterior}${data.shippingInterior ? `, No. Int. ${data.shippingInterior}` : ""}, ${data.shippingNeighborhood}, ${data.shippingMunicipality}, ${data.shippingState}`;
         const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
         await enviarCorreoConfirmacion({
           nombre: data.customerName,
@@ -1663,6 +1720,10 @@ export function CartDrawer() {
           })),
         });
         console.log("[CartDrawer] Correo de confirmación enviado exitosamente");
+
+        // Show success modal with email
+        setSuccessModalEmail(data.customerEmail);
+        setShowSuccessModal(true);
       } catch (emailError) {
         console.error(
           "[CartDrawer] Error al enviar correo de confirmación:",
@@ -1687,6 +1748,15 @@ export function CartDrawer() {
       setIsProcessing(false);
     }
   };
+
+  useEffect(() => {
+    if (showSuccessModal) {
+      const timer = setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessModal]);
 
   const handleFinalizeCheckout = () => {
     clearCart();
@@ -1860,6 +1930,47 @@ export function CartDrawer() {
             onFinalize={handleFinalizeCheckout}
             onClose={() => setIsCheckoutModalOpen(false)}
           />
+
+          <AnimatePresence>
+            {showSuccessModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                onClick={() => setShowSuccessModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="mb-4 flex justify-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                      <Check className="h-8 w-8 text-green-600" />
+                    </div>
+                  </div>
+                  <h2 className="mb-2 text-xl font-bold text-slate-900">
+                    ¡Gracias por tu compra!
+                  </h2>
+                  <p className="mb-4 text-sm text-slate-600">
+                    Se ha enviado un correo de confirmación a{" "}
+                    <span className="font-semibold text-slate-900">
+                      {successModalEmail}
+                    </span>
+                  </p>
+                  <p className="mb-4 text-xs text-amber-600">
+                    * Revisa tu bandeja de entrada o carpeta de spam
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    Te notificaremos por correo sobre el estado de tu pedido.
+                  </p>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>

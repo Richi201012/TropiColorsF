@@ -21,29 +21,47 @@ router.post("/checkout", async (req, res) => {
     }
 
     const stripe = new Stripe(stripeKey);
-    const { items, customerName, customerEmail, customerPhone, shippingAddress, shippingCity, shippingState, shippingPostalCode } = req.body;
+    const {
+      items,
+      customerName,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      shippingExterior,
+      shippingInterior,
+      shippingCity,
+      shippingState,
+      shippingPostalCode,
+    } = req.body;
 
     if (!items || items.length === 0 || !customerName || !customerEmail) {
       res.status(400).json({ error: "Datos incompletos" });
       return;
     }
 
-    const lineItems = items.map((item: { productName: string; unitPrice: number; quantity: number }) => ({
-      price_data: {
-        currency: "mxn",
-        product_data: {
-          name: item.productName,
+    const lineItems = items.map(
+      (item: { productName: string; unitPrice: number; quantity: number }) => ({
+        price_data: {
+          currency: "mxn",
+          product_data: {
+            name: item.productName,
+          },
+          unit_amount: Math.round(item.unitPrice * 100),
         },
-        unit_amount: Math.round(item.unitPrice * 100),
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      }),
+    );
 
-    const totalAmount = items.reduce((sum: number, item: { unitPrice: number; quantity: number }) => sum + item.unitPrice * item.quantity, 0);
+    const totalAmount = items.reduce(
+      (sum: number, item: { unitPrice: number; quantity: number }) =>
+        sum + item.unitPrice * item.quantity,
+      0,
+    );
     const orderId = randomUUID();
     const orderNumber = generateOrderNumber();
 
-    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const baseUrl =
+      process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -71,6 +89,8 @@ router.post("/checkout", async (req, res) => {
       customerEmail,
       customerPhone: customerPhone || null,
       shippingAddress: shippingAddress || null,
+      shippingExterior: shippingExterior || null,
+      shippingInterior: shippingInterior || null,
       shippingCity: shippingCity || null,
       shippingState: shippingState || null,
       shippingPostalCode: shippingPostalCode || null,
@@ -86,7 +106,10 @@ router.post("/checkout", async (req, res) => {
 
 router.get("/orders", async (req, res) => {
   try {
-    const orders = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
+    const orders = await db
+      .select()
+      .from(ordersTable)
+      .orderBy(desc(ordersTable.createdAt));
     const formatted = orders.map((o) => ({
       ...o,
       amount: o.amount / 100,
@@ -103,7 +126,11 @@ router.get("/orders", async (req, res) => {
 router.get("/orders/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+    const [order] = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, id))
+      .limit(1);
     if (!order) {
       res.status(404).json({ error: "Pedido no encontrado" });
       return;

@@ -53,6 +53,8 @@ export type AdminOrder = {
   email: string;
   phone?: string;
   address: string;
+  exterior?: string;
+  interior?: string;
   neighborhood?: string;
   municipality?: string;
   state?: string;
