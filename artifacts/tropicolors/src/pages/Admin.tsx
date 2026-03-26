@@ -87,6 +87,7 @@ import {
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationItem } from "@/components/NotificationItem";
 import { NotificationBell } from "@/components/NotificationBell";
+import { OrderDetailModal } from "@/components/OrderDetailModal";
 import { toast } from "@/hooks/use-toast";
 
 // Auth Context for session management
@@ -1804,9 +1805,11 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
 function NotificationsView({
   notifications,
   onMarkAllRead,
+  onViewOrder,
 }: {
   notifications: ReturnType<typeof useNotifications>["notifications"];
   onMarkAllRead: () => Promise<void>;
+  onViewOrder: (orderId: string) => void;
 }) {
   const [isMarkingAll, setIsMarkingAll] = useState(false);
 
@@ -1863,6 +1866,7 @@ function NotificationsView({
             <NotificationItem
               key={notification.id}
               notification={notification}
+              onViewOrder={onViewOrder}
             />
           ))}
         </div>
@@ -1886,6 +1890,11 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
+
+  // Estado para modal de detalle de pedido desde notificaciones
+  const [notificationOrderId, setNotificationOrderId] = useState<string | null>(
+    null,
+  );
 
   // Inactivity logout state
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
@@ -2350,13 +2359,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         createdAt: new Date(),
       };
 
-      await addDoc(collection(db, "orders"), orderData);
+      const orderDocRef = await addDoc(collection(db, "orders"), orderData);
       console.log("Pedido guardado en Firestore:", orderData);
 
       // Crear notificación del pedido
       try {
         await createNotification({
-          orderId: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+          orderId: orderDocRef.id,
           customerName: newOrderForm.customer.trim(),
           total,
         });
@@ -2366,7 +2375,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
       // También actualizar el estado local
       const nextOrder: AdminOrder = {
-        id: `ORD-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+        id: orderDocRef.id,
         customer: newOrderForm.customer.trim(),
         email: newOrderForm.email.trim() || "sin-correo@cliente.com",
         address:
@@ -2664,6 +2673,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               <NotificationsView
                 notifications={notifications}
                 onMarkAllRead={markAllNotificationsAsRead}
+                onViewOrder={(orderId) => setNotificationOrderId(orderId)}
               />
             )}
             {vistaActiva === "configuracion" && (
@@ -3269,6 +3279,14 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           </div>
         </div>
       </ModalShell>
+
+      {/* Order Detail Modal from Notifications */}
+      {notificationOrderId && (
+        <OrderDetailModal
+          orderId={notificationOrderId}
+          onClose={() => setNotificationOrderId(null)}
+        />
+      )}
     </div>
   );
 }
