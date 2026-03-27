@@ -44,6 +44,7 @@ import {
   Filter,
   Calendar,
   CreditCard,
+  Trash2,
 } from "lucide-react";
 import {
   BarChart,
@@ -75,6 +76,7 @@ import {
   getDoc,
   setDoc,
   addDoc,
+  deleteDoc,
   collection,
   serverTimestamp,
 } from "firebase/firestore";
@@ -1268,11 +1270,13 @@ function OrdersView({
   orders,
   onViewDetail,
   onStatusChange,
+  onDeleteOrder,
   onCreateOrder,
 }: {
   orders: AdminOrder[];
   onViewDetail: (orderId: string) => void;
   onStatusChange: (orderId: string, status: OrderStatus) => void;
+  onDeleteOrder: (orderId: string, customerName: string) => void;
   onCreateOrder: () => void;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -1354,13 +1358,14 @@ function OrdersView({
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-border/50">
-        <div className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr] gap-4 bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/70">
+        <div className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] gap-4 bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/70">
           <span>ID</span>
           <span>Cliente</span>
           <span>Fecha</span>
           <span>Total</span>
           <span>Estado</span>
           <span>Acción</span>
+          <span></span>
         </div>
         {filteredOrders.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm text-muted-foreground">
@@ -1372,7 +1377,7 @@ function OrdersView({
           filteredOrders.map((order) => (
             <div
               key={order.id}
-              className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
+              className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
             >
               <span className="font-semibold text-slate-950 truncate">
                 {order.id.slice(0, 10)}
@@ -1396,13 +1401,25 @@ function OrdersView({
                 <option value="enviado">Enviado</option>
                 <option value="entregado">Entregado</option>
               </select>
-              <button
-                type="button"
-                onClick={() => onViewDetail(order.id)}
-                className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
-              >
-                Ver detalle
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onViewDetail(order.id)}
+                  className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
+                >
+                  Ver detalle
+                </button>
+              </div>
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => onDeleteOrder(order.id, order.customer)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                  title="Eliminar pedido"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -2280,15 +2297,26 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     tipoEnvio: "",
     guia: "",
   });
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteOrder, setPendingDeleteOrder] = useState<{
+    orderId: string;
+    customerName: string;
+  } | null>(null);
 
   // Cerrar modales con ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (isUpdatingStatus || isDeleting) return;
         if (showStatusConfirm) {
           setShowStatusConfirm(false);
           setPendingStatusUpdate(null);
           setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+        } else if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+          setPendingDeleteOrder(null);
         } else if (modalActivo) {
           setModalActivo(null);
         }
@@ -2296,7 +2324,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showStatusConfirm, modalActivo]);
+  }, [
+    showStatusConfirm,
+    showDeleteConfirm,
+    modalActivo,
+    isUpdatingStatus,
+    isDeleting,
+  ]);
 
   const [newOrderForm, setNewOrderForm] = useState({
     customer: "",
@@ -2382,11 +2416,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   };
 
   const confirmStatusUpdate = async () => {
-    if (!pendingStatusUpdate) return;
+    if (!pendingStatusUpdate || isUpdatingStatus) return;
 
     const { orderId, newStatus } = pendingStatusUpdate;
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
+
+    setIsUpdatingStatus(true);
 
     // Construir dirección completa
     const direccionCompleta = order.address
@@ -2417,6 +2453,14 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       console.log("[Admin] Estado actualizado en Firebase:", newStatus);
     } catch (error) {
       console.error("[Admin] Error al actualizar estado en Firebase:", error);
+      toast({
+        title: "Error al actualizar",
+        description:
+          "No se pudo actualizar el estado del pedido. Intenta de nuevo.",
+        variant: "destructive",
+      });
+      setIsUpdatingStatus(false);
+      return;
     }
 
     // Actualizar estado local
@@ -2452,11 +2496,17 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       console.error("[Admin] Error al enviar correo de estado:", emailError);
     }
 
+    toast({
+      title: "Estado actualizado",
+      description: `El pedido ahora está como "${estadoMap[newStatus]}".`,
+    });
+
     // Cerrar modales
     setShowStatusConfirm(false);
     setPendingStatusUpdate(null);
     setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
     setModalActivo(null);
+    setIsUpdatingStatus(false);
   };
 
   const cancelStatusUpdate = () => {
@@ -2468,6 +2518,43 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
     // Esta función ahora solo llama a handleStatusChange
     handleStatusChange(orderId, status);
+  };
+
+  const handleDeleteOrder = (orderId: string, customerName: string) => {
+    setPendingDeleteOrder({ orderId, customerName });
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!pendingDeleteOrder || isDeleting) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(db, "orders", pendingDeleteOrder.orderId));
+      setOrders((current) =>
+        current.filter((order) => order.id !== pendingDeleteOrder.orderId),
+      );
+      toast({
+        title: "Pedido eliminado",
+        description: "El pedido se ha eliminado correctamente.",
+      });
+    } catch (error) {
+      console.error("[Admin] Error al eliminar pedido:", error);
+      toast({
+        title: "Error al eliminar",
+        description: "No se pudo eliminar el pedido. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setShowDeleteConfirm(false);
+      setPendingDeleteOrder(null);
+      setIsDeleting(false);
+    }
+  };
+
+  const cancelDeleteOrder = () => {
+    setShowDeleteConfirm(false);
+    setPendingDeleteOrder(null);
   };
 
   const openCreateInvoiceModal = () => {
@@ -2873,6 +2960,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 orders={orders}
                 onViewDetail={openOrderDetail}
                 onStatusChange={updateOrderStatus}
+                onDeleteOrder={handleDeleteOrder}
                 onCreateOrder={() => {
                   setVistaActiva("pedidos");
                   setModalActivo("nuevoPedido");
@@ -3482,9 +3570,35 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             ? "Ingresa los datos del envío para notificar al cliente"
             : "¿Estás seguro de que deseas cambiar el estado de este pedido?"
         }
-        onClose={cancelStatusUpdate}
+        onClose={isUpdatingStatus ? () => {} : cancelStatusUpdate}
       >
         <div className="space-y-5">
+          {pendingStatusUpdate && (
+            <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                  <Package size={18} className="text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    Pedido
+                  </p>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {pendingStatusUpdate.orderId.slice(0, 12)}
+                  </p>
+                </div>
+                <div className="ml-auto">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${orderStatusClasses(pendingStatusUpdate.newStatus)}`}
+                  >
+                    {pendingStatusUpdate.newStatus.charAt(0).toUpperCase() +
+                      pendingStatusUpdate.newStatus.slice(1)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {pendingStatusUpdate?.newStatus === "enviado" && (
             <div className="space-y-4">
               <div>
@@ -3551,7 +3665,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             <button
               type="button"
               onClick={cancelStatusUpdate}
-              className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+              disabled={isUpdatingStatus}
+              className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -3559,14 +3674,85 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               type="button"
               onClick={confirmStatusUpdate}
               disabled={
-                pendingStatusUpdate?.newStatus === "enviado" &&
-                (!shippingForm.paqueteria ||
-                  !shippingForm.tipoEnvio ||
-                  !shippingForm.guia)
+                isUpdatingStatus ||
+                (pendingStatusUpdate?.newStatus === "enviado" &&
+                  (!shippingForm.paqueteria ||
+                    !shippingForm.tipoEnvio ||
+                    !shippingForm.guia))
               }
-              className="rounded-2xl bg-[#0d1340] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#0d1340] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e] disabled:opacity-50"
             >
-              Confirmar y enviar correo
+              {isUpdatingStatus && (
+                <Loader2 size={16} className="animate-spin" />
+              )}
+              {isUpdatingStatus
+                ? "Actualizando..."
+                : "Confirmar y enviar correo"}
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* Modal de confirmación de eliminación */}
+      <ModalShell
+        open={showDeleteConfirm}
+        title="Eliminar pedido"
+        subtitle="Esta acción no se puede deshacer"
+        onClose={isDeleting ? () => {} : cancelDeleteOrder}
+      >
+        <div className="space-y-5">
+          <div className="flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+              <AlertCircle size={18} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-900">
+                ¿Deseas eliminar este pedido?
+              </p>
+              <p className="mt-1 text-xs text-red-700">
+                Se eliminará permanentemente de la base de datos.
+              </p>
+            </div>
+          </div>
+
+          {pendingDeleteOrder && (
+            <div className="rounded-2xl border border-border/50 bg-muted/20 p-4 space-y-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  ID del pedido
+                </p>
+                <p className="text-sm font-semibold text-slate-950">
+                  {pendingDeleteOrder.orderId.slice(0, 12)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  Cliente
+                </p>
+                <p className="text-sm font-semibold text-slate-950">
+                  {pendingDeleteOrder.customerName}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={cancelDeleteOrder}
+              disabled={isDeleting}
+              className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={confirmDeleteOrder}
+              disabled={isDeleting}
+              className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {isDeleting && <Loader2 size={16} className="animate-spin" />}
+              {isDeleting ? "Eliminando..." : "Eliminar pedido"}
             </button>
           </div>
         </div>
