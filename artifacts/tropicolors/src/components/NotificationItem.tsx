@@ -1,4 +1,4 @@
-import { Package, Clock, DollarSign } from "lucide-react";
+import { Package, Clock, DollarSign, Trash2 } from "lucide-react";
 import { markNotificationAsRead } from "@/services/notification-service";
 import type { Notification } from "@/hooks/useNotifications";
 
@@ -37,9 +37,11 @@ function formatFullDate(dateString: string): string {
 export function NotificationItem({
   notification,
   onViewOrder,
+  onDelete,
 }: {
   notification: Notification;
   onViewOrder?: (orderId: string) => void;
+  onDelete?: (notificationId: string) => void;
 }) {
   const isUnread = notification.estado === "no_leida";
   const isLargeOrder = notification.total > 1000;
@@ -130,6 +132,20 @@ export function NotificationItem({
 
         {isUnread && (
           <div className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+        )}
+
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(notification.id);
+            }}
+            className="absolute right-3 bottom-3 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-all duration-200 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
+            title="Eliminar notificación"
+          >
+            <Trash2 size={14} />
+          </button>
         )}
       </div>
     </div>

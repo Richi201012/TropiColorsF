@@ -99,6 +99,7 @@ import {
 import {
   createNotification,
   markAllNotificationsAsRead,
+  deleteNotification,
 } from "@/services/notification-service";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationItem } from "@/components/NotificationItem";
@@ -2037,6 +2038,11 @@ function NotificationsView({
 }) {
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [filterMode, setFilterMode] = useState<"todas" | "no_leidas">("todas");
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    customerName: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleMarkAll = async () => {
     setIsMarkingAll(true);
@@ -2046,6 +2052,38 @@ function NotificationsView({
       console.error("[NotificationsView] Error:", error);
     } finally {
       setIsMarkingAll(false);
+    }
+  };
+
+  const handleDeleteClick = (notificationId: string) => {
+    const notification = notifications.find((n) => n.id === notificationId);
+    if (notification) {
+      setPendingDelete({
+        id: notification.id,
+        customerName: notification.customerName,
+      });
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await deleteNotification(pendingDelete.id);
+      toast({
+        title: "Notificación eliminada",
+        description: "La notificación se ha eliminado correctamente.",
+      });
+    } catch (error) {
+      console.error("[NotificationsView] Error al eliminar:", error);
+      toast({
+        title: "Error al eliminar",
+        description: "No se pudo eliminar la notificación. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setPendingDelete(null);
+      setIsDeleting(false);
     }
   };
 
@@ -2123,8 +2161,83 @@ function NotificationsView({
               key={notification.id}
               notification={notification}
               onViewOrder={onViewOrder}
+              onDelete={handleDeleteClick}
             />
           ))}
+        </div>
+      )}
+
+      {/* Modal de confirmación de eliminación de notificación */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+            onClick={() => !isDeleting && setPendingDelete(null)}
+          />
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20 animate-fade-in-scale">
+            <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
+              <div>
+                <h3 className="text-xl font-display font-bold text-slate-950">
+                  Eliminar notificación
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Esta acción no se puede deshacer
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isDeleting && setPendingDelete(null)}
+                disabled={isDeleting}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950 disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-5">
+              <div className="flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                  <AlertCircle size={18} className="text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-red-900">
+                    ¿Deseas eliminar esta notificación?
+                  </p>
+                  <p className="mt-1 text-xs text-red-700">
+                    Se eliminará permanentemente.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  Cliente
+                </p>
+                <p className="text-sm font-semibold text-slate-950">
+                  {pendingDelete.customerName}
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingDelete(null)}
+                  disabled={isDeleting}
+                  className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting && <Loader2 size={16} className="animate-spin" />}
+                  {isDeleting ? "Eliminando..." : "Eliminar"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </DashboardSection>
