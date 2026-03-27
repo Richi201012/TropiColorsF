@@ -28,6 +28,7 @@ type FirestoreOrder = {
   shippingState?: string;
   currency?: string;
   createdAt?: Timestamp | string | Date;
+  updatedAt?: Timestamp | string | Date;
   paymentMethod?: string; // Nuevo campo para método de pago
   metodoPago?: string; // Alternativa para método de pago
   status?: string; // Estado del pedido
@@ -135,8 +136,11 @@ export function useOrders() {
             }),
           );
 
-          // Transformar createdAt a string
-          const createdAtString = formatearFecha(data.createdAt);
+          // Transformar createdAt a string (con fallback a updatedAt)
+          const createdAtString =
+            formatearFecha(data.createdAt) ||
+            formatearFecha(data.updatedAt) ||
+            "";
           console.log(
             `[useOrders] 📅 ${doc.id} createdAt raw:`,
             data.createdAt,
@@ -281,6 +285,16 @@ function mapOrderStatus(status?: string): OrderStatus {
  */
 function formatearFecha(createdAt: unknown): string {
   if (!createdAt) {
+    return "";
+  }
+
+  // Server timestamp no resuelto (sentinel de Firestore)
+  if (
+    typeof createdAt === "object" &&
+    createdAt !== null &&
+    "_methodName" in createdAt &&
+    (createdAt as Record<string, unknown>)._methodName === "serverTimestamp"
+  ) {
     return "";
   }
 
