@@ -115,7 +115,16 @@ export default function Home() {
   const filtered = PRODUCTS.filter(p => activeCategory === "Todos" || p.category === activeCategory);
 
   return (
-    <div id="inicio">
+    <div id="inicio" className="relative overflow-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#fffdf8_32%,#ffffff_68%,#f8fbff_100%)]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="animate-ambient-blob absolute left-[-8%] top-[4%] h-[420px] w-[420px] rounded-full bg-[#003F91]/16 blur-[120px] sm:h-[520px] sm:w-[520px]" />
+        <div className="animate-ambient-blob absolute left-[28%] top-[10%] h-[360px] w-[420px] rounded-full bg-[#00A8B5]/13 blur-[115px] sm:h-[460px] sm:w-[560px]" style={{ animationDelay: "-6s" }} />
+        <div className="animate-ambient-blob absolute right-[-8%] top-[6%] h-[420px] w-[420px] rounded-full bg-[#FFCD00]/18 blur-[120px] sm:h-[520px] sm:w-[520px]" style={{ animationDelay: "-10s" }} />
+        <div className="animate-ambient-blob absolute left-[12%] top-[34%] h-[320px] w-[420px] rounded-full bg-[#FF2E63]/10 blur-[120px] sm:h-[420px] sm:w-[540px]" style={{ animationDelay: "-14s" }} />
+        <div className="animate-ambient-blob absolute right-[10%] top-[42%] h-[320px] w-[420px] rounded-full bg-[#003F91]/10 blur-[120px] sm:h-[420px] sm:w-[540px]" style={{ animationDelay: "-18s" }} />
+        <div className="animate-ambient-blob absolute left-[22%] bottom-[12%] h-[360px] w-[460px] rounded-full bg-[#00A8B5]/10 blur-[125px] sm:h-[460px] sm:w-[620px]" style={{ animationDelay: "-8s" }} />
+      </div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.28)_0%,rgba(255,255,255,0.08)_24%,rgba(255,255,255,0.02)_46%,rgba(255,255,255,0.1)_100%)]" />
       {/* El hero ya no está aquí - está en App.tsx como parte del flujo de scroll */}
 
       {/* ── CATÁLOGO ── */}
@@ -129,6 +138,14 @@ export default function Home() {
       >
         {/* Premium subtle background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-[#003F91]/5 to-transparent blur-3xl pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-[6%] top-[-4%] h-[260px] w-[260px] rounded-full bg-[#003F91]/14 blur-[90px] sm:h-[340px] sm:w-[340px] lg:h-[420px] lg:w-[420px]" />
+          <div className="absolute left-1/2 top-[0%] h-[220px] w-[320px] -translate-x-1/2 rounded-full bg-[#00A8B5]/12 blur-[82px] sm:h-[280px] sm:w-[420px] lg:h-[340px] lg:w-[560px]" />
+          <div className="absolute right-[8%] top-[1%] h-[250px] w-[250px] rounded-full bg-[#FFCD00]/20 blur-[90px] sm:h-[320px] sm:w-[320px] lg:h-[390px] lg:w-[390px]" />
+          <div className="absolute left-[18%] top-[18%] h-[180px] w-[300px] rotate-[-10deg] rounded-full bg-[linear-gradient(135deg,rgba(255,46,99,0.12),rgba(255,205,0,0.04))] blur-[76px] sm:w-[380px] lg:w-[460px]" />
+          <div className="absolute right-[16%] top-[20%] h-[170px] w-[280px] rotate-[12deg] rounded-full bg-[linear-gradient(135deg,rgba(0,63,145,0.1),rgba(0,168,181,0.03))] blur-[72px] sm:w-[360px] lg:w-[430px]" />
+          <div className="absolute inset-x-0 top-0 h-[48%] bg-[linear-gradient(180deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.72)_60%,rgba(255,255,255,0.98)_100%)]" />
+        </div>
         
         <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-16 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
 
@@ -165,11 +182,16 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-            className="mb-14 flex flex-col items-center gap-8 px-2 py-2 sm:mb-16 sm:gap-10"
+            className="relative mb-14 flex flex-col items-center gap-8 px-4 py-6 sm:mb-16 sm:gap-10 sm:px-8 sm:py-8"
           >
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute left-[8%] top-[-18%] h-28 w-40 rounded-full bg-[#003F91]/12 blur-3xl" />
+              <div className="absolute left-1/2 top-[-10%] h-24 w-44 -translate-x-1/2 rounded-full bg-[#00A8B5]/12 blur-3xl" />
+              <div className="absolute right-[10%] top-[-14%] h-28 w-44 rounded-full bg-[#FFCD00]/20 blur-3xl" />
+            </div>
 
             {/* Fila 1: Categorías de color - Premium Chips */}
-            <div className="flex w-full flex-wrap justify-center gap-3">
+            <div className="relative z-10 flex w-full flex-wrap justify-center gap-3">
               {CATEGORY_ORDER.map((cat, index) => {
                 const isActive = activeCategory === cat;
                 const colors = CATEGORY_COLORS[cat];
@@ -198,7 +220,7 @@ export default function Home() {
             </div>
 
             {/* Separador */}
-            <div className="flex w-full max-w-sm items-center gap-3">
+            <div className="relative z-10 flex w-full max-w-sm items-center gap-3">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
               <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest whitespace-nowrap">Concentración</span>
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
@@ -206,7 +228,7 @@ export default function Home() {
 
             {/* Fila 2: Concentraciones - Premium iOS Segmented Control */}
             <motion.div 
-              className="flex items-center rounded-2xl bg-gray-100/80 p-1 backdrop-blur-sm"
+              className="relative z-10 flex items-center rounded-2xl bg-gray-100/80 p-1 backdrop-blur-sm"
               style={{
                 boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03)"
               }}

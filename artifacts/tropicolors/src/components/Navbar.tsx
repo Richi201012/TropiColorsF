@@ -70,16 +70,12 @@ export function Navbar() {
               <motion.div 
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`cursor-pointer px-2 py-1 rounded-xl transition-all duration-300 ${
-                  isScrolled 
-                    ? "bg-white/90 shadow-lg shadow-black/5" 
-                    : "bg-white/60 backdrop-blur-sm shadow-md shadow-black/5"
-                }`}
+                className="cursor-pointer transition-all duration-300"
               >
                 <img 
                   src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} 
                   alt="TropicColors" 
-                  className="h-12 w-auto object-contain"
+                  className="h-14 w-auto object-contain drop-shadow-[0_8px_18px_rgba(255,255,255,0.9)]"
                 />
               </motion.div>
             </Link>
@@ -185,11 +181,11 @@ export function Navbar() {
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div className="px-3 py-1.5 bg-white rounded-xl shadow-md">
+              <div>
                 <img 
                   src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} 
                   alt="TropicColors" 
-                  className="h-10 w-auto" 
+                  className="h-12 w-auto object-contain drop-shadow-[0_8px_18px_rgba(255,255,255,0.9)]" 
                 />
               </div>
               <motion.button 
