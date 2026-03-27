@@ -54,6 +54,7 @@ type FirestoreOrderData = {
   metodoPago?: string;
   total?: number;
   createdAt?: Timestamp | string | Date;
+  updatedAt?: Timestamp | string | Date;
   historial?: Array<{
     estado?: string;
     fecha?: Timestamp | string | Date;
@@ -97,6 +98,15 @@ function statusClasses(status: string): string {
 
 function formatDate(input: Timestamp | string | Date | undefined): string {
   if (!input) return "Fecha no disponible";
+  // Server timestamp no resuelto (sentinel de Firestore)
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "_methodName" in input &&
+    (input as Record<string, unknown>)._methodName === "serverTimestamp"
+  ) {
+    return "Fecha no disponible";
+  }
   let date: Date;
   if (input instanceof Timestamp) {
     date = input.toDate();
@@ -111,6 +121,14 @@ function formatDate(input: Timestamp | string | Date | undefined): string {
   ) {
     date = new Date(
       ((input as Record<string, unknown>).seconds as number) * 1000,
+    );
+  } else if (
+    typeof input === "object" &&
+    "_seconds" in input &&
+    typeof (input as Record<string, unknown>)._seconds === "number"
+  ) {
+    date = new Date(
+      ((input as Record<string, unknown>)._seconds as number) * 1000,
     );
   } else {
     return "Fecha no disponible";
@@ -211,7 +229,12 @@ export function OrderDetailModal({
             total: calculatedTotal,
             status: mapStatus(data.status || "pendiente"),
             paymentMethod: data.paymentMethod || data.metodoPago || "N/A",
-            createdAt: formatDate(data.createdAt),
+            createdAt: (() => {
+              const created = formatDate(data.createdAt);
+              if (created !== "Fecha no disponible") return created;
+              const updated = formatDate(data.updatedAt);
+              return updated !== "Fecha no disponible" ? updated : created;
+            })(),
             historial: mappedHistorial,
           });
           setIsLoading(false);
