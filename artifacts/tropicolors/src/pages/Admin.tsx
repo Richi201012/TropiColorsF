@@ -90,7 +90,10 @@ import {
 } from "@/hooks/useClientesFromOrders";
 import { useFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
 import { updateOrderStatus as updateOrderStatusDB } from "@/services/order-service";
-import { enviarCorreoEstadoPedido } from "@/lib/email-service";
+import {
+  enviarCorreoEstadoPedido,
+  enviarFacturaCorreo,
+} from "@/lib/email-service";
 import {
   createNotification,
   markAllNotificationsAsRead,
@@ -2473,7 +2476,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setVistaActiva("facturas");
   };
 
-  const generateInvoice = () => {
+  const generateInvoice = async () => {
     if (!selectedInvoiceOrder) return;
 
     // Mapear correctamente los datos del pedido al formato InvoiceData
@@ -2545,6 +2548,33 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setFacturas((current) => [nextInvoice, ...current]);
     setSelectedInvoiceId(nextInvoice.invoiceNumber);
     setModalActivo("verFactura");
+
+    // Enviar factura al cliente por correo
+    try {
+      await enviarFacturaCorreo({
+        nombre: nextInvoice.customer.name || selectedInvoiceOrder.customer,
+        email: nextInvoice.customer.email || selectedInvoiceOrder.email,
+        numeroFactura: nextInvoice.invoiceNumber,
+        numeroPedido: selectedInvoiceOrder.id.slice(0, 8).toUpperCase(),
+        fecha: nextInvoice.issueDate,
+        productos: nextInvoice.items.map((item) => ({
+          nombre: item.name,
+          cantidad: item.quantity,
+          precio: item.unitPrice,
+        })),
+        subtotal: nextInvoice.subtotal,
+        iva: nextInvoice.taxAmount,
+        total: nextInvoice.total.toLocaleString("es-MX", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      });
+    } catch (emailError) {
+      console.error(
+        "[generateInvoice] Error al enviar factura por correo:",
+        emailError,
+      );
+    }
   };
 
   // Hook para generar PDF de facturas
@@ -3267,6 +3297,33 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               orderId: selectedInvoice.orderId,
             }}
             showActions={true}
+            onSendEmail={async () => {
+              const result = await enviarFacturaCorreo({
+                nombre: selectedInvoice.customer.name || "Cliente",
+                email: selectedInvoice.customer.email || "",
+                numeroFactura: selectedInvoice.invoiceNumber,
+                numeroPedido: selectedInvoice.orderId
+                  ?.slice(0, 8)
+                  .toUpperCase(),
+                fecha: selectedInvoice.issueDate,
+                productos: selectedInvoice.items.map((item) => ({
+                  nombre: item.name,
+                  cantidad: item.quantity,
+                  precio: item.unitPrice,
+                })),
+                subtotal: selectedInvoice.subtotal,
+                iva: selectedInvoice.taxAmount,
+                total: selectedInvoice.total.toLocaleString("es-MX", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }),
+              });
+              if (result.success) {
+                alert("Factura enviada exitosamente al cliente");
+              } else {
+                alert(`Error al enviar factura: ${result.error}`);
+              }
+            }}
           />
         )}
       </ModalShell>

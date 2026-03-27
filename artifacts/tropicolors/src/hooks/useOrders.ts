@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   collection,
   query,
-  orderBy,
   onSnapshot,
   QuerySnapshot,
   DocumentData,
@@ -28,13 +27,13 @@ type FirestoreOrder = {
   shippingMunicipality?: string;
   shippingState?: string;
   currency?: string;
-  createdAt?: Timestamp | string;
+  createdAt?: Timestamp | string | Date;
   paymentMethod?: string; // Nuevo campo para método de pago
   metodoPago?: string; // Alternativa para método de pago
   status?: string; // Estado del pedido
   historial?: Array<{
     estado?: string;
-    fecha?: Timestamp | string;
+    fecha?: Timestamp | string | Date;
   }>;
   items?: Array<{
     productName?: string;
@@ -69,7 +68,7 @@ export type AdminOrder = {
   status: OrderStatus;
   items: OrderProduct[];
   createdAt?: string;
-  createdAtRaw?: Timestamp | string;
+  createdAtRaw?: Timestamp | string | Date;
   paymentMethod?: string;
   metodoPago?: string;
   paqueteria?: string;
@@ -95,8 +94,9 @@ export function useOrders() {
     // Referencia a la colección "orders"
     const ordersRef = collection(db, "orders");
 
-    // Query para ordenar por fecha de creación (más recientes primero)
-    const q = query(ordersRef, orderBy("createdAt", "desc"));
+    // Query SIN orderBy para evitar fallos si algún documento no tiene createdAt
+    // El ordenamiento se hace localmente después de recibir los datos
+    const q = query(ordersRef);
 
     // Escucha en tiempo real con onSnapshot
     const unsubscribe = onSnapshot(
@@ -126,7 +126,10 @@ export function useOrders() {
           // Mapear items al formato que espera el UI
           const mappedItems: OrderProduct[] = (data.items || []).map(
             (item) => ({
-              name: item.productName || "Producto sin nombre",
+              name:
+                item.productName ||
+                (item.name as string) ||
+                "Producto sin nombre",
               quantity: item.quantity || 1,
               price: item.price || 0,
             }),
@@ -197,6 +200,16 @@ export function useOrders() {
           };
         });
 
+        // Ordenar localmente por fecha de creación (más recientes primero)
+        ordersData.sort((a, b) => {
+          if (!a.createdAt && !b.createdAt) return 0;
+          if (!a.createdAt) return 1;
+          if (!b.createdAt) return -1;
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+
         console.log("[useOrders] 📊 Pedidos procesados:", ordersData);
         setOrders(ordersData);
         setIsLoading(false);
@@ -257,20 +270,25 @@ function mapOrderStatus(status?: string): OrderStatus {
 }
 
 /**
- * Convierte el campo createdAt a string legible
- * Soporta Timestamp de Firebase o string
+ * Convierte el campo createdAt a string ISO legible
+ * Soporta: Timestamp de Firebase, objeto serializado {seconds}, string, Date
  */
-function formatearFecha(createdAt?: Timestamp | string | null): string {
+function formatearFecha(createdAt?: Timestamp | string | Date | null): string {
   if (!createdAt) {
     return "";
   }
 
-  // Si es un Timestamp de Firebase
+  // Timestamp de Firebase (instancia)
   if (createdAt instanceof Timestamp) {
     return createdAt.toDate().toISOString();
   }
 
-  // Si es un objeto con seconds (Timestamp serializado)
+  // Date nativo
+  if (createdAt instanceof Date) {
+    return createdAt.toISOString();
+  }
+
+  // Objeto con seconds (Timestamp serializado de Firestore)
   if (
     typeof createdAt === "object" &&
     "seconds" in createdAt &&

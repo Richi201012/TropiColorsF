@@ -3,8 +3,10 @@ import {
   generarEmailConfirmacion,
   generarEmailEstadoPedido,
   generarEmailAdminNuevoPedido,
+  generarEmailFactura,
   type EmailPedidoData,
   type EmailEstadoData,
+  type DatosFactura,
 } from "../lib/emailTemplate";
 
 const router: IRouter = Router();
@@ -335,6 +337,100 @@ router.get("/health-email", (req, res) => {
     service: "Brevo (API REST)",
     configured: isConfigured,
   });
+});
+
+/**
+ * Endpoint para enviar factura al cliente por correo
+ */
+router.post("/enviar-correo-factura", async (req, res) => {
+  console.log("[Email Factura] Recibida solicitud de envío de factura");
+  console.log("[Email Factura] Body:", JSON.stringify(req.body, null, 2));
+
+  if (!BREVO_API_KEY) {
+    console.error("[Email Factura] ERROR: API Key de Brevo no configurada");
+    res.status(500).json({
+      error: "Servicio de correo no configurado",
+      message: "La API Key de Brevo no está disponible",
+    });
+    return;
+  }
+
+  try {
+    const {
+      nombre,
+      email,
+      numeroFactura,
+      numeroPedido,
+      fecha,
+      productos,
+      subtotal,
+      iva,
+      total,
+    } = req.body as DatosFactura;
+
+    if (
+      !nombre ||
+      !email ||
+      !numeroFactura ||
+      !productos ||
+      !Array.isArray(productos) ||
+      !total
+    ) {
+      console.error("[Email Factura] ERROR: Datos de factura incompletos");
+      res.status(400).json({
+        error: "Datos incompletos",
+        message: "Faltan datos requeridos de la factura",
+      });
+      return;
+    }
+
+    console.log("[Email Factura] Generando HTML de factura...");
+    const html = generarEmailFactura({
+      nombre,
+      email,
+      numeroFactura,
+      numeroPedido,
+      fecha: fecha || new Date().toLocaleDateString("es-MX"),
+      productos,
+      subtotal: subtotal || 0,
+      iva: iva || 0,
+      total,
+    });
+
+    console.log("[Email Factura] Enviando correo a:", email);
+    const result = await enviarCorreoBrevoAPI(
+      email,
+      nombre,
+      `Factura ${numeroFactura} - Tropicolors`,
+      html,
+    );
+
+    if (!result.success) {
+      console.error("[Email Factura] ERROR al enviar correo:", result.error);
+      res.status(500).json({
+        error: "Error al enviar factura",
+        message: result.error,
+      });
+      return;
+    }
+
+    console.log("[Email Factura] Factura enviada exitosamente!");
+    console.log("[Email Factura] Message ID:", result.messageId);
+
+    res.json({
+      success: true,
+      message: "Factura enviada exitosamente al cliente",
+      messageId: result.messageId,
+    });
+  } catch (error) {
+    console.error("[Email Factura] ERROR:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    res.status(500).json({
+      error: "Error al enviar factura",
+      message: errorMessage,
+    });
+  }
 });
 
 export default router;
