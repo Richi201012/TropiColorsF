@@ -4,6 +4,7 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
+  deleteDoc,
   writeBatch,
   query,
   where,
@@ -49,4 +50,9 @@ export async function markAllNotificationsAsRead() {
     batch.update(docSnap.ref, { estado: "leida" });
   });
   await batch.commit();
+}
+
+export async function deleteNotification(notificationId: string) {
+  const notifRef = doc(db, "notifications", notificationId);
+  await deleteDoc(notifRef);
 }
