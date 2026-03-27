@@ -2476,7 +2476,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setVistaActiva("facturas");
   };
 
-  const generateInvoice = async () => {
+  const generateInvoice = () => {
     if (!selectedInvoiceOrder) return;
 
     // Mapear correctamente los datos del pedido al formato InvoiceData
@@ -2548,33 +2548,6 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setFacturas((current) => [nextInvoice, ...current]);
     setSelectedInvoiceId(nextInvoice.invoiceNumber);
     setModalActivo("verFactura");
-
-    // Enviar factura al cliente por correo
-    try {
-      await enviarFacturaCorreo({
-        nombre: nextInvoice.customer.name || selectedInvoiceOrder.customer,
-        email: nextInvoice.customer.email || selectedInvoiceOrder.email,
-        numeroFactura: nextInvoice.invoiceNumber,
-        numeroPedido: selectedInvoiceOrder.id.slice(0, 8).toUpperCase(),
-        fecha: nextInvoice.issueDate,
-        productos: nextInvoice.items.map((item) => ({
-          nombre: item.name,
-          cantidad: item.quantity,
-          precio: item.unitPrice,
-        })),
-        subtotal: nextInvoice.subtotal,
-        iva: nextInvoice.taxAmount,
-        total: nextInvoice.total.toLocaleString("es-MX", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-      });
-    } catch (emailError) {
-      console.error(
-        "[generateInvoice] Error al enviar factura por correo:",
-        emailError,
-      );
-    }
   };
 
   // Hook para generar PDF de facturas

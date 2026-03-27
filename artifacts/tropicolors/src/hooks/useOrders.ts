@@ -137,6 +137,12 @@ export function useOrders() {
 
           // Transformar createdAt a string
           const createdAtString = formatearFecha(data.createdAt);
+          console.log(
+            `[useOrders] 📅 ${doc.id} createdAt raw:`,
+            data.createdAt,
+            "→ formatted:",
+            createdAtString,
+          );
 
           // Mapear historial
           const mappedHistorial: HistorialEntry[] = (data.historial || []).map(
@@ -273,7 +279,7 @@ function mapOrderStatus(status?: string): OrderStatus {
  * Convierte el campo createdAt a string ISO legible
  * Soporta: Timestamp de Firebase, objeto serializado {seconds}, string, Date
  */
-function formatearFecha(createdAt?: Timestamp | string | Date | null): string {
+function formatearFecha(createdAt: unknown): string {
   if (!createdAt) {
     return "";
   }
@@ -291,6 +297,7 @@ function formatearFecha(createdAt?: Timestamp | string | Date | null): string {
   // Objeto con seconds (Timestamp serializado de Firestore)
   if (
     typeof createdAt === "object" &&
+    createdAt !== null &&
     "seconds" in createdAt &&
     typeof (createdAt as Record<string, unknown>).seconds === "number"
   ) {
@@ -299,11 +306,29 @@ function formatearFecha(createdAt?: Timestamp | string | Date | null): string {
     ).toISOString();
   }
 
+  // Objeto con _seconds (formato interno de Firebase)
+  if (
+    typeof createdAt === "object" &&
+    createdAt !== null &&
+    "_seconds" in createdAt &&
+    typeof (createdAt as Record<string, unknown>)._seconds === "number"
+  ) {
+    return new Date(
+      ((createdAt as Record<string, unknown>)._seconds as number) * 1000,
+    ).toISOString();
+  }
+
   // Si ya es un string
   if (typeof createdAt === "string") {
     return createdAt;
   }
 
+  // Si es un número (timestamp en milisegundos)
+  if (typeof createdAt === "number") {
+    return new Date(createdAt).toISOString();
+  }
+
+  console.warn("[formatearFecha] Formato no reconocido:", createdAt);
   return "";
 }
 
