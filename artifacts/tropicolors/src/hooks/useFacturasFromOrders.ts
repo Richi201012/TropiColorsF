@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useOrders, AdminOrder, OrderProduct } from "./useOrders";
-import { InvoiceData, InvoiceItem } from "../types/invoice";
+import { InvoiceData, InvoiceItem, buildInvoiceNumber } from "../types/invoice";
 
 /**
  * Hook para obtener facturas generadas automáticamente desde la colección "orders" de Firestore
@@ -41,7 +41,7 @@ export function useFacturasFromOrders() {
 
     // Generar folio único
     const numeroFolio = index + 1;
-    const invoiceNumber = `FAC-${String(numeroFolio).padStart(4, "0")}`;
+    const invoiceNumber = buildInvoiceNumber(numeroFolio, order.createdAt);
 
     // Mapear método de pago
     const paymentMethod = mapPaymentMethod(order.paymentMethod || order.metodoPago || "efectivo");
@@ -175,7 +175,7 @@ class InvoiceMapper {
     }));
 
     // Folio
-    const invoiceNumber = `FAC-${String(index + 1).padStart(4, "0")}`;
+    const invoiceNumber = buildInvoiceNumber(index + 1, order.createdAt);
 
     // Método de pago
     const paymentMethod = mapPaymentMethod(order.paymentMethod || order.metodoPago);

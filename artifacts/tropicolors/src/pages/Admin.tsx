@@ -60,7 +60,7 @@ import {
   Legend,
 } from "recharts";
 import { Invoice } from "@/components/Invoice";
-import type { InvoiceData } from "@/types/invoice";
+import { buildInvoiceNumber, type InvoiceData } from "@/types/invoice";
 import { useInvoicePDF } from "@/hooks/useInvoicePDF";
 import type { User as FirebaseUser } from "firebase/auth";
 import {
@@ -2687,7 +2687,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       address: selectedInvoiceOrder.address,
     };
 
-    const invoiceNumber = `FAC-${String(facturas.length + 124).padStart(5, "0")}`;
+    const invoiceNumber = buildInvoiceNumber(
+      facturas.length + 124,
+      selectedInvoiceOrder.createdAt || new Date().toISOString(),
+    );
     const orderTotal = Number(selectedInvoiceOrder.total) || 0;
 
     // Calcular subtotal e IVA
@@ -3439,7 +3442,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       <ModalShell
         open={modalActivo === "verFactura" && Boolean(selectedInvoice)}
         title="Vista previa de factura"
-        subtitle="Revisa la factura generada y descarga el PDF cuando lo necesites."
+        subtitle="Revisa la factura y descarga el PDF cuando lo necesites."
         onClose={() => setModalActivo(null)}
       >
         {selectedInvoice && (
@@ -3491,6 +3494,17 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 }),
+                telefono: selectedInvoice.customer.phone || "",
+                direccion:
+                  [
+                    selectedInvoice.customer.address,
+                    selectedInvoice.customer.city,
+                    selectedInvoice.customer.state,
+                    selectedInvoice.customer.postalCode,
+                  ]
+                    .filter(Boolean)
+                    .join(", "),
+                metodoPago: selectedInvoice.paymentMethod,
               });
               if (result.success) {
                 alert("Factura enviada exitosamente al cliente");
