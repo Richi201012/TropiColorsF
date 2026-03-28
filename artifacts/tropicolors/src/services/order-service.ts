@@ -22,6 +22,8 @@ export type CreateOrderInput = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  requiresInvoice?: boolean;
+  customerRfc?: string;
   shippingAddress: string;
   shippingPostalCode: string;
   shippingNeighborhood: string;

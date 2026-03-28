@@ -1503,7 +1503,16 @@ function OrdersView({
               <span className="font-semibold text-slate-950 truncate">
                 {order.id.slice(0, 10)}
               </span>
-              <span className="text-slate-600 truncate">{order.customer}</span>
+              <div className="min-w-0">
+                <span className="block truncate text-slate-600">
+                  {order.customer}
+                </span>
+                {order.requiresInvoice && (
+                  <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700 ring-1 ring-amber-200">
+                    RFC para facturar
+                  </span>
+                )}
+              </div>
               <span className="text-xs text-muted-foreground">
                 {formatDateShort(order.createdAt)}
               </span>
@@ -2467,7 +2476,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
     toast({
       title: "Nuevo pedido recibido",
-      description: `${newNotification.customerName} realizó un pedido de $${newNotification.total.toLocaleString("es-MX")}`,
+      description: newNotification.requiresInvoice
+        ? `${newNotification.customerName} realizó un pedido de $${newNotification.total.toLocaleString("es-MX")} y solicitó factura con RFC.`
+        : `${newNotification.customerName} realizó un pedido de $${newNotification.total.toLocaleString("es-MX")}`,
     });
 
     try {
@@ -2911,6 +2922,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         email: selectedInvoiceOrder.email || "",
         phone: selectedInvoiceOrder.phone || "",
         address: selectedInvoiceOrder.address || "",
+        rfc: selectedInvoiceOrder.requiresInvoice
+          ? selectedInvoiceOrder.customerRfc || ""
+          : "",
       },
       items: mappedItems,
       subtotal: subtotal,
@@ -3428,6 +3442,30 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   {selectedOrder.address}
                 </p>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-950">
+                <FileText size={16} />
+                <p className="font-semibold">Facturación</p>
+              </div>
+              {selectedOrder.requiresInvoice ? (
+                <>
+                  <span className="mt-3 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-700 ring-1 ring-amber-200">
+                    Requiere factura
+                  </span>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    RFC del cliente
+                  </p>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {selectedOrder.customerRfc || "Sin RFC capturado"}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  El cliente no solicitó factura para este pedido.
+                </p>
+              )}
             </div>
 
             {/* Payment method */}

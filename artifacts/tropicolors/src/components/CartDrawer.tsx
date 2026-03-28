@@ -140,6 +140,8 @@ type CheckoutFormData = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  requiresInvoice: boolean;
+  customerRfc: string;
   shippingAddress: string;
   shippingPostalCode: string;
   shippingNeighborhood: string;
@@ -168,6 +170,8 @@ const initialCheckoutValues: CheckoutFormData = {
   customerName: "",
   customerEmail: "",
   customerPhone: "",
+  requiresInvoice: false,
+  customerRfc: "",
   shippingAddress: "",
   shippingPostalCode: "",
   shippingNeighborhood: "",
@@ -183,6 +187,7 @@ const initialCardValues: CardFormData = {
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const rfcRegex = /^([A-Z&Ñ]{3}|[A-Z&Ñ]{4})\d{6}[A-Z0-9]{3}$/;
 
 function validateCheckoutField(
   field: CheckoutFieldName,
@@ -206,6 +211,12 @@ function validateCheckoutField(
         return "El telefono solo debe contener numeros.";
       if (values.customerPhone.length !== 10)
         return "El telefono debe tener exactamente 10 digitos.";
+      return null;
+    case "customerRfc":
+      if (!values.requiresInvoice) return null;
+      if (!values.customerRfc.trim()) return "Ingresa tu RFC.";
+      if (!rfcRegex.test(values.customerRfc.trim().toUpperCase()))
+        return "Ingresa un RFC valido.";
       return null;
     case "shippingAddress":
       if (!values.shippingAddress.trim()) return "Ingresa tu direccion.";
@@ -242,6 +253,8 @@ function validateCheckoutField(
           : "No se pudo autocompletar el estado.";
       return null;
   }
+
+  return null;
 }
 
 function validateCheckoutForm(
@@ -255,6 +268,7 @@ function validateCheckoutForm(
       "customerName",
       "customerEmail",
       "customerPhone",
+      "customerRfc",
       "shippingAddress",
       "shippingPostalCode",
       "shippingNeighborhood",
@@ -590,6 +604,9 @@ function CheckoutModal({
     if (field === "customerPhone") {
       nextValue = value.replace(/\D/g, "").slice(0, 10);
     }
+    if (field === "customerRfc") {
+      nextValue = value.toUpperCase().replace(/[^A-Z0-9&Ñ]/g, "").slice(0, 13);
+    }
     if (field === "shippingPostalCode") {
       nextValue = value.replace(/\D/g, "").slice(0, 5);
     }
@@ -647,8 +664,15 @@ function CheckoutModal({
     setStep(2);
   };
 
-  const isFieldValid = (field: CheckoutFieldName) =>
-    Boolean(touched[field] && !errors[field] && formValues[field].trim());
+  const isFieldValid = (field: CheckoutFieldName) => {
+    if (field === "requiresInvoice") return false;
+
+    const fieldValue = formValues[field];
+    return (
+      typeof fieldValue === "string" &&
+      Boolean(touched[field] && !errors[field] && fieldValue.trim())
+    );
+  };
   const showNeighborhoodSelect = !modeManual && colonias.length > 1;
   const neighborhoodLockedByLookup = !modeManual && colonias.length === 1;
   const brandLogoSrc = `${import.meta.env.BASE_URL}logo-tropicolors.png`;
@@ -1038,6 +1062,68 @@ function CheckoutModal({
                             </p>
                           )}
                         </div>
+
+                        <div className="sm:col-span-2 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                          <label className="flex cursor-pointer items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={formValues.requiresInvoice}
+                              onChange={(event) => {
+                                const checked = event.target.checked;
+                                const nextValues = {
+                                  ...formValues,
+                                  requiresInvoice: checked,
+                                  customerRfc: checked
+                                    ? formValues.customerRfc
+                                    : "",
+                                };
+                                setFormValues(nextValues);
+                                applyValidationVisibility(nextValues);
+                              }}
+                              className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">
+                                Necesito factura
+                              </p>
+                              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                               
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {formValues.requiresInvoice && (
+                          <div className="sm:col-span-2">
+                            <FieldShell
+                              icon={<Building2 className="h-4 w-4" />}
+                              hasError={Boolean(errors.customerRfc)}
+                              isValid={isFieldValid("customerRfc")}
+                            >
+                              <input
+                                value={formValues.customerRfc}
+                                onChange={(event) =>
+                                  handleFieldChange(
+                                    "customerRfc",
+                                    event.target.value,
+                                  )
+                                }
+                                onBlur={() => handleFieldBlur("customerRfc")}
+                                placeholder="RFC para facturar"
+                                className="w-full border-0 bg-transparent py-3 text-sm uppercase text-slate-900 outline-none placeholder:text-slate-400"
+                              />
+                            </FieldShell>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Formato esperado: persona física o moral, por
+                              ejemplo `XAXX010101000`.
+                            </p>
+                            {errors.customerRfc && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.customerRfc}
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                         <div className="sm:col-span-2">
                           <FieldShell
@@ -1619,6 +1705,8 @@ export function CartDrawer() {
         customerName: data.customerName,
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone,
+        requiresInvoice: data.requiresInvoice,
+        customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
         shippingAddress: data.shippingAddress,
         shippingPostalCode: data.shippingPostalCode,
         shippingNeighborhood: data.shippingNeighborhood,
@@ -1652,6 +1740,8 @@ export function CartDrawer() {
           orderId: orderDocumentId,
           customerName: data.customerName,
           total: cartTotal,
+          requiresInvoice: data.requiresInvoice,
+          customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
         });
       } catch (notifError) {
         console.error("[CartDrawer] Error al crear notificación:", notifError);

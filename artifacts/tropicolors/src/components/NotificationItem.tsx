@@ -45,6 +45,7 @@ export function NotificationItem({
 }) {
   const isUnread = notification.estado === "no_leida";
   const isLargeOrder = notification.total > 1000;
+  const requiresInvoice = notification.requiresInvoice;
 
   const handleClick = async () => {
     if (isUnread) {
@@ -98,9 +99,19 @@ export function NotificationItem({
               >
                 Nuevo pedido de {notification.customerName}
               </p>
+              {requiresInvoice && (
+                <p className="mt-1 inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700 ring-1 ring-amber-200">
+                  Con RFC para facturar
+                </p>
+              )}
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Pedido #{notification.orderId.slice(0, 8).toUpperCase()}
               </p>
+              {requiresInvoice && notification.customerRfc && (
+                <p className="mt-1 text-[11px] font-medium text-amber-700">
+                  RFC: {notification.customerRfc}
+                </p>
+              )}
             </div>
 
             <div className="shrink-0 text-right">
