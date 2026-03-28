@@ -16,6 +16,8 @@ export type CreateNotificationInput = {
   orderId: string;
   customerName: string;
   total: number;
+  requiresInvoice?: boolean;
+  customerRfc?: string;
 };
 
 export async function createNotification(input: CreateNotificationInput) {
@@ -23,6 +25,8 @@ export async function createNotification(input: CreateNotificationInput) {
     orderId: input.orderId,
     customerName: input.customerName,
     total: input.total,
+    requiresInvoice: Boolean(input.requiresInvoice),
+    customerRfc: input.customerRfc || null,
     estado: "no_leida",
     createdAt: serverTimestamp(),
   };

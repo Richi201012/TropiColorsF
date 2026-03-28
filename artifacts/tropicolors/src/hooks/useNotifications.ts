@@ -7,6 +7,8 @@ export type Notification = {
   orderId: string;
   customerName: string;
   total: number;
+  requiresInvoice: boolean;
+  customerRfc?: string;
   estado: "no_leida" | "leida";
   createdAt: string;
 };
@@ -15,6 +17,8 @@ type FirestoreNotification = {
   orderId?: string;
   customerName?: string;
   total?: number;
+  requiresInvoice?: boolean;
+  customerRfc?: string | null;
   estado?: string;
   createdAt?: Timestamp | string | { seconds: number; nanoseconds?: number };
   [key: string]: unknown;
@@ -68,6 +72,10 @@ export function useNotifications() {
             orderId: String(data.orderId || ""),
             customerName: String(data.customerName || "Cliente"),
             total: Number(data.total) || 0,
+            requiresInvoice: Boolean(data.requiresInvoice),
+            customerRfc: data.customerRfc
+              ? String(data.customerRfc)
+              : undefined,
             estado: data.estado === "leida" ? "leida" : "no_leida",
             createdAt: fecha,
           };

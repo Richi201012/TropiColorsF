@@ -9,7 +9,7 @@ function generateInvoiceNumber(): string {
   const now = new Date();
   const year = now.getFullYear();
   const seq = Math.floor(Math.random() * 9000) + 1000;
-  return `TC-FAC-${year}-${seq}`;
+  return `TC-${year}-${String(seq).padStart(5, "0")}`;
 }
 
 router.get("/invoices", async (req, res) => {

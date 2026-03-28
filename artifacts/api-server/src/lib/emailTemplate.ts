@@ -661,31 +661,46 @@ export interface DatosFactura {
   subtotal: number;
   iva: number;
   total: string;
+  telefono?: string;
+  direccion?: string;
+  metodoPago?:
+    | "efectivo"
+    | "transferencia"
+    | "tarjeta"
+    | "mercadopago"
+    | "oxxo"
+    | "other";
 }
 
 export function generarEmailFactura(data: DatosFactura): string {
   const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
+  const getPaymentMethodLabel = (
+    method?: DatosFactura["metodoPago"],
+  ): string => {
+    const labels: Record<NonNullable<DatosFactura["metodoPago"]>, string> = {
+      efectivo: "Efectivo",
+      transferencia: "Transferencia bancaria",
+      tarjeta: "Tarjeta",
+      mercadopago: "MercadoPago",
+      oxxo: "OXXO Pay",
+      other: "Otro",
+    };
+
+    return method ? labels[method] || "Otro" : "No especificado";
+  };
+
   const productosHtml = data.productos
     .map(
       (p, i) => `
     <tr>
-      <td style="padding: 12px 16px; color: #1e293b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">${p.nombre}</td>
-      <td style="padding: 12px 16px; text-align: center; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">${p.cantidad}</td>
-      <td style="padding: 12px 16px; text-align: right; color: #64748b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">$${p.precio.toFixed(2)}</td>
-      <td style="padding: 12px 16px; text-align: right; color: #0d1340; font-size: 14px; font-weight: 700; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">$${(p.cantidad * p.precio).toFixed(2)}</td>
+      <td style="padding: 14px 16px; color: #1e293b; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">${p.nombre}</td>
+      <td style="padding: 14px 16px; text-align: center; color: #475569; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">${p.cantidad}</td>
+      <td style="padding: 14px 16px; text-align: right; color: #475569; font-size: 14px; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">$${p.precio.toFixed(2)}</td>
+      <td style="padding: 14px 16px; text-align: right; color: #0d1340; font-size: 14px; font-weight: 700; border-bottom: 1px solid #e2e8f0; background-color: ${i % 2 === 0 ? "#ffffff" : "#f8faff"};">$${(p.cantidad * p.precio).toFixed(2)}</td>
     </tr>
   `,
     )
     .join("");
-
-  const pedidoHtml = data.numeroPedido
-    ? `<tr>
-                        <td colspan="2" style="padding: 0 0 10px 0; vertical-align: top;">
-                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; margin-bottom: 3px;">Pedido Relacionado</span>
-                          <span style="color: #1e293b; font-size: 14px; font-weight: 600;">${data.numeroPedido}</span>
-                        </td>
-                      </tr>`
-    : "";
 
   return `
 <!DOCTYPE html>
@@ -697,134 +712,153 @@ export function generarEmailFactura(data: DatosFactura): string {
 </head>
 <body style="margin:0; padding:0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color:#f8fafc;">
 
-  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(180deg, #f0f9ff 0%, #f8fafc 50%, #f1f5f9 100%); min-height: 100vh; padding: 40px 16px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(180deg, #eef6ff 0%, #f8fafc 52%, #fff8e7 100%); min-height: 100vh; padding: 32px 16px;">
     <tr>
       <td align="center" valign="top">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 760px;">
 
           <tr>
-            <td style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; padding: 40px 32px 32px; text-align: center;">
-              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 24px;">
+            <td style="background: #ffffff; border-radius: 28px; overflow: hidden; box-shadow: 0 22px 55px rgba(15, 23, 42, 0.12); border: 1px solid #e2e8f0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="border-radius: 50%; padding: 14px;">
-                    <table cellpadding="0" cellspacing="0" border="0">
+                  <td style="background: #1a237e; padding: 28px 30px 18px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td style="background: #ffffff; border-radius: 16px; padding: 8px; line-height: 0;">
-                          <img src="${logoUrl}" alt="Tropicolors" width="100" style="display: block; border-radius: 10px;">
+                        <td valign="top">
+                          <table cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="width: 66px; height: 66px; border-radius: 14px; background: #ffffff; text-align: center; vertical-align: middle; overflow: hidden;">
+                                <img src="${logoUrl}" alt="Tropicolors" width="56" style="display: block; margin: 5px auto;">
+                              </td>
+                              <td style="padding-left: 16px;">
+                                <p style="margin: 0 0 6px; color: #ffffff; font-size: 20px; font-weight: 800;">Tropicolors</p>
+                                <p style="margin: 0 0 4px; color: rgba(255,255,255,0.76); font-size: 12px;">Av. Principal 123, Ciudad de México</p>
+                                <p style="margin: 0 0 4px; color: rgba(255,255,255,0.76); font-size: 12px;">+52 55 1234 5678 &nbsp;·&nbsp; contacto@tropicolors.com</p>
+                                <p style="margin: 0; color: rgba(255,255,255,0.76); font-size: 12px;">RFC: TRO123456ABC</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                        <td valign="top" align="right">
+                          <div style="display: inline-block; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.24); border-radius: 10px; padding: 12px 18px; margin-bottom: 10px;">
+                            <span style="color: #f97316; font-size: 24px; font-weight: 800; letter-spacing: 1px;">${data.numeroFactura}</span>
+                          </div>
+                          <div style="display: inline-block; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 14px;">
+                            <span style="color: rgba(255,255,255,0.88); font-size: 13px;">${data.fecha}</span>
+                          </div>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
-              </table>
 
-              <div style="display: inline-block; background: #10b981; border-radius: 50px; padding: 8px 24px; margin-bottom: 16px;">
-                <span style="color: #ffffff; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Factura Generada</span>
-              </div>
-
-              <div style="display: inline-block; background: #f1f5f9; border-radius: 8px; padding: 8px 16px; margin-bottom: 16px; margin-left: 8px;">
-                <span style="color: #64748b; font-size: 12px;">No. Factura:</span>
-                <span style="color: #0d1340; font-size: 14px; font-weight: 700; margin-left: 8px;">${data.numeroFactura}</span>
-              </div>
-
-              <h1 style="margin: 0 0 12px; color: #0d1340; font-size: 26px; font-weight: 800;">Hola, <span style="color: #f97316;">${data.nombre}</span>!</h1>
-              <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">Gracias por tu compra. Adjuntamos los detalles de tu factura.</p>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="height: 3px; background: linear-gradient(90deg, #0d1340, #10b981, #0d1340); padding: 0;"></td>
-          </tr>
-
-          <tr>
-            <td style="background: #ffffff; padding: 28px 32px 20px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 12px; border-left: 4px solid #10b981; overflow: hidden;">
                 <tr>
-                  <td style="padding: 18px 20px;">
-                    <p style="margin: 0 0 14px; color: #0d1340; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Datos de Factura</p>
-                    <table width="100%" cellpadding="0" cellspacing="0">
+                  <td style="background: #00acc1; padding: 12px 30px;">
+                    <table cellpadding="0" cellspacing="0">
                       <tr>
-                        <td width="50%" style="padding: 0 8px 10px 0; vertical-align: top;">
-                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; margin-bottom: 3px;">Numero de Factura</span>
-                          <span style="color: #0d1340; font-size: 14px; font-weight: 700;">${data.numeroFactura}</span>
+                        <td style="padding-right: 36px;">
+                          <p style="margin: 0 0 4px; color: rgba(255,255,255,0.7); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">Método de pago</p>
+                          <p style="margin: 0; color: #ffffff; font-size: 13px; font-weight: 700;">${getPaymentMethodLabel(data.metodoPago)}</p>
                         </td>
-                        <td width="50%" style="padding: 0 0 10px 8px; vertical-align: top;">
-                          <span style="display:block; color: #94a3b8; font-size: 10px; text-transform: uppercase; margin-bottom: 3px;">Fecha de Emision</span>
-                          <span style="color: #1e293b; font-size: 14px; font-weight: 600;">${data.fecha}</span>
+                        ${
+                          data.numeroPedido
+                            ? `<td>
+                          <p style="margin: 0 0 4px; color: rgba(255,255,255,0.7); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">Pedido</p>
+                          <p style="margin: 0; color: #fff6cf; font-size: 13px; font-weight: 700;">#${data.numeroPedido}</p>
+                        </td>`
+                            : ""
+                        }
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding: 26px 30px 18px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0f4ff; border-radius: 10px; border-left: 4px solid #00acc1;">
+                      <tr>
+                        <td style="padding: 18px 18px 14px;">
+                          <p style="margin: 0 0 14px; color: #1a237e; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Datos del cliente</p>
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td width="50%" style="padding: 0 12px 12px 0; vertical-align: top;">
+                                <span style="display:block; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Nombre</span>
+                                <span style="color:#1e293b; font-size:14px; font-weight:600;">${data.nombre}</span>
+                              </td>
+                              <td width="50%" style="padding: 0 0 12px 12px; vertical-align: top;">
+                                <span style="display:block; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Email</span>
+                                <span style="color:#1e293b; font-size:14px;">${data.email}</span>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td width="50%" style="padding: 0 12px 0 0; vertical-align: top;">
+                                <span style="display:block; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Teléfono</span>
+                                <span style="color:#1e293b; font-size:14px;">${data.telefono || "No proporcionado"}</span>
+                              </td>
+                              <td width="50%" style="padding: 0 0 0 12px; vertical-align: top;">
+                                <span style="display:block; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Dirección</span>
+                                <span style="color:#1e293b; font-size:14px;">${data.direccion || "No proporcionada"}</span>
+                              </td>
+                            </tr>
+                          </table>
                         </td>
                       </tr>
-                      ${pedidoHtml}
                     </table>
                   </td>
                 </tr>
-              </table>
-            </td>
-          </tr>
 
-          <tr>
-            <td style="background: #ffffff; padding: 0 32px 24px;">
-              <p style="margin: 0 0 12px; color: #0d1340; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Conceptos</p>
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
-                <thead>
-                  <tr style="background: linear-gradient(135deg, #0d1340 0%, #1e293b 100%);">
-                    <th style="padding: 12px 16px; text-align: left; color: #ffffff; font-size: 11px; font-weight: 600;">Concepto</th>
-                    <th style="padding: 12px 16px; text-align: center; color: #ffffff; font-size: 11px; font-weight: 600;">Cant.</th>
-                    <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 600;">P. Unit.</th>
-                    <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 600;">Importe</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${productosHtml}
-                </tbody>
-              </table>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="background: #ffffff; padding: 0 32px 32px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
                 <tr>
-                  <td style="padding: 12px 20px; border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 0 30px 18px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0;">
+                      <thead>
+                        <tr style="background: #1a237e;">
+                          <th style="padding: 12px 16px; text-align: left; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase;">Producto</th>
+                          <th style="padding: 12px 16px; text-align: center; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase;">Cant.</th>
+                          <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase;">P. Unit.</th>
+                          <th style="padding: 12px 16px; text-align: right; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase;">Importe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${productosHtml}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding: 0 30px 18px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td><span style="color: #64748b; font-size: 14px;">Subtotal</span></td>
-                        <td style="text-align: right;"><span style="color: #1e293b; font-size: 14px; font-weight: 600;">$${data.subtotal.toFixed(2)}</span></td>
+                        <td width="45%"></td>
+                        <td>
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8faff; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0;">
+                            <tr>
+                              <td style="padding: 12px 16px; color: #64748b; font-size: 14px;">Subtotal</td>
+                              <td style="padding: 12px 16px; text-align: right; color: #1e293b; font-size: 14px; font-weight: 600;">$${data.subtotal.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 0 16px 12px; color: #64748b; font-size: 14px;">IVA (16%)</td>
+                              <td style="padding: 0 16px 12px; text-align: right; color: #1e293b; font-size: 14px; font-weight: 600;">$${data.iva.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 14px 16px; background: #1a237e; color: #ffffff; font-size: 16px; font-weight: 700;">Total</td>
+                              <td style="padding: 14px 16px; background: #1a237e; text-align: right; color: #f97316; font-size: 28px; font-weight: 800;">$${data.total}</td>
+                            </tr>
+                          </table>
+                        </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
+
                 <tr>
-                  <td style="padding: 12px 20px; border-bottom: 1px solid #e2e8f0;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td><span style="color: #64748b; font-size: 14px;">IVA (16%)</span></td>
-                        <td style="text-align: right;"><span style="color: #1e293b; font-size: 14px; font-weight: 600;">$${data.iva.toFixed(2)}</span></td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 16px 20px; background: linear-gradient(135deg, #0d1340 0%, #1e293b 100%);">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td><span style="color: #ffffff; font-size: 16px; font-weight: 700;">Total</span></td>
-                        <td style="text-align: right;"><span style="color: #f97316; font-size: 28px; font-weight: 800;">$${data.total}</span></td>
-                      </tr>
-                    </table>
+                  <td style="padding: 8px 30px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <img src="${logoUrl}" alt="Tropicolors" width="72" style="display:inline-block; margin: 18px 0 10px; opacity: 0.18;">
+                    <p style="margin: 0 0 6px; color: #1a237e; font-size: 18px; font-weight: 800;">Gracias por su compra</p>
+                    <p style="margin: 0; color: #64748b; font-size: 13px;">Para cualquier duda o aclaración contáctenos en contacto@tropicolors.com</p>
                   </td>
                 </tr>
               </table>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 20px 20px; padding: 28px 32px; text-align: center;">
-              <img src="${logoUrl}" alt="Tropicolors" width="48" style="display:inline-block; border-radius: 10px; margin-bottom: 12px;">
-              <p style="margin: 0 0 4px; color: #0d1340; font-size: 15px; font-weight: 700;">Tropicolors</p>
-              <p style="margin: 0 0 16px; color: #64748b; font-size: 12px;">Colorantes para la Industria Alimentaria</p>
-              <div style="border-top: 1px solid #e2e8f0; padding-top: 14px;">
-                <p style="margin: 0; color: #94a3b8; font-size: 11px;">Este correo fue enviado a ${data.email}</p>
-              </div>
             </td>
           </tr>
 

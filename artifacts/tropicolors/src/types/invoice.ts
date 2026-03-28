@@ -76,6 +76,19 @@ export const formatDate = (date: string | Date): string => {
   }).format(dateObj);
 };
 
+// Helper para generar un folio de factura mÃ¡s profesional
+export const buildInvoiceNumber = (
+  sequence: number,
+  date: string | Date = new Date(),
+): string => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const year = Number.isNaN(dateObj.getTime())
+    ? new Date().getFullYear()
+    : dateObj.getFullYear();
+
+  return `TC-${year}-${String(Math.max(1, sequence)).padStart(5, '0')}`;
+};
+
 // Helper para obtener etiqueta de método de pago
 export const getPaymentMethodLabel = (method: InvoiceData['paymentMethod']): string => {
   const labels: Record<InvoiceData['paymentMethod'], string> = {

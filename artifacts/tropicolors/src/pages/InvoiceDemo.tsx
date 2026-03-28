@@ -1,10 +1,10 @@
 import { Invoice } from '../components/Invoice';
-import type { InvoiceData } from '../types/invoice';
+import { buildInvoiceNumber, type InvoiceData } from '../types/invoice';
 
 // Datos de ejemplo para la factura
 const sampleInvoiceData: InvoiceData = {
-  invoiceNumber: 'FAC-0001',
-  invoiceNumberFormatted: 'FAC-0001',
+  invoiceNumber: buildInvoiceNumber(1, '2026-03-23'),
+  invoiceNumberFormatted: buildInvoiceNumber(1, '2026-03-23'),
   issueDate: '2026-03-23',
   dueDate: '2026-04-23',
   paymentMethod: 'transferencia',
@@ -140,7 +140,7 @@ export const InvoiceDemo: React.FC = () => {
 import type { InvoiceData } from '../types/invoice';
 
 const invoiceData: InvoiceData = {
-  invoiceNumber: 'FAC-0001',
+  invoiceNumber: buildInvoiceNumber(1, '2026-03-23'),
   issueDate: '2026-03-23',
   paymentMethod: 'transferencia',
   status: 'pending',

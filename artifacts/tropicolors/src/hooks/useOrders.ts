@@ -19,6 +19,8 @@ type FirestoreOrder = {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  requiresInvoice?: boolean;
+  customerRfc?: string;
   // Campos de dirección - aceptar ambos formatos
   customerAddress?: string; // Formato legacy
   shippingAddress?: string; // Formato nuevo desde CartDrawer
@@ -61,6 +63,8 @@ export type AdminOrder = {
   customer: string;
   email: string;
   phone?: string;
+  requiresInvoice?: boolean;
+  customerRfc?: string;
   address: string;
   neighborhood?: string;
   municipality?: string;
@@ -195,6 +199,8 @@ export function useOrders() {
             customer: data.customerName || "Cliente sin nombre",
             email: data.customerEmail || "sin-email@ejemplo.com",
             phone: data.customerPhone || "",
+            requiresInvoice: Boolean(data.requiresInvoice),
+            customerRfc: data.customerRfc || "",
             address: buildAddress(),
             total: calculatedTotal,
             status: mapOrderStatus(data.status),

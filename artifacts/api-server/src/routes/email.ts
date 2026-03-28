@@ -22,6 +22,24 @@ const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || "Tropicolors";
 // Correo del administrador
 const ADMIN_EMAIL = "m_tropicolors1@hotmail.com";
 
+function normalizeBrevoError(message?: string): {
+  publicMessage: string;
+  statusCode: number;
+} {
+  if (message?.includes("unrecognised IP address")) {
+    return {
+      publicMessage:
+        "Brevo bloqueó el envío porque la IP pública actual no está autorizada. Agrega esta IP en Brevo > Security > Authorised IPs y vuelve a intentar.",
+      statusCode: 403,
+    };
+  }
+
+  return {
+    publicMessage: message || "Error al enviar correo",
+    statusCode: 500,
+  };
+}
+
 /**
  * Función para enviar correo usando la API REST de Brevo
  */
@@ -166,9 +184,11 @@ router.post("/enviar-correo-pedido", async (req, res) => {
         "[Email] ERROR al enviar correo al cliente:",
         customerResult.error,
       );
-      res.status(500).json({
+      const brevoError = normalizeBrevoError(customerResult.error);
+      res.status(brevoError.statusCode).json({
         error: "Error al enviar correo",
-        message: customerResult.error,
+        message: brevoError.publicMessage,
+        providerError: customerResult.error,
       });
       return;
     }
@@ -301,9 +321,11 @@ router.post("/enviar-correo-estado", async (req, res) => {
 
     if (!result.success) {
       console.error("[Email Estado] ERROR al enviar correo:", result.error);
-      res.status(500).json({
+      const brevoError = normalizeBrevoError(result.error);
+      res.status(brevoError.statusCode).json({
         error: "Error al enviar correo",
-        message: result.error,
+        message: brevoError.publicMessage,
+        providerError: result.error,
       });
       return;
     }
@@ -366,6 +388,9 @@ router.post("/enviar-correo-factura", async (req, res) => {
       subtotal,
       iva,
       total,
+      telefono,
+      direccion,
+      metodoPago,
     } = req.body as DatosFactura;
 
     if (
@@ -395,6 +420,9 @@ router.post("/enviar-correo-factura", async (req, res) => {
       subtotal: subtotal || 0,
       iva: iva || 0,
       total,
+      telefono,
+      direccion,
+      metodoPago,
     });
 
     console.log("[Email Factura] Enviando correo a:", email);
@@ -407,9 +435,11 @@ router.post("/enviar-correo-factura", async (req, res) => {
 
     if (!result.success) {
       console.error("[Email Factura] ERROR al enviar correo:", result.error);
-      res.status(500).json({
+      const brevoError = normalizeBrevoError(result.error);
+      res.status(brevoError.statusCode).json({
         error: "Error al enviar factura",
-        message: result.error,
+        message: brevoError.publicMessage,
+        providerError: result.error,
       });
       return;
     }

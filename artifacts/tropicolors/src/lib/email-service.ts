@@ -42,6 +42,15 @@ export type DatosFacturaCorreo = {
   subtotal: number;
   iva: number;
   total: string;
+  telefono?: string;
+  direccion?: string;
+  metodoPago?:
+    | "efectivo"
+    | "transferencia"
+    | "tarjeta"
+    | "mercadopago"
+    | "oxxo"
+    | "other";
 };
 
 export type CorreoRespuesta = {
