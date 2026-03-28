@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from "react";
 
 export type CartItem = {
   productId: string;
@@ -34,6 +41,8 @@ interface CartContextType {
   removeFlyingItem: (id: string) => void;
   triggerCartBounce: boolean;
   setTriggerCartBounce: (value: boolean) => void;
+  recentlyAddedItem: CartItem | null;
+  recentlyAddedToken: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -43,11 +52,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [flyingItems, setFlyingItems] = useState<FlyingItem[]>([]);
   const [triggerCartBounce, setTriggerCartBounce] = useState(false);
+  const [recentlyAddedItem, setRecentlyAddedItem] = useState<CartItem | null>(
+    null,
+  );
+  const [recentlyAddedToken, setRecentlyAddedToken] = useState(0);
 
   const addToCart = useCallback((newItem: CartItem) => {
     setItems((currentItems) => {
       const existingItemIndex = currentItems.findIndex(
-        (i) => i.productId === newItem.productId && i.size === newItem.size
+        (item) =>
+          item.productId === newItem.productId && item.size === newItem.size,
       );
 
       if (existingItemIndex >= 0) {
@@ -55,10 +69,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         updated[existingItemIndex].quantity += newItem.quantity;
         return updated;
       }
+
       return [...currentItems, newItem];
     });
-    // ❌ NO se abre el carrito automáticamente
-    // ❌ NO se muestra ningún toast
+
+    setRecentlyAddedItem(newItem);
+    setRecentlyAddedToken((current) => current + 1);
   }, []);
 
   const addFlyingItem = useCallback((item: Omit<FlyingItem, "id">) => {
@@ -68,7 +84,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     };
     setFlyingItems((prev) => [...prev, newItem]);
 
-    // Trigger bounce animation on cart icon
     setTriggerCartBounce(true);
     setTimeout(() => setTriggerCartBounce(false), 600);
   }, []);
@@ -78,25 +93,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const removeFromCart = useCallback((productId: string, size: string) => {
-    setItems((current) => current.filter((i) => !(i.productId === productId && i.size === size)));
+    setItems((current) =>
+      current.filter(
+        (item) => !(item.productId === productId && item.size === size),
+      ),
+    );
   }, []);
 
-  const updateQuantity = useCallback((productId: string, size: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId, size);
-      return;
-    }
-    setItems((current) =>
-      current.map((i) =>
-        i.productId === productId && i.size === size ? { ...i, quantity } : i
-      )
-    );
-  }, [removeFromCart]);
+  const updateQuantity = useCallback(
+    (productId: string, size: string, quantity: number) => {
+      if (quantity <= 0) {
+        removeFromCart(productId, size);
+        return;
+      }
+
+      setItems((current) =>
+        current.map((item) =>
+          item.productId === productId && item.size === size
+            ? { ...item, quantity }
+            : item,
+        ),
+      );
+    },
+    [removeFromCart],
+  );
 
   const clearCart = useCallback(() => setItems([]), []);
 
-  const cartTotal = useMemo(() => items.reduce((total, item) => total + item.price * item.quantity, 0), [items]);
-  const cartCount = useMemo(() => items.reduce((count, item) => count + item.quantity, 0), [items]);
+  const cartTotal = useMemo(
+    () =>
+      items.reduce((total, item) => total + item.price * item.quantity, 0),
+    [items],
+  );
+  const cartCount = useMemo(
+    () => items.reduce((count, item) => count + item.quantity, 0),
+    [items],
+  );
 
   return (
     <CartContext.Provider
@@ -115,6 +147,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeFlyingItem,
         triggerCartBounce,
         setTriggerCartBounce,
+        recentlyAddedItem,
+        recentlyAddedToken,
       }}
     >
       {children}

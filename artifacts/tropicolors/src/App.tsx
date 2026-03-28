@@ -8,6 +8,7 @@ import { CartProvider } from "@/context/CartContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
+import { CartAddNotice } from "@/components/CartAddNotice";
 import { FloatingWhatsApp } from "@/components/FloatingWhatsApp";
 import { FlyToCart } from "@/components/FlyToCart";
 import HeroLanding from "@/components/HeroLanding";
@@ -53,6 +54,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <main>{children}</main>
       <Footer />
       <CartDrawer />
+      <CartAddNotice />
       <FloatingWhatsApp />
       <FlyToCart />
     </div>
