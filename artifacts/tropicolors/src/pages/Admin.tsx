@@ -891,6 +891,15 @@ type AdminClient = {
   orders: number;
 };
 
+type FeedbackModalState = {
+  open: boolean;
+  variant: "success" | "error";
+  title: string;
+  subtitle: string;
+  message: string;
+  badge: string;
+};
+
 function statusLabel(status: OrderStatus) {
   return {
     pendiente: "Pendiente",
@@ -1032,6 +1041,117 @@ function ModalShell({
           </button>
         </div>
         <div className="max-h-[75vh] overflow-y-auto px-6 py-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function FeedbackModal({
+  open,
+  variant,
+  title,
+  subtitle,
+  message,
+  badge,
+  onClose,
+}: FeedbackModalState & { onClose: () => void }) {
+  if (!open) return null;
+
+  const isSuccess = variant === "success";
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-[#07142a]/65 backdrop-blur-md"
+        onClick={onClose}
+      />
+      <div
+        className="relative z-10 w-full max-w-lg overflow-hidden rounded-[32px] border border-white/15 bg-[linear-gradient(145deg,#08152d_0%,#102246_56%,#0c1a36_100%)] shadow-[0_30px_90px_rgba(2,8,23,0.55)] animate-fade-in-scale"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="pointer-events-none absolute -left-10 top-8 h-32 w-32 rounded-full bg-[#00A8B5]/25 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-[#FFCD00]/20 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/2 h-28 w-40 -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
+
+        <div className="relative px-7 pb-8 pt-7 text-white">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div
+                className={`relative flex h-16 w-16 items-center justify-center rounded-[22px] border ${
+                  isSuccess
+                    ? "border-emerald-300/35 bg-emerald-400/12"
+                    : "border-rose-300/35 bg-rose-400/12"
+                }`}
+              >
+                <div
+                  className={`absolute inset-2 rounded-2xl ${
+                    isSuccess ? "bg-emerald-300/10" : "bg-rose-300/10"
+                  } animate-pulse`}
+                />
+                {isSuccess ? (
+                  <CheckCircle className="relative h-8 w-8 text-emerald-300" />
+                ) : (
+                  <AlertCircle className="relative h-8 w-8 text-rose-300" />
+                )}
+              </div>
+              <div>
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
+                    isSuccess
+                      ? "bg-emerald-300/16 text-emerald-100"
+                      : "bg-rose-300/16 text-rose-100"
+                  }`}
+                >
+                  {badge}
+                </span>
+                <h3 className="mt-3 text-2xl font-display font-bold tracking-[-0.03em] text-white">
+                  {title}
+                </h3>
+                <p className="mt-1 text-sm text-slate-300">{subtitle}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="rounded-[26px] border border-white/10 bg-white/6 p-5 backdrop-blur-sm">
+            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-100">
+              <Mail size={16} className="text-[#FFCD00]" />
+              Confirmación de notificación
+            </div>
+            <p className="text-sm leading-7 text-slate-200">{message}</p>
+          </div>
+
+          <div className="mt-6 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={`h-1.5 rounded-full ${
+                isSuccess
+                  ? "bg-[linear-gradient(90deg,#34d399,#22c55e,#facc15)]"
+                  : "bg-[linear-gradient(90deg,#fb7185,#ef4444,#f97316)]"
+              } animate-[pulse_1.8s_ease-in-out_infinite]`}
+              style={{ width: isSuccess ? "100%" : "72%" }}
+            />
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                isSuccess
+                  ? "bg-[linear-gradient(135deg,#22c55e_0%,#16a34a_45%,#facc15_100%)] text-slate-950 shadow-[0_16px_30px_rgba(34,197,94,0.28)] hover:scale-[1.02]"
+                  : "bg-[linear-gradient(135deg,#fb7185_0%,#ef4444_50%,#f97316_100%)] text-white shadow-[0_16px_30px_rgba(239,68,68,0.25)] hover:scale-[1.02]"
+              }`}
+            >
+              Aceptar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -2412,6 +2532,14 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState<FeedbackModalState>({
+    open: false,
+    variant: "success",
+    title: "",
+    subtitle: "",
+    message: "",
+    badge: "",
+  });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [pendingDeleteOrder, setPendingDeleteOrder] = useState<{
     orderId: string;
@@ -2427,6 +2555,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           setShowStatusConfirm(false);
           setPendingStatusUpdate(null);
           setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+        } else if (feedbackModal.open) {
+          setFeedbackModal((current) => ({ ...current, open: false }));
         } else if (showDeleteConfirm) {
           setShowDeleteConfirm(false);
           setPendingDeleteOrder(null);
@@ -2439,6 +2569,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     showStatusConfirm,
+    feedbackModal.open,
     showDeleteConfirm,
     modalActivo,
     isUpdatingStatus,
@@ -2455,6 +2586,20 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     metodoPago: "efectivo", // Nuevo campo para método de pago
   });
   const [newClientForm, setNewClientForm] = useState({ name: "", email: "" });
+
+  const showFeedbackModal = useCallback(
+    (
+      variant: FeedbackModalState["variant"],
+      content: Omit<FeedbackModalState, "open" | "variant">,
+    ) => {
+      setFeedbackModal({
+        open: true,
+        variant,
+        ...content,
+      });
+    },
+    [],
+  );
 
   const stats = [
     {
@@ -2583,12 +2728,15 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       ),
     );
 
-    // Enviar correo de estado (no bloquante)
+    let emailNotificationSent = false;
+    let emailNotificationError = "";
+
+    // Enviar correo de estado
     try {
       const customerName = order.customer;
       const customerEmail = order.email;
 
-      await enviarCorreoEstadoPedido({
+      const emailResult = await enviarCorreoEstadoPedido({
         nombre: customerName,
         email: customerEmail,
         estado: estadoMap[newStatus],
@@ -2604,8 +2752,23 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         guia: shippingData?.guia,
         numeroPedido: order.id,
       });
-      console.log("[Admin] Correo de estado enviado:", newStatus);
+
+      if (emailResult.success) {
+        emailNotificationSent = true;
+        console.log("[Admin] Correo de estado enviado:", newStatus);
+      } else {
+        emailNotificationError =
+          emailResult.error || "No se pudo enviar el correo al cliente.";
+        console.error(
+          "[Admin] El estado se actualizó, pero el correo no se pudo enviar:",
+          emailNotificationError,
+        );
+      }
     } catch (emailError) {
+      emailNotificationError =
+        emailError instanceof Error
+          ? emailError.message
+          : "No se pudo enviar el correo al cliente.";
       console.error("[Admin] Error al enviar correo de estado:", emailError);
     }
 
@@ -2620,6 +2783,23 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
     setModalActivo(null);
     setIsUpdatingStatus(false);
+
+    if (emailNotificationSent) {
+      showFeedbackModal("success", {
+        badge: "Cliente notificado",
+        title: "Estado actualizado y correo enviado",
+        subtitle: `El pedido quedó como ${estadoMap[newStatus].toLowerCase()}.`,
+        message: `Se notificó a ${order.customer} en ${order.email} con la actualización del pedido. El cambio ya quedó reflejado en el panel y el cliente recibió el correo correspondiente.`,
+      });
+      return;
+    }
+
+    showFeedbackModal("error", {
+      badge: "Correo pendiente",
+      title: "Estado actualizado, pero falta notificar",
+      subtitle: "El pedido sí cambió de estado en el sistema.",
+      message: `No se pudo enviar el correo a ${order.email}. Revisa la configuración del proveedor de email y vuelve a intentarlo. Detalle: ${emailNotificationError}`,
+    });
   };
 
   const cancelStatusUpdate = () => {
@@ -3507,9 +3687,21 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 metodoPago: selectedInvoice.paymentMethod,
               });
               if (result.success) {
-                alert("Factura enviada exitosamente al cliente");
+                showFeedbackModal("success", {
+                  badge: "Factura enviada",
+                  title: "Factura entregada al cliente",
+                  subtitle: `Folio ${selectedInvoice.invoiceNumber}`,
+                  message: `La factura se envió correctamente a ${selectedInvoice.customer.email || "el correo del cliente"}. El cliente ya recibió la notificación con la plantilla profesional de factura.`,
+                });
               } else {
-                alert(`Error al enviar factura: ${result.error}`);
+                showFeedbackModal("error", {
+                  badge: "Envío fallido",
+                  title: "No se pudo enviar la factura",
+                  subtitle: `Folio ${selectedInvoice.invoiceNumber}`,
+                  message: result.error
+                    ? `Hubo un problema al enviar la factura: ${result.error}`
+                    : "El servicio de correo no respondió como se esperaba. Revisa la configuración e inténtalo de nuevo.",
+                });
               }
             }}
           />
@@ -3636,6 +3828,16 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           </div>
         </div>
       </ModalShell>
+
+      <FeedbackModal
+        {...feedbackModal}
+        onClose={() =>
+          setFeedbackModal((current) => ({
+            ...current,
+            open: false,
+          }))
+        }
+      />
 
       <ModalShell
         open={modalActivo === "cliente"}
