@@ -4,9 +4,11 @@ import {
   generarEmailEstadoPedido,
   generarEmailAdminNuevoPedido,
   generarEmailFactura,
+  generarEmailContacto,
   type EmailPedidoData,
   type EmailEstadoData,
   type DatosFactura,
+  type DatosContacto,
 } from "../lib/emailTemplate";
 
 const router: IRouter = Router();
@@ -459,6 +461,66 @@ router.post("/enviar-correo-factura", async (req, res) => {
     res.status(500).json({
       error: "Error al enviar factura",
       message: errorMessage,
+    });
+  }
+});
+
+router.post("/enviar-correo-contacto", async (req, res) => {
+  console.log("[Email Contacto] Recibida solicitud de contacto");
+  console.log("[Email Contacto] Body:", JSON.stringify(req.body, null, 2));
+
+  if (!BREVO_API_KEY) {
+    res.status(500).json({
+      error: "Servicio de correo no configurado",
+      message: "La API Key de Brevo no está disponible",
+    });
+    return;
+  }
+
+  try {
+    const { nombre, email, telefono, mensaje } = req.body as DatosContacto;
+
+    if (!nombre || !email || !mensaje) {
+      res.status(400).json({
+        error: "Datos incompletos",
+        message: "Nombre, correo y mensaje son requeridos",
+      });
+      return;
+    }
+
+    const html = generarEmailContacto({
+      nombre,
+      email,
+      telefono,
+      mensaje,
+    });
+
+    const result = await enviarCorreoBrevoAPI(
+      ADMIN_EMAIL,
+      "Contacto Web Tropicolors",
+      `Nuevo mensaje de contacto de ${nombre} - Tropicolors`,
+      html,
+    );
+
+    if (!result.success) {
+      const brevoError = normalizeBrevoError(result.error);
+      res.status(brevoError.statusCode).json({
+        error: "Error al enviar mensaje",
+        message: brevoError.publicMessage,
+        providerError: result.error,
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "Mensaje de contacto enviado correctamente",
+      messageId: result.messageId,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al enviar mensaje",
+      message: error instanceof Error ? error.message : "Error desconocido",
     });
   }
 });

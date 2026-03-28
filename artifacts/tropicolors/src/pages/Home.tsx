@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
+import { enviarMensajeContacto } from "@/lib/email-service";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart, MessageCircle, Droplet, CheckCircle, ShieldCheck,
@@ -98,6 +99,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function Home() {
   const { addToCart, addFlyingItem } = useCart();
+  const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [concentration, setConcentration] = useState<Concentration>("125");
   const [contactSent, setContactSent] = useState(false);
@@ -106,8 +108,25 @@ export default function Home() {
     resolver: zodResolver(contactSchema),
   });
 
-  const onContactSubmit = async (_data: ContactForm) => {
-    await new Promise(r => setTimeout(r, 800));
+  const onContactSubmit = async (data: ContactForm) => {
+    const result = await enviarMensajeContacto({
+      nombre: data.name.trim(),
+      email: data.email.trim(),
+      telefono: data.phone?.trim() || "",
+      mensaje: data.message.trim(),
+    });
+
+    if (!result.success) {
+      toast({
+        title: "No se pudo enviar el mensaje",
+        description:
+          result.error ||
+          "Hubo un problema al enviar tu mensaje. Intenta de nuevo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setContactSent(true);
     reset();
   };
