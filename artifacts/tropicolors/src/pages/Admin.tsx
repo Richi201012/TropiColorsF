@@ -2538,6 +2538,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   } | null>(null);
   const [shippingForm, setShippingForm] = useState({
     paqueteria: "",
+    otraPaqueteria: "",
     tipoEnvio: "",
     guia: "",
   });
@@ -2565,7 +2566,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         if (showStatusConfirm) {
           setShowStatusConfirm(false);
           setPendingStatusUpdate(null);
-          setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+          setShippingForm({
+            paqueteria: "",
+            otraPaqueteria: "",
+            tipoEnvio: "",
+            guia: "",
+          });
         } else if (feedbackModal.open) {
           setFeedbackModal((current) => ({ ...current, open: false }));
         } else if (showDeleteConfirm) {
@@ -2675,7 +2681,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     // Si el nuevo estado es "enviado", mostrar formulario de envío
     if (newStatus === "enviado") {
       setPendingStatusUpdate({ orderId, newStatus });
-      setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+      setShippingForm({
+        paqueteria: "",
+        otraPaqueteria: "",
+        tipoEnvio: "",
+        guia: "",
+      });
       setShowStatusConfirm(true);
     } else {
       // Para otros estados, mostrar confirmación simple
@@ -2708,7 +2719,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     const shippingData =
       newStatus === "enviado"
         ? {
-            paqueteria: shippingForm.paqueteria,
+            paqueteria:
+              shippingForm.paqueteria === "Otro"
+                ? shippingForm.otraPaqueteria.trim()
+                : shippingForm.paqueteria,
             tipoEnvio: shippingForm.tipoEnvio,
             guia: shippingForm.guia,
           }
@@ -2791,7 +2805,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     // Cerrar modales
     setShowStatusConfirm(false);
     setPendingStatusUpdate(null);
-    setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+    setShippingForm({
+      paqueteria: "",
+      otraPaqueteria: "",
+      tipoEnvio: "",
+      guia: "",
+    });
     setModalActivo(null);
     setIsUpdatingStatus(false);
 
@@ -2816,7 +2835,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const cancelStatusUpdate = () => {
     setShowStatusConfirm(false);
     setPendingStatusUpdate(null);
-    setShippingForm({ paqueteria: "", tipoEnvio: "", guia: "" });
+    setShippingForm({
+      paqueteria: "",
+      otraPaqueteria: "",
+      tipoEnvio: "",
+      guia: "",
+    });
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
@@ -3977,6 +4001,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                     setShippingForm((f) => ({
                       ...f,
                       paqueteria: e.target.value,
+                      otraPaqueteria:
+                        e.target.value === "Otro" ? f.otraPaqueteria : "",
                     }))
                   }
                   className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
@@ -3991,6 +4017,24 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   <option value="Otro">Otro</option>
                 </select>
               </div>
+              {shippingForm.paqueteria === "Otro" && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-900">
+                    Otra paquetería
+                  </label>
+                  <input
+                    value={shippingForm.otraPaqueteria}
+                    onChange={(e) =>
+                      setShippingForm((f) => ({
+                        ...f,
+                        otraPaqueteria: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                    placeholder="Escribe la paquetería"
+                  />
+                </div>
+              )}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-900">
                   Tipo de envío
@@ -4043,6 +4087,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 isUpdatingStatus ||
                 (pendingStatusUpdate?.newStatus === "enviado" &&
                   (!shippingForm.paqueteria ||
+                    (shippingForm.paqueteria === "Otro" &&
+                      !shippingForm.otraPaqueteria.trim()) ||
                     !shippingForm.tipoEnvio ||
                     !shippingForm.guia))
               }
