@@ -42,13 +42,19 @@ export type CreateOrderInput = {
   } | null;
 };
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function stripUndefined<T>(value: T): T {
   if (Array.isArray(value)) {
     return value.map((entry) => stripUndefined(entry)) as T;
   }
 
-  if (value && typeof value === "object") {
-    const cleanedEntries = Object.entries(value as Record<string, unknown>)
+  if (isPlainObject(value)) {
+    const cleanedEntries = Object.entries(value)
       .filter(([, entryValue]) => entryValue !== undefined)
       .map(([entryKey, entryValue]) => [entryKey, stripUndefined(entryValue)]);
 
