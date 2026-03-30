@@ -2694,9 +2694,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setIsUpdatingStatus(true);
 
     // Construir dirección completa
-    const direccionCompleta = order.address
-      ? `${order.address}${order.neighborhood ? `, ${order.neighborhood}` : ""}${order.municipality ? `, ${order.municipality}` : ""}${order.state ? `, ${order.state}` : ""}`
-      : "Dirección no disponible";
+    const direccionCompleta = order.address || "Dirección no disponible";
 
     // Mapear el estado para el correo (primera letra mayúscula)
     const estadoMap: Record<OrderStatus, string> = {
@@ -2758,6 +2756,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         })),
         total: order.total,
         direccion: direccionCompleta,
+        numeroExterior: order.exteriorNumber,
+        numeroInterior: order.interiorNumber,
         paqueteria: shippingData?.paqueteria,
         tipoEnvio: shippingData?.tipoEnvio,
         guia: shippingData?.guia,
@@ -2922,6 +2922,11 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         email: selectedInvoiceOrder.email || "",
         phone: selectedInvoiceOrder.phone || "",
         address: selectedInvoiceOrder.address || "",
+        exteriorNumber: selectedInvoiceOrder.exteriorNumber || "",
+        interiorNumber: selectedInvoiceOrder.interiorNumber || "",
+        city: selectedInvoiceOrder.municipality || "",
+        state: selectedInvoiceOrder.state || "",
+        postalCode: selectedInvoiceOrder.postalCode || "",
         rfc: selectedInvoiceOrder.requiresInvoice
           ? selectedInvoiceOrder.customerRfc || ""
           : "",
@@ -3713,15 +3718,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   maximumFractionDigits: 2,
                 }),
                 telefono: selectedInvoice.customer.phone || "",
-                direccion:
-                  [
-                    selectedInvoice.customer.address,
-                    selectedInvoice.customer.city,
-                    selectedInvoice.customer.state,
-                    selectedInvoice.customer.postalCode,
-                  ]
-                    .filter(Boolean)
-                    .join(", "),
+                direccion: selectedInvoice.customer.address || "",
+                numeroExterior: selectedInvoice.customer.exteriorNumber || "",
+                numeroInterior: selectedInvoice.customer.interiorNumber || "",
                 metodoPago: selectedInvoice.paymentMethod,
               });
               if (result.success) {

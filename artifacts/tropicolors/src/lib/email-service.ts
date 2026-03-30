@@ -14,6 +14,8 @@ export type DatosPedidoCorreo = {
   email: string;
   telefono?: string;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   total: number;
   numeroPedido?: string;
   productos: ProductoPedido[];
@@ -26,6 +28,8 @@ export type DatosEstadoPedidoCorreo = {
   productos: ProductoPedido[];
   total: number;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
@@ -44,6 +48,8 @@ export type DatosFacturaCorreo = {
   total: string;
   telefono?: string;
   direccion?: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   metodoPago?:
     | "efectivo"
     | "transferencia"
@@ -51,6 +57,13 @@ export type DatosFacturaCorreo = {
     | "mercadopago"
     | "oxxo"
     | "other";
+};
+
+export type DatosContactoCorreo = {
+  nombre: string;
+  email: string;
+  telefono?: string;
+  mensaje: string;
 };
 
 export type CorreoRespuesta = {
@@ -266,6 +279,60 @@ export async function enviarFacturaCorreo(
     return {
       success: false,
       error: errorMessage,
+    };
+  }
+}
+
+export async function enviarMensajeContacto(
+  datosContacto: DatosContactoCorreo,
+): Promise<CorreoRespuesta> {
+  try {
+    console.log("[Email Contacto] Enviando mensaje...", datosContacto);
+
+    if (!datosContacto.email || !datosContacto.nombre || !datosContacto.mensaje) {
+      return {
+        success: false,
+        error: "Nombre, correo y mensaje son requeridos",
+      };
+    }
+
+    const response = await fetch("/api/enviar-correo-contacto", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosContacto),
+    });
+
+    const text = await response.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      return {
+        success: false,
+        error: `Error del servidor (${response.status}): respuesta inesperada`,
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error:
+          (data.message as string) ||
+          (data.error as string) ||
+          `Error ${response.status} al enviar el mensaje`,
+      };
+    }
+
+    return {
+      success: true,
+      message: "Mensaje enviado correctamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error desconocido",
     };
   }
 }

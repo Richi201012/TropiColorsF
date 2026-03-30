@@ -2,6 +2,7 @@ import React from "react";
 import {
   InvoiceProps,
   formatCurrency,
+  formatCustomerAddress,
   formatDate,
   getPaymentMethodLabel,
 } from "../types/invoice";
@@ -460,12 +461,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
                     Dirección
                   </p>
                   <p style={{ color: C.ink, fontSize: "12px" }}>
-                    {data.customer.address}
-                    {data.customer.city ? `, ${data.customer.city}` : ""}
-                    {data.customer.state ? `, ${data.customer.state}` : ""}
-                    {data.customer.postalCode
-                      ? ` C.P. ${data.customer.postalCode}`
-                      : ""}
+                    {formatCustomerAddress(data.customer)}
                   </p>
                 </div>
               )}

@@ -143,6 +143,8 @@ type CheckoutFormData = {
   requiresInvoice: boolean;
   customerRfc: string;
   shippingAddress: string;
+  shippingExteriorNumber: string;
+  shippingInteriorNumber: string;
   shippingPostalCode: string;
   shippingNeighborhood: string;
   shippingMunicipality: string;
@@ -173,6 +175,8 @@ const initialCheckoutValues: CheckoutFormData = {
   requiresInvoice: false,
   customerRfc: "",
   shippingAddress: "",
+  shippingExteriorNumber: "",
+  shippingInteriorNumber: "",
   shippingPostalCode: "",
   shippingNeighborhood: "",
   shippingMunicipality: "",
@@ -223,6 +227,12 @@ function validateCheckoutField(
       if (values.shippingAddress.trim().length < 10)
         return "La direccion debe tener al menos 10 caracteres.";
       return null;
+    case "shippingExteriorNumber":
+      if (!values.shippingExteriorNumber.trim())
+        return "Ingresa el numero exterior.";
+      return null;
+    case "shippingInteriorNumber":
+      return null;
     case "shippingPostalCode":
       if (!values.shippingPostalCode.trim()) return "Ingresa tu codigo postal.";
       if (!/^\d+$/.test(values.shippingPostalCode))
@@ -270,6 +280,8 @@ function validateCheckoutForm(
       "customerPhone",
       "customerRfc",
       "shippingAddress",
+      "shippingExteriorNumber",
+      "shippingInteriorNumber",
       "shippingPostalCode",
       "shippingNeighborhood",
       "shippingMunicipality",
@@ -1153,6 +1165,62 @@ function CheckoutModal({
 
                         <div>
                           <FieldShell
+                            icon={<Building2 className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingExteriorNumber)}
+                            isValid={isFieldValid("shippingExteriorNumber")}
+                          >
+                            <input
+                              value={formValues.shippingExteriorNumber}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingExteriorNumber",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() =>
+                                handleFieldBlur("shippingExteriorNumber")
+                              }
+                              placeholder="Numero exterior"
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          {errors.shippingExteriorNumber && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingExteriorNumber}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <FieldShell
+                            icon={<Building2 className="h-4 w-4" />}
+                            hasError={Boolean(errors.shippingInteriorNumber)}
+                            isValid={isFieldValid("shippingInteriorNumber")}
+                          >
+                            <input
+                              value={formValues.shippingInteriorNumber}
+                              onChange={(event) =>
+                                handleFieldChange(
+                                  "shippingInteriorNumber",
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() =>
+                                handleFieldBlur("shippingInteriorNumber")
+                              }
+                              placeholder="Numero interior (opcional)"
+                              className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                          </FieldShell>
+                          {errors.shippingInteriorNumber && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.shippingInteriorNumber}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <FieldShell
                             icon={<MapPinned className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingPostalCode)}
                             isValid={isFieldValid("shippingPostalCode")}
@@ -1708,6 +1776,8 @@ export function CartDrawer() {
         requiresInvoice: data.requiresInvoice,
         customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
         shippingAddress: data.shippingAddress,
+        shippingExteriorNumber: data.shippingExteriorNumber.trim(),
+        shippingInteriorNumber: data.shippingInteriorNumber.trim(),
         shippingPostalCode: data.shippingPostalCode,
         shippingNeighborhood: data.shippingNeighborhood,
         shippingMunicipality: data.shippingMunicipality,
@@ -1749,13 +1819,27 @@ export function CartDrawer() {
 
       // Enviar correo de confirmación del pedido
       try {
-        const direccionCompleta = `${data.shippingAddress}, ${data.shippingNeighborhood}, ${data.shippingMunicipality}, ${data.shippingState}`;
+        const direccionCompleta = [
+          data.shippingAddress,
+          `Ext. ${data.shippingExteriorNumber.trim()}`,
+          data.shippingInteriorNumber.trim()
+            ? `Int. ${data.shippingInteriorNumber.trim()}`
+            : "",
+          data.shippingNeighborhood,
+          data.shippingMunicipality,
+          data.shippingState,
+          `C.P. ${data.shippingPostalCode}`,
+        ]
+          .filter(Boolean)
+          .join(", ");
         const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
         await enviarCorreoConfirmacion({
           nombre: data.customerName,
           email: data.customerEmail,
           telefono: data.customerPhone,
           direccion: direccionCompleta,
+          numeroExterior: data.shippingExteriorNumber.trim(),
+          numeroInterior: data.shippingInteriorNumber.trim(),
           total: cartTotal,
           numeroPedido: numeroPedido,
           productos: items.map((item) => ({

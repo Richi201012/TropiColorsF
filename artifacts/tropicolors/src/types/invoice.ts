@@ -14,6 +14,8 @@ export interface Customer {
   email: string;
   phone?: string;
   address?: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
   city?: string;
   state?: string;
   postalCode?: string;
@@ -74,6 +76,31 @@ export const formatDate = (date: string | Date): string => {
     month: 'long',
     day: 'numeric',
   }).format(dateObj);
+};
+
+export const formatCustomerAddress = (customer: Customer): string => {
+  const addressText = customer.address || "";
+
+  return [
+    addressText,
+    customer.exteriorNumber && !addressText.includes(`Ext. ${customer.exteriorNumber}`)
+      ? `Ext. ${customer.exteriorNumber}`
+      : undefined,
+    customer.interiorNumber && !addressText.includes(`Int. ${customer.interiorNumber}`)
+      ? `Int. ${customer.interiorNumber}`
+      : undefined,
+    customer.city && !addressText.includes(customer.city)
+      ? customer.city
+      : undefined,
+    customer.state && !addressText.includes(customer.state)
+      ? customer.state
+      : undefined,
+    customer.postalCode && !addressText.includes(customer.postalCode)
+      ? `C.P. ${customer.postalCode}`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
 };
 
 // Helper para generar un folio de factura mÃ¡s profesional

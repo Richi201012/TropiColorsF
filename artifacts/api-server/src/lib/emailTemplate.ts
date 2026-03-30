@@ -15,9 +15,18 @@ export interface DatosPedido {
   email: string;
   telefono?: string;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   productos: Producto[];
   total: number;
   numeroPedido?: string;
+}
+
+export interface DatosContacto {
+  nombre: string;
+  email: string;
+  telefono?: string;
+  mensaje: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -226,6 +235,8 @@ export interface EmailPedidoData {
   email: string;
   telefono?: string;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   total: number;
   numeroPedido?: string;
   productos: Array<{ nombre: string; cantidad: number; precio: number }>;
@@ -242,6 +253,8 @@ export interface DatosEstadoPedido {
   productos: Array<{ nombre: string; cantidad: number; precio: number }>;
   total: number;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
@@ -663,6 +676,8 @@ export interface DatosFactura {
   total: string;
   telefono?: string;
   direccion?: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   metodoPago?:
     | "efectivo"
     | "transferencia"
@@ -670,6 +685,92 @@ export interface DatosFactura {
     | "mercadopago"
     | "oxxo"
     | "other";
+}
+
+export function generarEmailContacto(data: DatosContacto): string {
+  const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
+  const fecha = new Date().toLocaleString("es-MX", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuevo mensaje de contacto - Tropicolors</title>
+</head>
+<body style="margin:0; padding:0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color:#f8fafc;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(180deg, #eef6ff 0%, #f8fafc 58%, #fff8e7 100%); min-height: 100vh; padding: 32px 16px;">
+    <tr>
+      <td align="center" valign="top">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 680px;">
+          <tr>
+            <td style="background:#ffffff; border:1px solid #e2e8f0; border-radius:24px; overflow:hidden; box-shadow:0 22px 55px rgba(15, 23, 42, 0.12);">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:#1a237e; padding:28px 30px; color:#ffffff;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td valign="middle">
+                          <img src="${logoUrl}" alt="Tropicolors" width="74" style="display:block;">
+                        </td>
+                        <td valign="middle" align="right">
+                          <div style="display:inline-block; background:rgba(255,255,255,0.12); border-radius:999px; padding:8px 16px; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">
+                            Nuevo mensaje de contacto
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 30px 20px;">
+                    <p style="margin:0 0 8px; color:#0f172a; font-size:24px; font-weight:800;">${data.nombre} quiere cotizar contigo</p>
+                    <p style="margin:0; color:#64748b; font-size:14px; line-height:1.6;">Mensaje recibido el ${fecha} desde el formulario de contacto del sitio.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 30px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px;">
+                      <tr>
+                        <td style="padding:18px;">
+                          <p style="margin:0 0 14px; color:#1a237e; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px;">Datos del prospecto</p>
+                          <p style="margin:0 0 8px; color:#0f172a; font-size:14px;"><strong>Nombre:</strong> ${data.nombre}</p>
+                          <p style="margin:0 0 8px; color:#0f172a; font-size:14px;"><strong>Correo:</strong> ${data.email}</p>
+                          <p style="margin:0; color:#0f172a; font-size:14px;"><strong>Teléfono:</strong> ${data.telefono || "No proporcionado"}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 30px 30px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px;">
+                      <tr>
+                        <td style="padding:18px;">
+                          <p style="margin:0 0 14px; color:#1a237e; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px;">Mensaje</p>
+                          <p style="margin:0; color:#334155; font-size:14px; line-height:1.8; white-space:pre-line;">${data.mensaje}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
 }
 
 export function generarEmailFactura(data: DatosFactura): string {
@@ -701,6 +802,18 @@ export function generarEmailFactura(data: DatosFactura): string {
   `,
     )
     .join("");
+  const direccionBase = data.direccion || "";
+  const direccionFactura = [
+    direccionBase,
+    data.numeroExterior && !direccionBase.includes(`Ext. ${data.numeroExterior}`)
+      ? `Ext. ${data.numeroExterior}`
+      : "",
+    data.numeroInterior && !direccionBase.includes(`Int. ${data.numeroInterior}`)
+      ? `Int. ${data.numeroInterior}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return `
 <!DOCTYPE html>
@@ -797,7 +910,7 @@ export function generarEmailFactura(data: DatosFactura): string {
                               </td>
                               <td width="50%" style="padding: 0 0 0 12px; vertical-align: top;">
                                 <span style="display:block; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Dirección</span>
-                                <span style="color:#1e293b; font-size:14px;">${data.direccion || "No proporcionada"}</span>
+                                <span style="color:#1e293b; font-size:14px;">${direccionFactura || "No proporcionada"}</span>
                               </td>
                             </tr>
                           </table>

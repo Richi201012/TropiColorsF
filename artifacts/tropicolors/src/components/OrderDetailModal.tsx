@@ -45,6 +45,8 @@ type FirestoreOrderData = {
   customerPhone?: string;
   customerAddress?: string;
   shippingAddress?: string;
+  shippingExteriorNumber?: string;
+  shippingInteriorNumber?: string;
   shippingNeighborhood?: string;
   shippingMunicipality?: string;
   shippingState?: string;
@@ -147,6 +149,8 @@ function buildAddress(data: FirestoreOrderData): string {
   const parts: string[] = [];
   if (data.shippingAddress) parts.push(data.shippingAddress);
   else if (data.customerAddress) parts.push(data.customerAddress);
+  if (data.shippingExteriorNumber) parts.push(`Ext. ${data.shippingExteriorNumber}`);
+  if (data.shippingInteriorNumber) parts.push(`Int. ${data.shippingInteriorNumber}`);
   if (data.shippingNeighborhood) parts.push(data.shippingNeighborhood);
   if (data.shippingMunicipality) parts.push(data.shippingMunicipality);
   if (data.shippingState) parts.push(data.shippingState);
