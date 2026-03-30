@@ -23,6 +23,7 @@ type OrderDetailItem = {
 type HistorialEntry = {
   estado: string;
   fecha: string;
+  motivo?: string;
 };
 
 type OrderDetail = {
@@ -36,6 +37,7 @@ type OrderDetail = {
   status: string;
   paymentMethod: string;
   createdAt: string;
+  cancellationReason?: string;
   historial: HistorialEntry[];
 };
 
@@ -51,6 +53,7 @@ type FirestoreOrderData = {
   shippingMunicipality?: string;
   shippingState?: string;
   shippingPostalCode?: string;
+  cancellationReason?: string;
   status?: string;
   paymentMethod?: string;
   metodoPago?: string;
@@ -60,6 +63,7 @@ type FirestoreOrderData = {
   historial?: Array<{
     estado?: string;
     fecha?: Timestamp | string | Date;
+    motivo?: string;
   }>;
   items?: Array<{
     name?: string;
@@ -81,6 +85,8 @@ function mapStatus(status: string): string {
     shipped: "Enviado",
     entregado: "Entregado",
     delivered: "Entregado",
+    cancelado: "Cancelado",
+    cancelled: "Cancelado",
   };
   return map[status] || status;
 }
@@ -95,6 +101,8 @@ function statusClasses(status: string): string {
     return "bg-blue-50 text-blue-700 border-blue-200";
   if (s === "entregado" || s === "delivered")
     return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (s === "cancelado" || s === "cancelled")
+    return "bg-red-50 text-red-700 border-red-200";
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
@@ -220,6 +228,7 @@ export function OrderDetailModal({
             (entry) => ({
               estado: mapStatus(entry.estado || "pendiente"),
               fecha: formatDate(entry.fecha),
+              motivo: entry.motivo || "",
             }),
           );
 
@@ -233,6 +242,7 @@ export function OrderDetailModal({
             total: calculatedTotal,
             status: mapStatus(data.status || "pendiente"),
             paymentMethod: data.paymentMethod || data.metodoPago || "N/A",
+            cancellationReason: data.cancellationReason || "",
             createdAt: (() => {
               const created = formatDate(data.createdAt);
               if (created !== "Fecha no disponible") return created;
@@ -413,6 +423,17 @@ export function OrderDetailModal({
                 </div>
               </div>
 
+              {order.cancellationReason && order.status === "Cancelado" && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-red-700">
+                    Motivo de cancelación
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-red-900">
+                    {order.cancellationReason}
+                  </p>
+                </div>
+              )}
+
               {/* Products Table */}
               <div className="rounded-2xl border border-border/50 overflow-hidden">
                 <div className="bg-slate-950 px-5 py-3">
@@ -487,6 +508,11 @@ export function OrderDetailModal({
                             <p className="text-xs text-muted-foreground">
                               {entry.fecha}
                             </p>
+                            {entry.motivo && (
+                              <p className="mt-1 text-xs text-red-700">
+                                Motivo: {entry.motivo}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}

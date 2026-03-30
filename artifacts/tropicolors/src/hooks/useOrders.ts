@@ -12,6 +12,7 @@ import { db } from "@/lib/firebase";
 export type HistorialEntry = {
   estado: string;
   fecha: string;
+  motivo?: string;
 };
 
 // Tipo de dato desde Firestore (estructura real del proyecto)
@@ -39,7 +40,9 @@ type FirestoreOrder = {
   historial?: Array<{
     estado?: string;
     fecha?: Timestamp | string | Date;
+    motivo?: string;
   }>;
+  cancellationReason?: string;
   items?: Array<{
     productName?: string;
     price?: number;
@@ -52,7 +55,12 @@ type FirestoreOrder = {
 };
 
 // Tipo que espera el componente Admin.tsx
-export type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado";
+export type OrderStatus =
+  | "pendiente"
+  | "pagado"
+  | "enviado"
+  | "entregado"
+  | "cancelado";
 
 export type OrderProduct = {
   name: string;
@@ -84,6 +92,7 @@ export type AdminOrder = {
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
+  cancellationReason?: string;
   historial?: HistorialEntry[];
 };
 
@@ -162,6 +171,7 @@ export function useOrders() {
             (entry) => ({
               estado: entry.estado || "pendiente",
               fecha: formatearFecha(entry.fecha),
+              motivo: entry.motivo || "",
             }),
           );
 
@@ -231,6 +241,7 @@ export function useOrders() {
             paqueteria: data.paqueteria as string | undefined,
             tipoEnvio: data.tipoEnvio as string | undefined,
             guia: data.guia as string | undefined,
+            cancellationReason: data.cancellationReason as string | undefined,
             historial: mappedHistorial,
           };
         });
@@ -296,10 +307,10 @@ function mapOrderStatus(status?: string): OrderStatus {
     shipped: "enviado",
     entregado: "entregado",
     delivered: "entregado",
+    cancelado: "cancelado",
+    cancelled: "cancelado",
     pendiente: "pendiente",
     pending: "pendiente",
-    cancelado: "pendiente",
-    cancelled: "pendiente",
   };
   return statusMap[status?.toLowerCase() || ""] || "pendiente";
 }
