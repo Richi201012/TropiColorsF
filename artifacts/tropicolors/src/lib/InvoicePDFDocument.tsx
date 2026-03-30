@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer';
 import type { InvoiceData } from '../types/invoice';
-import { formatCurrency, formatDate, getPaymentMethodLabel } from '../types/invoice';
+import { formatCurrency, formatCustomerAddress, formatDate, getPaymentMethodLabel } from '../types/invoice';
 
 Font.register({
   family: 'Helvetica',
@@ -329,12 +329,7 @@ export const InvoicePDFDocument: React.FC<InvoicePDFDocumentProps> = ({ data, lo
             {data.customer.address && (
               <View style={s.clientField}>
                 <Text style={s.fieldLabel}>Dirección</Text>
-                <Text style={s.fieldValue}>
-                  {data.customer.address}
-                  {data.customer.city       ? `, ${data.customer.city}`           : ''}
-                  {data.customer.state      ? `, ${data.customer.state}`          : ''}
-                  {data.customer.postalCode ? ` C.P. ${data.customer.postalCode}` : ''}
-                </Text>
+                <Text style={s.fieldValue}>{formatCustomerAddress(data.customer)}</Text>
               </View>
             )}
             {data.customer.rfc && (

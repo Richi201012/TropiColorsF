@@ -14,6 +14,8 @@ export type DatosPedidoCorreo = {
   email: string;
   telefono?: string;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   total: number;
   numeroPedido?: string;
   productos: ProductoPedido[];
@@ -26,6 +28,8 @@ export type DatosEstadoPedidoCorreo = {
   productos: ProductoPedido[];
   total: number;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
@@ -44,6 +48,8 @@ export type DatosFacturaCorreo = {
   total: string;
   telefono?: string;
   direccion?: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   metodoPago?:
     | "efectivo"
     | "transferencia"

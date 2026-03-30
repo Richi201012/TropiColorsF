@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCustomerAddress } from '../types/invoice';
 import {
   InvoiceProps,
   InvoiceData,
@@ -372,14 +373,7 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                       Dirección
                     </div>
                     <div style={{ color: COLORS.darkText }}>
-                      {data.customer.address}
-                      {(data.customer.city || data.customer.state) && (
-                        <span style={{ color: COLORS.grayText }}>
-                          {data.customer.city && `, ${data.customer.city}`}
-                          {data.customer.state && `, ${data.customer.state}`}
-                          {data.customer.postalCode && ` ${data.customer.postalCode}`}
-                        </span>
-                      )}
+                      {formatCustomerAddress(data.customer)}
                     </div>
                   </div>
                 )}

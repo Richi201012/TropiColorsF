@@ -15,6 +15,8 @@ export interface DatosPedido {
   email: string;
   telefono?: string;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   productos: Producto[];
   total: number;
   numeroPedido?: string;
@@ -233,6 +235,8 @@ export interface EmailPedidoData {
   email: string;
   telefono?: string;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   total: number;
   numeroPedido?: string;
   productos: Array<{ nombre: string; cantidad: number; precio: number }>;
@@ -249,6 +253,8 @@ export interface DatosEstadoPedido {
   productos: Array<{ nombre: string; cantidad: number; precio: number }>;
   total: number;
   direccion: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
@@ -670,6 +676,8 @@ export interface DatosFactura {
   total: string;
   telefono?: string;
   direccion?: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
   metodoPago?:
     | "efectivo"
     | "transferencia"
@@ -794,6 +802,18 @@ export function generarEmailFactura(data: DatosFactura): string {
   `,
     )
     .join("");
+  const direccionBase = data.direccion || "";
+  const direccionFactura = [
+    direccionBase,
+    data.numeroExterior && !direccionBase.includes(`Ext. ${data.numeroExterior}`)
+      ? `Ext. ${data.numeroExterior}`
+      : "",
+    data.numeroInterior && !direccionBase.includes(`Int. ${data.numeroInterior}`)
+      ? `Int. ${data.numeroInterior}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return `
 <!DOCTYPE html>
@@ -890,7 +910,7 @@ export function generarEmailFactura(data: DatosFactura): string {
                               </td>
                               <td width="50%" style="padding: 0 0 0 12px; vertical-align: top;">
                                 <span style="display:block; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Dirección</span>
-                                <span style="color:#1e293b; font-size:14px;">${data.direccion || "No proporcionada"}</span>
+                                <span style="color:#1e293b; font-size:14px;">${direccionFactura || "No proporcionada"}</span>
                               </td>
                             </tr>
                           </table>

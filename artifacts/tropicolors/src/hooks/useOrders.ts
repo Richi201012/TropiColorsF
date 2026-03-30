@@ -24,6 +24,8 @@ type FirestoreOrder = {
   // Campos de dirección - aceptar ambos formatos
   customerAddress?: string; // Formato legacy
   shippingAddress?: string; // Formato nuevo desde CartDrawer
+  shippingExteriorNumber?: string;
+  shippingInteriorNumber?: string;
   shippingPostalCode?: string;
   shippingNeighborhood?: string;
   shippingMunicipality?: string;
@@ -66,9 +68,12 @@ export type AdminOrder = {
   requiresInvoice?: boolean;
   customerRfc?: string;
   address: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
   neighborhood?: string;
   municipality?: string;
   state?: string;
+  postalCode?: string;
   total: number;
   status: OrderStatus;
   items: OrderProduct[];
@@ -171,6 +176,14 @@ export function useOrders() {
               parts.push(data.customerAddress);
             }
 
+            if (data.shippingExteriorNumber) {
+              parts.push(`Ext. ${data.shippingExteriorNumber}`);
+            }
+
+            if (data.shippingInteriorNumber) {
+              parts.push(`Int. ${data.shippingInteriorNumber}`);
+            }
+
             // Agregar colonia si existe
             if (data.shippingNeighborhood) {
               parts.push(data.shippingNeighborhood);
@@ -202,6 +215,12 @@ export function useOrders() {
             requiresInvoice: Boolean(data.requiresInvoice),
             customerRfc: data.customerRfc || "",
             address: buildAddress(),
+            exteriorNumber: data.shippingExteriorNumber || "",
+            interiorNumber: data.shippingInteriorNumber || "",
+            neighborhood: data.shippingNeighborhood || "",
+            municipality: data.shippingMunicipality || "",
+            state: data.shippingState || "",
+            postalCode: data.shippingPostalCode || "",
             total: calculatedTotal,
             status: mapOrderStatus(data.status),
             items: mappedItems,
