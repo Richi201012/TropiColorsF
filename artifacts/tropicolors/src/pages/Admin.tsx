@@ -906,6 +906,7 @@ function statusLabel(status: OrderStatus) {
     pagado: "Pagado",
     enviado: "Enviado",
     entregado: "Entregado",
+    cancelado: "Cancelado",
   }[status];
 }
 
@@ -915,6 +916,7 @@ function orderStatusClasses(status: OrderStatus) {
     pagado: "bg-sky-50 text-sky-700 border-sky-200",
     enviado: "bg-blue-50 text-blue-700 border-blue-200",
     entregado: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    cancelado: "bg-red-50 text-red-700 border-red-200",
   }[status];
 }
 
@@ -1474,6 +1476,7 @@ function OrdersView({
             <option value="pagado">Pagado</option>
             <option value="enviado">Enviado</option>
             <option value="entregado">Entregado</option>
+            <option value="cancelado">Cancelado</option>
           </select>
         </div>
       </div>
@@ -1530,6 +1533,7 @@ function OrdersView({
                 <option value="pagado">Pagado</option>
                 <option value="enviado">Enviado</option>
                 <option value="entregado">Entregado</option>
+                <option value="cancelado">Cancelado</option>
               </select>
               <div className="flex items-center gap-2">
                 <button
@@ -2541,6 +2545,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     otraPaqueteria: "",
     tipoEnvio: "",
     guia: "",
+    cancellationReason: "",
   });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -2571,6 +2576,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             otraPaqueteria: "",
             tipoEnvio: "",
             guia: "",
+            cancellationReason: "",
           });
         } else if (feedbackModal.open) {
           setFeedbackModal((current) => ({ ...current, open: false }));
@@ -2686,6 +2692,17 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         otraPaqueteria: "",
         tipoEnvio: "",
         guia: "",
+        cancellationReason: "",
+      });
+      setShowStatusConfirm(true);
+    } else if (newStatus === "cancelado") {
+      setPendingStatusUpdate({ orderId, newStatus });
+      setShippingForm({
+        paqueteria: "",
+        otraPaqueteria: "",
+        tipoEnvio: "",
+        guia: "",
+        cancellationReason: "",
       });
       setShowStatusConfirm(true);
     } else {
@@ -2713,6 +2730,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       pagado: "Pagado",
       enviado: "Enviado",
       entregado: "Entregado",
+      cancelado: "Cancelado",
     };
 
     // Preparar datos de envío si es necesario
@@ -2726,6 +2744,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             tipoEnvio: shippingForm.tipoEnvio,
             guia: shippingForm.guia,
           }
+        : newStatus === "cancelado"
+          ? {
+              cancellationReason: shippingForm.cancellationReason.trim(),
+            }
         : undefined;
 
     // Actualizar en Firebase
@@ -2775,6 +2797,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         paqueteria: shippingData?.paqueteria,
         tipoEnvio: shippingData?.tipoEnvio,
         guia: shippingData?.guia,
+        cancellationReason: shippingData?.cancellationReason,
         numeroPedido: order.id,
       });
 
@@ -2810,6 +2833,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       otraPaqueteria: "",
       tipoEnvio: "",
       guia: "",
+      cancellationReason: "",
     });
     setModalActivo(null);
     setIsUpdatingStatus(false);
@@ -2840,6 +2864,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       otraPaqueteria: "",
       tipoEnvio: "",
       guia: "",
+      cancellationReason: "",
     });
   };
 
@@ -3596,6 +3621,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   <option value="pagado">Pagado</option>
                   <option value="enviado">Enviado</option>
                   <option value="entregado">Entregado</option>
+                  <option value="cancelado">Cancelado</option>
                 </select>
                 <button
                   type="button"
@@ -3958,6 +3984,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         subtitle={
           pendingStatusUpdate?.newStatus === "enviado"
             ? "Ingresa los datos del envío para notificar al cliente"
+            : pendingStatusUpdate?.newStatus === "cancelado"
+              ? "Indica el motivo de cancelación para notificar al cliente"
             : "¿Estás seguro de que deseas cambiar el estado de este pedido?"
         }
         onClose={isUpdatingStatus ? () => {} : cancelStatusUpdate}
@@ -4071,6 +4099,25 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             </div>
           )}
 
+          {pendingStatusUpdate?.newStatus === "cancelado" && (
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-900">
+                Motivo de cancelación
+              </label>
+              <textarea
+                value={shippingForm.cancellationReason}
+                onChange={(e) =>
+                  setShippingForm((f) => ({
+                    ...f,
+                    cancellationReason: e.target.value,
+                  }))
+                }
+                className="min-h-[120px] w-full rounded-2xl border border-border/60 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                placeholder="Explica por qué se canceló el pedido"
+              />
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
@@ -4090,7 +4137,9 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                     (shippingForm.paqueteria === "Otro" &&
                       !shippingForm.otraPaqueteria.trim()) ||
                     !shippingForm.tipoEnvio ||
-                    !shippingForm.guia))
+                    !shippingForm.guia)) ||
+                (pendingStatusUpdate?.newStatus === "cancelado" &&
+                  !shippingForm.cancellationReason.trim())
               }
               className="inline-flex items-center gap-2 rounded-2xl bg-[#0d1340] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1a237e] disabled:opacity-50"
             >

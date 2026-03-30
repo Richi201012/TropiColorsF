@@ -258,6 +258,7 @@ export interface DatosEstadoPedido {
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
+  cancellationReason?: string;
   numeroPedido?: string;
 }
 
@@ -431,6 +432,7 @@ function generarIconoEstado(estado: string): string {
     Pagado: "✅",
     Enviado: "📦",
     Entregado: "🎉",
+    Cancelado: "❌",
   };
   return iconos[estado] || "📋";
 }
@@ -443,6 +445,8 @@ function generarMensajeEstado(estado: string): string {
     Enviado: "¡Tu pedido está en camino! Estamos ansiosos por que lo recibas.",
     Entregado:
       "¡Tu pedido ha sido entregado! Gracias por confiar en Tropicolors.",
+    Cancelado:
+      "Tu pedido fue cancelado. Si tienes dudas o deseas reactivar la compra, contáctanos.",
   };
   return mensajes[estado] || "Estado actualizado";
 }
@@ -453,6 +457,7 @@ function generarTituloEstado(estado: string): string {
     Pagado: "Pago Confirmado",
     Enviado: "Pedido Enviado",
     Entregado: "Pedido Entregado",
+    Cancelado: "Pedido Cancelado",
   };
   return titulos[estado] || "Estado Actualizado";
 }
@@ -463,6 +468,7 @@ function obtenerColorEstado(estado: string): string {
     Pagado: "#10b981",
     Enviado: "#3b82f6",
     Entregado: "#8b5cf6",
+    Cancelado: "#dc2626",
   };
   return colores[estado] || "#6b7280";
 }
@@ -487,6 +493,8 @@ export function generarEmailEstadoPedido(data: DatosEstadoPedido): string {
   const titulo = generarTituloEstado(data.estado);
   const mensaje = generarMensajeEstado(data.estado);
   const mostrarDatosEnvio = data.estado === "Enviado" && data.paqueteria;
+  const mostrarMotivoCancelacion =
+    data.estado === "Cancelado" && data.cancellationReason;
 
   return `
 <!DOCTYPE html>
@@ -568,6 +576,25 @@ export function generarEmailEstadoPedido(data: DatosEstadoPedido): string {
                         </td>
                       </tr>
                     </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          `
+              : ""
+          }
+
+          ${
+            mostrarMotivoCancelacion
+              ? `
+          <tr>
+            <td style="background: #ffffff; padding: 28px 32px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fff1f2 0%, #fef2f2 100%); border-radius: 12px; border-left: 4px solid #dc2626; overflow: hidden;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <p style="margin: 0 0 14px; color: #991b1b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Motivo de cancelación</p>
+                    <p style="margin: 0; color: #1e293b; font-size: 14px; line-height: 1.7;">${data.cancellationReason}</p>
                   </td>
                 </tr>
               </table>

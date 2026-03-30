@@ -77,7 +77,12 @@ export async function createOrder(input: CreateOrderInput) {
   return docRef.id;
 }
 
-export type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado";
+export type OrderStatus =
+  | "pendiente"
+  | "pagado"
+  | "enviado"
+  | "entregado"
+  | "cancelado";
 
 export async function updateOrderStatus(
   orderId: string,
@@ -86,6 +91,7 @@ export async function updateOrderStatus(
     paqueteria?: string;
     tipoEnvio?: string;
     guia?: string;
+    cancellationReason?: string;
   },
 ) {
   const orderRef = doc(db, "orders", orderId);
@@ -95,6 +101,7 @@ export async function updateOrderStatus(
     historial: arrayUnion({
       estado: status,
       fecha: new Date().toISOString(),
+      motivo: shippingData?.cancellationReason || null,
     }),
   };
 
@@ -102,6 +109,9 @@ export async function updateOrderStatus(
     if (shippingData.paqueteria) payload.paqueteria = shippingData.paqueteria;
     if (shippingData.tipoEnvio) payload.tipoEnvio = shippingData.tipoEnvio;
     if (shippingData.guia) payload.guia = shippingData.guia;
+    if (shippingData.cancellationReason) {
+      payload.cancellationReason = shippingData.cancellationReason;
+    }
   }
 
   await updateDoc(orderRef, payload);
@@ -120,6 +130,7 @@ function statusLabel(status: OrderStatus): string {
     pagado: "marcado como pagado",
     enviado: "marcado como enviado",
     entregado: "marcado como entregado",
+    cancelado: "cancelado",
   };
   return labels[status] || status;
 }

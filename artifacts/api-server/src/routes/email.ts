@@ -278,6 +278,7 @@ router.post("/enviar-correo-estado", async (req, res) => {
       paqueteria,
       tipoEnvio,
       guia,
+      cancellationReason,
       numeroPedido,
     } = req.body as EmailEstadoData;
 
@@ -290,12 +291,19 @@ router.post("/enviar-correo-estado", async (req, res) => {
       return;
     }
 
-    const estadosValidos = ["Pendiente", "Pagado", "Enviado", "Entregado"];
+    const estadosValidos = [
+      "Pendiente",
+      "Pagado",
+      "Enviado",
+      "Entregado",
+      "Cancelado",
+    ];
     if (!estadosValidos.includes(estado)) {
       console.error("[Email Estado] ERROR: Estado inválido:", estado);
       res.status(400).json({
         error: "Estado inválido",
-        message: "El estado debe ser: Pendiente, Pagado, Enviado o Entregado",
+        message:
+          "El estado debe ser: Pendiente, Pagado, Enviado, Entregado o Cancelado",
       });
       return;
     }
@@ -313,6 +321,7 @@ router.post("/enviar-correo-estado", async (req, res) => {
       paqueteria,
       tipoEnvio,
       guia,
+      cancellationReason,
       numeroPedido,
     });
 
@@ -321,6 +330,7 @@ router.post("/enviar-correo-estado", async (req, res) => {
       Pagado: "Tu pago ha sido confirmado - Tropicolors",
       Enviado: "Tu pedido ha sido enviado - Tropicolors",
       Entregado: "Tu pedido ha sido entregado - Tropicolors",
+      Cancelado: "Tu pedido ha sido cancelado - Tropicolors",
     };
 
     console.log("[Email Estado] Enviando correo a:", email, "Estado:", estado);

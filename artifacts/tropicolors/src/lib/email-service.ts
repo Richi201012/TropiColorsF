@@ -33,6 +33,7 @@ export type DatosEstadoPedidoCorreo = {
   paqueteria?: string;
   tipoEnvio?: string;
   guia?: string;
+  cancellationReason?: string;
   numeroPedido?: string;
 };
 
