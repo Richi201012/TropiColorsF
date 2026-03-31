@@ -1,0 +1,170 @@
+
+> workspace@0.0.0 dev:api C:\laragon\www\Tropic-Colors
+> cd artifacts/api-server && npx tsx watch src/index.ts
+
+[16:08:52.804] [32mINFO[39m (26688): [36mServer listening[39m
+    [35mport[39m: 3000
+16:09:08 [tsx] Return key Restarting...
+c[16:09:10.724] [32mINFO[39m (11720): [36mServer listening[39m
+    [35mport[39m: 3000
+[16:09:34.130] [32mINFO[39m (11720): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 1,
+      "method": "GET",
+      "url": "/api/health-email"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 7
+[Email] Recibida solicitud de envío de correo de pedido
+[Email] Body: {
+  "email": "cliente.prueba@example.com",
+  "productos": [
+    {
+      "cantidad": 1,
+      "precio": 199.99,
+      "nombre": "Producto prueba"
+    }
+  ],
+  "total": 199.99,
+  "direccion": "Calle Falsa 123",
+  "nombre": "Cliente Prueba"
+}
+[Email] Generando HTML del correo...
+[Email] Remitente: "Tropicolors" <m_tropicolors1@hotmail.com>
+[Email] Enviando correo a: cliente.prueba@example.com
+[Brevo API] Correo enviado: <202603312209.43305848948@smtp-relay.mailin.fr>
+[Email] Correo enviado exitosamente al cliente!
+[Email] Message ID: <202603312209.43305848948@smtp-relay.mailin.fr>
+[Email] Enviando notificación al administrador...
+[Brevo API] Correo enviado: <202603312209.68628708502@smtp-relay.mailin.fr>
+[Email] Notificación admin enviada: <202603312209.68628708502@smtp-relay.mailin.fr>
+[16:09:48.478] [32mINFO[39m (11720): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 2,
+      "method": "POST",
+      "url": "/api/enviar-correo-pedido"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 1242
+[16:11:59.136] [32mINFO[39m (11720): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 3,
+      "method": "HEAD",
+      "url": "/api/healthz"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 2
+[16:13:05.136] [32mINFO[39m (11720): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 4,
+      "method": "GET",
+      "url": "/data/postal-codes/07.json"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[Email] Recibida solicitud de envío de correo de pedido
+[Email] Body: {
+  "nombre": "Ricardo ",
+  "email": "ricardocm5889@gmail.com",
+  "telefono": "5555555555",
+  "direccion": "casa de prueba , Ext. 745, Int. 5, San Juan de Aragón, Gustavo A. Madero, Ciudad de México, C.P. 07950",
+  "numeroExterior": "745",
+  "numeroInterior": "5",
+  "total": 74,
+  "numeroPedido": "ORD-WWAHNKPJ",
+  "productos": [
+    {
+      "nombre": "Negro C-125",
+      "cantidad": 1,
+      "precio": 74
+    }
+  ]
+}
+[Email] Generando HTML del correo...
+[Email] Remitente: "Tropicolors" <m_tropicolors1@hotmail.com>
+[Email] Enviando correo a: ricardocm5889@gmail.com
+[Brevo API] Correo enviado: <202603312213.48341643656@smtp-relay.mailin.fr>
+[Email] Correo enviado exitosamente al cliente!
+[Email] Message ID: <202603312213.48341643656@smtp-relay.mailin.fr>
+[Email] Enviando notificación al administrador...
+[Brevo API] Correo enviado: <202603312213.86064115473@smtp-relay.mailin.fr>
+[Email] Notificación admin enviada: <202603312213.86064115473@smtp-relay.mailin.fr>
+[16:13:18.828] [32mINFO[39m (11720): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 5,
+      "method": "POST",
+      "url": "/api/enviar-correo-pedido"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 1241
+[16:16:09.404] [32mINFO[39m (11720): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 6,
+      "method": "POST",
+      "url": "/api/checkout"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 1879
+[16:18:42.807] [31mERROR[39m (11720): [36mError creating checkout session[39m
+    [35mreq[39m: {
+      "id": 7,
+      "method": "POST",
+      "url": "/api/checkout"
+    }
+    err: {
+      "type": "FirebaseError",
+      "message": "Function setDoc() called with invalid data. Unsupported field value: undefined (found in document orders/38c9d8ff-1b23-4b26-a13f-33fc688cc8a2)",
+      "stack":
+          FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in document orders/38c9d8ff-1b23-4b26-a13f-33fc688cc8a2)
+      "code": "invalid-argument",
+      "name": "FirebaseError"
+    }
+[16:18:42.809] [32mINFO[39m (11720): [36mrequest errored[39m
+    [35mreq[39m: {
+      "id": 7,
+      "method": "POST",
+      "url": "/api/checkout"
+    }
+    [35mres[39m: {
+      "statusCode": 500
+    }
+    [35mresponseTime[39m: 664
+    err: {
+      "type": "Error",
+      "message": "failed with status code 500",
+      "stack":
+          Error: failed with status code 500
+              at onResFinished (C:\laragon\www\Tropic-Colors\node_modules\.pnpm\pino-http@10.5.0\node_modules\pino-http\logger.js:115:39)
+              at ServerResponse.onResponseComplete (C:\laragon\www\Tropic-Colors\node_modules\.pnpm\pino-http@10.5.0\node_modules\pino-http\logger.js:178:14)
+              at ServerResponse.emit (node:events:531:35)
+              at onFinish (node:_http_outgoing:1082:10)
+              at callback (node:internal/streams/writable:766:21)
+              at afterWrite (node:internal/streams/writable:710:5)
+              at afterWriteTick (node:internal/streams/writable:696:10)
+              at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+    }
+[16:19:22.875] [32mINFO[39m (11720): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 8,
+      "method": "POST",
+      "url": "/api/checkout"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 619
+16:19:39 [tsx] change in ./src\routes\orders.ts Restarting...
+c[16:19:42.909] [32mINFO[39m (14132): [36mServer listening[39m
+    [35mport[39m: 3000

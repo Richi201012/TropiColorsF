@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -168,6 +168,35 @@ type CheckoutValidationContext = {
   modeManual: boolean;
 };
 
+type StripeCheckoutOrder = {
+  id: string;
+  orderNumber?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  requiresInvoice?: boolean;
+  customerRfc?: string;
+  total?: number;
+  shippingAddress?: string;
+  shippingExteriorNumber?: string;
+  shippingInteriorNumber?: string;
+  shippingNeighborhood?: string;
+  shippingMunicipality?: string;
+  shippingState?: string;
+  shippingPostalCode?: string;
+  items?: Array<{
+    productName?: string;
+    price?: number;
+    quantity?: number;
+  }>;
+};
+
+type CheckoutSubmitResponse = {
+  success: boolean;
+  orderId: string;
+  sessionUrl: string;
+};
+
 const initialCheckoutValues: CheckoutFormData = {
   customerName: "",
   customerEmail: "",
@@ -192,6 +221,32 @@ const initialCardValues: CardFormData = {
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const rfcRegex = /^([A-Z&Ñ]{3}|[A-Z&Ñ]{4})\d{6}[A-Z0-9]{3}$/;
+
+function buildShippingAddress(data: {
+  shippingAddress?: string;
+  shippingExteriorNumber?: string;
+  shippingInteriorNumber?: string;
+  shippingNeighborhood?: string;
+  shippingMunicipality?: string;
+  shippingState?: string;
+  shippingPostalCode?: string;
+}): string {
+  return [
+    data.shippingAddress || "",
+    data.shippingExteriorNumber?.trim()
+      ? `Ext. ${data.shippingExteriorNumber.trim()}`
+      : "",
+    data.shippingInteriorNumber?.trim()
+      ? `Int. ${data.shippingInteriorNumber.trim()}`
+      : "",
+    data.shippingNeighborhood || "",
+    data.shippingMunicipality || "",
+    data.shippingState || "",
+    data.shippingPostalCode ? `C.P. ${data.shippingPostalCode}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
 
 function validateCheckoutField(
   field: CheckoutFieldName,
@@ -397,7 +452,7 @@ function CheckoutModal({
     data: CheckoutFormData,
     paymentMethod: PaymentMethod,
     cardData: CardFormData | null,
-  ) => Promise<{ success: boolean; orderId: string; sessionUrl: string }>;
+  ) => Promise<CheckoutSubmitResponse>;
   onFinalize: () => void;
   onClose: () => void;
 }) {
@@ -768,6 +823,11 @@ function CheckoutModal({
     );
 
     if (response.success) {
+      if (response.sessionUrl) {
+        window.location.assign(response.sessionUrl);
+        return;
+      }
+
       setPaymentResult({ orderId: response.orderId });
       setStep(3);
     }
@@ -1733,6 +1793,7 @@ export function CartDrawer() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const stripeReturnHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isCartOpen) {
@@ -1757,6 +1818,152 @@ export function CartDrawer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isCartOpen, isCheckoutModalOpen, setIsCartOpen]);
 
+  useEffect(() => {
+    const cleanupCheckoutParams = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("order_success");
+      url.searchParams.delete("order_cancelled");
+      url.searchParams.delete("order");
+      url.searchParams.delete("order_id");
+      url.searchParams.delete("session_id");
+      const nextSearch = url.searchParams.toString();
+      const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ""}${url.hash}`;
+      window.history.replaceState({}, document.title, nextUrl);
+    };
+
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("order_cancelled") === "true") {
+      cleanupCheckoutParams();
+      toast({
+        title: "Pago cancelado",
+        description: "El checkout de Stripe fue cancelado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sessionId = params.get("session_id");
+    const orderId = params.get("order_id");
+    const isOrderSuccess = params.get("order_success") === "true";
+
+    if (!isOrderSuccess || !sessionId || !orderId) {
+      return;
+    }
+
+    const requestKey = `${sessionId}:${orderId}`;
+    if (stripeReturnHandledRef.current === requestKey) {
+      return;
+    }
+    stripeReturnHandledRef.current = requestKey;
+
+    let cancelled = false;
+
+    const confirmStripeCheckout = async () => {
+      setIsProcessing(true);
+
+      try {
+        const response = await fetch(
+          `/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}&order_id=${encodeURIComponent(orderId)}`,
+        );
+        const payload = (await response.json()) as {
+          error?: string;
+          order?: StripeCheckoutOrder;
+        };
+
+        if (!response.ok || !payload.order) {
+          throw new Error(
+            payload.error || "No se pudo confirmar el pago en Stripe.",
+          );
+        }
+
+        const order = payload.order;
+        const notificationKey = `stripe-notification:${order.id}`;
+        const emailKey = `stripe-email:${order.id}`;
+
+        if (!sessionStorage.getItem(notificationKey)) {
+          await createNotification({
+            orderId: order.id,
+            customerName: order.customerName || "Cliente",
+            total: Number(order.total || 0),
+            requiresInvoice: Boolean(order.requiresInvoice),
+            customerRfc: order.customerRfc || "",
+          });
+          sessionStorage.setItem(notificationKey, "1");
+        }
+
+        if (
+          order.customerName &&
+          order.customerEmail &&
+          !sessionStorage.getItem(emailKey)
+        ) {
+          const emailResult = await enviarCorreoConfirmacion({
+            nombre: order.customerName,
+            email: order.customerEmail,
+            telefono: order.customerPhone || "",
+            direccion: buildShippingAddress(order),
+            numeroExterior: order.shippingExteriorNumber || "",
+            numeroInterior: order.shippingInteriorNumber || "",
+            total: Number(order.total || 0),
+            numeroPedido: order.orderNumber || order.id,
+            productos: (order.items || []).map((item) => ({
+              nombre: item.productName || "Producto",
+              cantidad: item.quantity || 1,
+              precio: item.price || 0,
+            })),
+          });
+
+          if (emailResult.success) {
+            sessionStorage.setItem(emailKey, "1");
+          } else {
+            console.error(
+              "[CartDrawer] No se pudo enviar el correo de confirmacion de Stripe:",
+              emailResult.error,
+            );
+            toast({
+              title: "Pago confirmado sin correo",
+              description:
+                emailResult.error ||
+                "El pedido se confirmo, pero no se pudo enviar el correo.",
+              variant: "destructive",
+            });
+          }
+        }
+
+        if (cancelled) return;
+
+        clearCart();
+        setIsCheckoutModalOpen(false);
+        setIsCartOpen(false);
+        toast({
+          title: "Pago confirmado",
+          description: `Tu pedido ${order.orderNumber || order.id} fue confirmado correctamente.`,
+        });
+      } catch (error) {
+        if (cancelled) return;
+
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "No se pudo confirmar el pago en Firestore.",
+          variant: "destructive",
+        });
+      } finally {
+        if (cancelled) return;
+        setIsProcessing(false);
+        cleanupCheckoutParams();
+      }
+    };
+
+    void confirmStripeCheckout();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clearCart, setIsCartOpen, toast]);
+
   const onSubmit = async (
     data: CheckoutFormData,
     paymentMethod: PaymentMethod,
@@ -1769,6 +1976,67 @@ export function CartDrawer() {
     setIsProcessing(true);
 
     try {
+      if (paymentMethod === "card") {
+        const response = await fetch("/api/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customerName: data.customerName,
+            customerEmail: data.customerEmail,
+            customerPhone: data.customerPhone,
+            requiresInvoice: data.requiresInvoice,
+            customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
+            shippingAddress: data.shippingAddress,
+            shippingExteriorNumber: data.shippingExteriorNumber.trim(),
+            shippingInteriorNumber: data.shippingInteriorNumber.trim(),
+            shippingPostalCode: data.shippingPostalCode,
+            shippingNeighborhood: data.shippingNeighborhood,
+            shippingMunicipality: data.shippingMunicipality,
+            shippingState: data.shippingState,
+            items: items.map((item) => ({
+              productId: item.productId,
+              productName: item.productName,
+              size: item.size,
+              unitPrice: item.price,
+              price: item.price,
+              quantity: item.quantity,
+              hexCode: item.hexCode,
+              imageUrl: item.imageUrl,
+            })),
+          }),
+        });
+
+        const text = await response.text();
+        let payload: {
+          error?: string;
+          orderId?: string;
+          orderNumber?: string;
+          sessionUrl?: string | null;
+        } = {};
+
+        try {
+          payload = text ? (JSON.parse(text) as typeof payload) : {};
+        } catch {
+          throw new Error(
+            `Respuesta inesperada del servidor (${response.status}).`,
+          );
+        }
+
+        if (!response.ok || !payload.sessionUrl || !payload.orderId) {
+          throw new Error(
+            payload.error || "No se pudo crear la sesion de Stripe.",
+          );
+        }
+
+        return {
+          success: true,
+          orderId: payload.orderNumber || payload.orderId,
+          sessionUrl: payload.sessionUrl,
+        } satisfies CheckoutSubmitResponse;
+      }
+
       const orderDocumentId = await createOrder({
         customerName: data.customerName,
         customerEmail: data.customerEmail,
@@ -1795,13 +2063,7 @@ export function CartDrawer() {
           hexCode: item.hexCode,
           imageUrl: item.imageUrl,
         })),
-        paymentDetails:
-          paymentMethod === "card" && cardData
-            ? {
-                last4: cardData.cardNumber.replace(/\s/g, "").slice(-4),
-                cardholderName: cardData.cardholderName.trim(),
-              }
-            : null,
+        paymentDetails: null,
       });
 
       // Crear notificación para el admin
@@ -1819,21 +2081,9 @@ export function CartDrawer() {
 
       // Enviar correo de confirmación del pedido
       try {
-        const direccionCompleta = [
-          data.shippingAddress,
-          `Ext. ${data.shippingExteriorNumber.trim()}`,
-          data.shippingInteriorNumber.trim()
-            ? `Int. ${data.shippingInteriorNumber.trim()}`
-            : "",
-          data.shippingNeighborhood,
-          data.shippingMunicipality,
-          data.shippingState,
-          `C.P. ${data.shippingPostalCode}`,
-        ]
-          .filter(Boolean)
-          .join(", ");
+        const direccionCompleta = buildShippingAddress(data);
         const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
-        await enviarCorreoConfirmacion({
+        const emailResult = await enviarCorreoConfirmacion({
           nombre: data.customerName,
           email: data.customerEmail,
           telefono: data.customerPhone,
@@ -1848,7 +2098,22 @@ export function CartDrawer() {
             precio: item.price,
           })),
         });
-        console.log("[CartDrawer] Correo de confirmación enviado exitosamente");
+
+        if (emailResult.success) {
+          console.log("[CartDrawer] Correo de confirmacion enviado exitosamente");
+        } else {
+          console.error(
+            "[CartDrawer] No se pudo enviar el correo de confirmacion:",
+            emailResult.error,
+          );
+          toast({
+            title: "Pedido guardado sin correo",
+            description:
+              emailResult.error ||
+              "El pedido se guardo, pero el correo no pudo enviarse.",
+            variant: "destructive",
+          });
+        }
       } catch (emailError) {
         console.error(
           "[CartDrawer] Error al enviar correo de confirmación:",
@@ -1860,12 +2125,14 @@ export function CartDrawer() {
         success: true,
         orderId: `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`,
         sessionUrl: "",
-      };
+      } satisfies CheckoutSubmitResponse;
     } catch (error) {
       toast({
         title: "Error",
         description:
-          "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
+          paymentMethod === "card"
+            ? "No se pudo iniciar el checkout de Stripe. Intenta nuevamente."
+            : "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
         variant: "destructive",
       });
       throw error;
