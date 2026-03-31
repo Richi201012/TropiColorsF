@@ -123,6 +123,7 @@ export async function enviarCorreoConfirmacion(
       return {
         success: false,
         error:
+          (data.message as string) ||
           (data.error as string) ||
           `Error ${response.status} al enviar el correo`,
       };
@@ -191,6 +192,7 @@ export async function enviarCorreoEstadoPedido(
       return {
         success: false,
         error:
+          (data.message as string) ||
           (data.error as string) ||
           `Error ${response.status} al enviar el correo`,
       };
@@ -263,6 +265,7 @@ export async function enviarFacturaCorreo(
       return {
         success: false,
         error:
+          (data.message as string) ||
           (data.error as string) ||
           `Error ${response.status} al enviar la factura`,
       };
