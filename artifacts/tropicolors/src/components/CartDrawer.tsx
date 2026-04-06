@@ -27,6 +27,7 @@ import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { createOrder } from "@/services/order-service";
 import { createNotification } from "@/services/notification-service";
 import { enviarCorreoConfirmacion } from "@/lib/email-service";
+import { StripeEmbeddedPayment } from "@/components/StripeEmbeddedPayment";
 
 function VaciarCarritoModal({
   open,
@@ -195,6 +196,7 @@ type CheckoutSubmitResponse = {
   success: boolean;
   orderId: string;
   sessionUrl: string;
+  clientSecret?: string;
 };
 
 const initialCheckoutValues: CheckoutFormData = {
@@ -441,6 +443,7 @@ function CheckoutModal({
   cartTotal,
   isProcessing,
   onSubmit,
+  onConfirmCardPayment,
   onFinalize,
   onClose,
 }: {
@@ -453,6 +456,10 @@ function CheckoutModal({
     paymentMethod: PaymentMethod,
     cardData: CardFormData | null,
   ) => Promise<CheckoutSubmitResponse>;
+  onConfirmCardPayment: (
+    sessionId: string,
+    orderId: string,
+  ) => Promise<string>;
   onFinalize: () => void;
   onClose: () => void;
 }) {
@@ -479,9 +486,24 @@ function CheckoutModal({
   const [cardTouched, setCardTouched] = useState<
     Partial<Record<CardFieldName, boolean>>
   >({});
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(
+    null,
+  );
+  const [stripeOrderId, setStripeOrderId] = useState<string | null>(null);
+  const [stripePublishableKey, setStripePublishableKey] = useState<
+    string | null
+  >(null);
+  const [stripeError, setStripeError] = useState<string | null>(null);
+  const [isPreparingStripe, setIsPreparingStripe] = useState(false);
+  const stripePreparationStartedRef = useRef(false);
+  const onSubmitRef = useRef(onSubmit);
   const [paymentResult, setPaymentResult] = useState<{
     orderId: string;
   } | null>(null);
+
+  useEffect(() => {
+    onSubmitRef.current = onSubmit;
+  }, [onSubmit]);
 
   const postalCode = formValues.shippingPostalCode;
   const {
@@ -560,9 +582,26 @@ function CheckoutModal({
       setCardValues(initialCardValues);
       setCardErrors({});
       setCardTouched({});
+      setStripeClientSecret(null);
+      setStripeOrderId(null);
+      setStripePublishableKey(null);
+      setStripeError(null);
+      setIsPreparingStripe(false);
+      stripePreparationStartedRef.current = false;
       setPaymentResult(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (selectedPaymentMethod !== "card" || step !== 2) {
+      stripePreparationStartedRef.current = false;
+      setStripeClientSecret(null);
+      setStripeOrderId(null);
+      setStripePublishableKey(null);
+      setStripeError(null);
+      setIsPreparingStripe(false);
+    }
+  }, [selectedPaymentMethod, step]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -731,6 +770,94 @@ function CheckoutModal({
     setStep(2);
   };
 
+  useEffect(() => {
+    if (
+      !open ||
+      step !== 2 ||
+      selectedPaymentMethod !== "card" ||
+      stripeClientSecret ||
+      stripeOrderId ||
+      stripePreparationStartedRef.current
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const prepareStripeCheckout = async () => {
+      stripePreparationStartedRef.current = true;
+      setIsPreparingStripe(true);
+      setStripeError(null);
+
+      try {
+        const configResponse = await fetch("/api/checkout/config");
+        const configText = await configResponse.text();
+        let configPayload: { error?: string; publishableKey?: string } = {};
+
+        try {
+          configPayload = configText
+            ? (JSON.parse(configText) as typeof configPayload)
+            : {};
+        } catch {
+          throw new Error(
+            `Respuesta inesperada del servidor (${configResponse.status}).`,
+          );
+        }
+
+        if (!configResponse.ok || !configPayload.publishableKey) {
+          throw new Error(
+            configPayload.error ||
+              "No se pudo cargar la configuracion publica de Stripe.",
+          );
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setStripePublishableKey(configPayload.publishableKey);
+
+        const checkoutResponse = await onSubmitRef.current(
+          formValues,
+          "card",
+          null,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!checkoutResponse.clientSecret) {
+          throw new Error("Stripe no devolvio un client secret valido.");
+        }
+
+        setStripeOrderId(checkoutResponse.orderId);
+        setStripeClientSecret(checkoutResponse.clientSecret);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setStripeError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo preparar el checkout de Stripe.",
+        );
+        stripePreparationStartedRef.current = false;
+      } finally {
+        if (!cancelled) {
+          setIsPreparingStripe(false);
+        }
+      }
+    };
+
+    void prepareStripeCheckout();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, selectedPaymentMethod, step, stripeClientSecret, stripeOrderId]);
+
   const isFieldValid = (field: CheckoutFieldName) => {
     if (field === "requiresInvoice") return false;
 
@@ -743,91 +870,25 @@ function CheckoutModal({
   const showNeighborhoodSelect = !modeManual && colonias.length > 1;
   const neighborhoodLockedByLookup = !modeManual && colonias.length === 1;
   const brandLogoSrc = `${import.meta.env.BASE_URL}logo-tropicolors.png`;
-  const cardFormHasErrors =
-    Object.keys(validateCardForm(cardValues)).length > 0;
 
-  const handleCardFieldChange = (field: CardFieldName, value: string) => {
-    let nextValue = value;
-
-    if (field === "cardNumber") {
-      const digits = value.replace(/\D/g, "").slice(0, 16);
-      nextValue = digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
-    }
-    if (field === "expiryDate") {
-      const digits = value.replace(/\D/g, "").slice(0, 4);
-      nextValue =
-        digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
-    }
-    if (field === "cvv") {
-      nextValue = value.replace(/\D/g, "").slice(0, 4);
+  const handleStripePaymentConfirmed = async (sessionId: string) => {
+    if (!stripeOrderId) {
+      throw new Error("No se encontro el pedido pendiente de Stripe.");
     }
 
-    const nextValues = {
-      ...cardValues,
-      [field]: nextValue,
-    };
-    setCardValues(nextValues);
-
-    if (cardTouched[field]) {
-      const error = validateCardField(field, nextValues);
-      setCardErrors((currentErrors) => ({
-        ...currentErrors,
-        [field]: error || "",
-      }));
-    }
+    const confirmedOrderId = await onConfirmCardPayment(sessionId, stripeOrderId);
+    setPaymentResult({ orderId: confirmedOrderId });
+    setStep(3);
   };
-
-  const handleCardFieldBlur = (field: CardFieldName) => {
-    setCardTouched((currentTouched) => ({
-      ...currentTouched,
-      [field]: true,
-    }));
-
-    const error = validateCardField(field, cardValues);
-    setCardErrors((currentErrors) => {
-      const nextErrors = { ...currentErrors };
-      if (error) {
-        nextErrors[field] = error;
-      } else {
-        delete nextErrors[field];
-      }
-      return nextErrors;
-    });
-  };
-
-  const isCardFieldValid = (field: CardFieldName) =>
-    Boolean(
-      cardTouched[field] && !cardErrors[field] && cardValues[field].trim(),
-    );
 
   const handlePaymentSubmit = async () => {
     if (selectedPaymentMethod === "card") {
-      const validationErrors = validateCardForm(cardValues);
-      setCardErrors(validationErrors);
-      setCardTouched({
-        cardNumber: true,
-        expiryDate: true,
-        cvv: true,
-        cardholderName: true,
-      });
-
-      if (Object.keys(validationErrors).length > 0) {
-        return;
-      }
+      return;
     }
 
-    const response = await onSubmit(
-      formValues,
-      selectedPaymentMethod,
-      selectedPaymentMethod === "card" ? cardValues : null,
-    );
+    const response = await onSubmit(formValues, selectedPaymentMethod, null);
 
     if (response.success) {
-      if (response.sessionUrl) {
-        window.location.assign(response.sessionUrl);
-        return;
-      }
-
       setPaymentResult({ orderId: response.orderId });
       setStep(3);
     }
@@ -1564,132 +1625,32 @@ function CheckoutModal({
 
                       {selectedPaymentMethod === "card" ? (
                         <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-                          <div className="mb-4">
-                            <p className="text-sm font-semibold text-slate-900">
-                              Datos de la tarjeta
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              Vista simulada tipo Stripe. No se procesan pagos
-                              reales.
-                            </p>
-                          </div>
-
-                          <div className="space-y-4">
-                            <div>
-                              <FieldShell
-                                icon={<CreditCard className="h-4 w-4" />}
-                                hasError={Boolean(cardErrors.cardNumber)}
-                                isValid={isCardFieldValid("cardNumber")}
-                              >
-                                <input
-                                  value={cardValues.cardNumber}
-                                  onChange={(event) =>
-                                    handleCardFieldChange(
-                                      "cardNumber",
-                                      event.target.value,
-                                    )
-                                  }
-                                  onBlur={() =>
-                                    handleCardFieldBlur("cardNumber")
-                                  }
-                                  placeholder="Numero de tarjeta"
-                                  inputMode="numeric"
-                                  className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                                />
-                              </FieldShell>
-                              {cardErrors.cardNumber && (
-                                <p className="mt-1 text-xs text-red-500">
-                                  {cardErrors.cardNumber}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <FieldShell
-                                  icon={<Package2 className="h-4 w-4" />}
-                                  hasError={Boolean(cardErrors.expiryDate)}
-                                  isValid={isCardFieldValid("expiryDate")}
-                                >
-                                  <input
-                                    value={cardValues.expiryDate}
-                                    onChange={(event) =>
-                                      handleCardFieldChange(
-                                        "expiryDate",
-                                        event.target.value,
-                                      )
-                                    }
-                                    onBlur={() =>
-                                      handleCardFieldBlur("expiryDate")
-                                    }
-                                    placeholder="MM/YY"
-                                    inputMode="numeric"
-                                    className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                                  />
-                                </FieldShell>
-                                {cardErrors.expiryDate && (
-                                  <p className="mt-1 text-xs text-red-500">
-                                    {cardErrors.expiryDate}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div>
-                                <FieldShell
-                                  icon={<ShieldCheck className="h-4 w-4" />}
-                                  hasError={Boolean(cardErrors.cvv)}
-                                  isValid={isCardFieldValid("cvv")}
-                                >
-                                  <input
-                                    value={cardValues.cvv}
-                                    onChange={(event) =>
-                                      handleCardFieldChange(
-                                        "cvv",
-                                        event.target.value,
-                                      )
-                                    }
-                                    onBlur={() => handleCardFieldBlur("cvv")}
-                                    placeholder="CVV"
-                                    inputMode="numeric"
-                                    className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                                  />
-                                </FieldShell>
-                                {cardErrors.cvv && (
-                                  <p className="mt-1 text-xs text-red-500">
-                                    {cardErrors.cvv}
-                                  </p>
-                                )}
+                          {isPreparingStripe ? (
+                            <div className="flex min-h-[260px] items-center justify-center rounded-3xl border border-slate-200 bg-slate-50/80">
+                              <div className="text-center text-sm text-slate-500">
+                                <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />
+                                Preparando checkout seguro de Stripe...
                               </div>
                             </div>
-
-                            <div>
-                              <FieldShell
-                                icon={<UserRound className="h-4 w-4" />}
-                                hasError={Boolean(cardErrors.cardholderName)}
-                                isValid={isCardFieldValid("cardholderName")}
-                              >
-                                <input
-                                  value={cardValues.cardholderName}
-                                  onChange={(event) =>
-                                    handleCardFieldChange(
-                                      "cardholderName",
-                                      event.target.value,
-                                    )
-                                  }
-                                  onBlur={() =>
-                                    handleCardFieldBlur("cardholderName")
-                                  }
-                                  placeholder="Nombre del titular"
-                                  className="w-full border-0 bg-transparent py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                                />
-                              </FieldShell>
-                              {cardErrors.cardholderName && (
-                                <p className="mt-1 text-xs text-red-500">
-                                  {cardErrors.cardholderName}
-                                </p>
-                              )}
+                          ) : stripeError ? (
+                            <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                              {stripeError}
                             </div>
-                          </div>
+                          ) : stripePublishableKey &&
+                            stripeClientSecret &&
+                            stripeOrderId ? (
+                            <StripeEmbeddedPayment
+                              publishableKey={stripePublishableKey}
+                              clientSecret={stripeClientSecret}
+                              amount={cartTotal}
+                              orderId={stripeOrderId}
+                              onPaymentConfirmed={handleStripePaymentConfirmed}
+                            />
+                          ) : (
+                            <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-500">
+                              Esperando configuracion de Stripe...
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
@@ -1723,24 +1684,21 @@ function CheckoutModal({
                         >
                           Regresar
                         </button>
-                        <button
-                          type="button"
-                          onClick={handlePaymentSubmit}
-                          disabled={
-                            isProcessing ||
-                            (selectedPaymentMethod === "card" &&
-                              cardFormHasErrors &&
-                              Object.keys(cardTouched).length > 0)
-                          }
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <CreditCard className="h-4 w-4" />
-                          )}
-                          {isProcessing ? "Procesando pago..." : "Pagar ahora"}
-                        </button>
+                        {selectedPaymentMethod !== "card" ? (
+                          <button
+                            type="button"
+                            onClick={handlePaymentSubmit}
+                            disabled={isProcessing}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          >
+                            {isProcessing ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CreditCard className="h-4 w-4" />
+                            )}
+                            {isProcessing ? "Procesando pago..." : "Pagar ahora"}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   ) : (
@@ -1794,6 +1752,78 @@ export function CartDrawer() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const stripeReturnHandledRef = useRef<string | null>(null);
+
+  const confirmStripeOrder = async (
+    sessionId: string,
+    orderId: string,
+  ): Promise<string> => {
+    const response = await fetch(
+      `/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}&order_id=${encodeURIComponent(orderId)}`,
+    );
+    const payload = (await response.json()) as {
+      error?: string;
+      order?: StripeCheckoutOrder;
+    };
+
+    if (!response.ok || !payload.order) {
+      throw new Error(payload.error || "No se pudo confirmar el pago en Stripe.");
+    }
+
+    const order = payload.order;
+    const notificationKey = `stripe-notification:${order.id}`;
+    const emailKey = `stripe-email:${order.id}`;
+
+    if (!sessionStorage.getItem(notificationKey)) {
+      await createNotification({
+        orderId: order.id,
+        customerName: order.customerName || "Cliente",
+        total: Number(order.total || 0),
+        requiresInvoice: Boolean(order.requiresInvoice),
+        customerRfc: order.customerRfc || "",
+      });
+      sessionStorage.setItem(notificationKey, "1");
+    }
+
+    if (
+      order.customerName &&
+      order.customerEmail &&
+      !sessionStorage.getItem(emailKey)
+    ) {
+      const emailResult = await enviarCorreoConfirmacion({
+        nombre: order.customerName,
+        email: order.customerEmail,
+        telefono: order.customerPhone || "",
+        direccion: buildShippingAddress(order),
+        numeroExterior: order.shippingExteriorNumber || "",
+        numeroInterior: order.shippingInteriorNumber || "",
+        total: Number(order.total || 0),
+        numeroPedido: order.orderNumber || order.id,
+        productos: (order.items || []).map((item) => ({
+          nombre: item.productName || "Producto",
+          cantidad: item.quantity || 1,
+          precio: item.price || 0,
+        })),
+      });
+
+      if (emailResult.success) {
+        sessionStorage.setItem(emailKey, "1");
+      } else {
+        console.error(
+          "[CartDrawer] No se pudo enviar el correo de confirmacion de Stripe:",
+          emailResult.error,
+        );
+        toast({
+          title: "Pago confirmado sin correo",
+          description:
+            emailResult.error ||
+            "El pedido se confirmo, pero no se pudo enviar el correo.",
+          variant: "destructive",
+        });
+      }
+    }
+
+    return order.orderNumber || order.id;
+  };
 
   useEffect(() => {
     if (isCartOpen) {
@@ -1863,72 +1893,7 @@ export function CartDrawer() {
       setIsProcessing(true);
 
       try {
-        const response = await fetch(
-          `/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}&order_id=${encodeURIComponent(orderId)}`,
-        );
-        const payload = (await response.json()) as {
-          error?: string;
-          order?: StripeCheckoutOrder;
-        };
-
-        if (!response.ok || !payload.order) {
-          throw new Error(
-            payload.error || "No se pudo confirmar el pago en Stripe.",
-          );
-        }
-
-        const order = payload.order;
-        const notificationKey = `stripe-notification:${order.id}`;
-        const emailKey = `stripe-email:${order.id}`;
-
-        if (!sessionStorage.getItem(notificationKey)) {
-          await createNotification({
-            orderId: order.id,
-            customerName: order.customerName || "Cliente",
-            total: Number(order.total || 0),
-            requiresInvoice: Boolean(order.requiresInvoice),
-            customerRfc: order.customerRfc || "",
-          });
-          sessionStorage.setItem(notificationKey, "1");
-        }
-
-        if (
-          order.customerName &&
-          order.customerEmail &&
-          !sessionStorage.getItem(emailKey)
-        ) {
-          const emailResult = await enviarCorreoConfirmacion({
-            nombre: order.customerName,
-            email: order.customerEmail,
-            telefono: order.customerPhone || "",
-            direccion: buildShippingAddress(order),
-            numeroExterior: order.shippingExteriorNumber || "",
-            numeroInterior: order.shippingInteriorNumber || "",
-            total: Number(order.total || 0),
-            numeroPedido: order.orderNumber || order.id,
-            productos: (order.items || []).map((item) => ({
-              nombre: item.productName || "Producto",
-              cantidad: item.quantity || 1,
-              precio: item.price || 0,
-            })),
-          });
-
-          if (emailResult.success) {
-            sessionStorage.setItem(emailKey, "1");
-          } else {
-            console.error(
-              "[CartDrawer] No se pudo enviar el correo de confirmacion de Stripe:",
-              emailResult.error,
-            );
-            toast({
-              title: "Pago confirmado sin correo",
-              description:
-                emailResult.error ||
-                "El pedido se confirmo, pero no se pudo enviar el correo.",
-              variant: "destructive",
-            });
-          }
-        }
+        const confirmedOrderId = await confirmStripeOrder(sessionId, orderId);
 
         if (cancelled) return;
 
@@ -1937,7 +1902,7 @@ export function CartDrawer() {
         setIsCartOpen(false);
         toast({
           title: "Pago confirmado",
-          description: `Tu pedido ${order.orderNumber || order.id} fue confirmado correctamente.`,
+          description: `Tu pedido ${confirmedOrderId} fue confirmado correctamente.`,
         });
       } catch (error) {
         if (cancelled) return;
@@ -1962,7 +1927,7 @@ export function CartDrawer() {
     return () => {
       cancelled = true;
     };
-  }, [clearCart, setIsCartOpen, toast]);
+  }, [clearCart, confirmStripeOrder, setIsCartOpen, toast]);
 
   const onSubmit = async (
     data: CheckoutFormData,
@@ -2013,7 +1978,7 @@ export function CartDrawer() {
           error?: string;
           orderId?: string;
           orderNumber?: string;
-          sessionUrl?: string | null;
+          clientSecret?: string | null;
         } = {};
 
         try {
@@ -2024,16 +1989,17 @@ export function CartDrawer() {
           );
         }
 
-        if (!response.ok || !payload.sessionUrl || !payload.orderId) {
+        if (!response.ok || !payload.clientSecret || !payload.orderId) {
           throw new Error(
-            payload.error || "No se pudo crear la sesion de Stripe.",
+            payload.error || "No se pudo preparar el pago con Stripe.",
           );
         }
 
         return {
           success: true,
-          orderId: payload.orderNumber || payload.orderId,
-          sessionUrl: payload.sessionUrl,
+          orderId: payload.orderId,
+          sessionUrl: "",
+          clientSecret: payload.clientSecret,
         } satisfies CheckoutSubmitResponse;
       }
 
@@ -2310,6 +2276,7 @@ export function CartDrawer() {
             cartTotal={cartTotal}
             isProcessing={isProcessing}
             onSubmit={onSubmit}
+            onConfirmCardPayment={confirmStripeOrder}
             onFinalize={handleFinalizeCheckout}
             onClose={() => setIsCheckoutModalOpen(false)}
           />
