@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface HeroLandingProps {
   onComplete?: () => void;
@@ -8,56 +9,59 @@ interface HeroLandingProps {
 
 export default function HeroLanding({ onComplete }: HeroLandingProps) {
   const [isVisible, setIsVisible] = useState(true);
-  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const isMobile = useIsMobile();
   const hasDismissed = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // Show scroll indicator after entrance animation
     const timer = setTimeout(() => {
       setShowScrollIndicator(true);
     }, 1500);
 
-    // Listen for scroll - continuous update for smooth animation
     const handleScroll = () => {
-      const scrollPosition = window.scrollY;
-      const windowHeight = window.innerHeight;
-      
-      // Calculate scroll progress (0 to 1) - fades out over full viewport height
-      const progress = Math.min(scrollPosition / (windowHeight * 1.2), 1);
-      setScrollProgress(progress);
-      
-      // Hide hero permanently after scrolling past it (only once)
-      if (!hasDismissed.current && scrollPosition > windowHeight * 0.5) {
-        hasDismissed.current = true;
-        
-        // Delay the actual removal for smooth exit
-        setTimeout(() => {
-          setIsVisible(false);
-          setShowScrollIndicator(false);
-          if (onComplete) {
-            onComplete();
-          }
-        }, 300);
+      if (frameRef.current !== null) {
+        return;
       }
+
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        const scrollPosition = window.scrollY;
+        const windowHeight = window.innerHeight;
+        const progress = Math.min(scrollPosition / (windowHeight * 1.2), 1);
+        setScrollProgress(progress);
+
+        if (!hasDismissed.current && scrollPosition > windowHeight * 0.5) {
+          hasDismissed.current = true;
+
+          window.setTimeout(() => {
+            setIsVisible(false);
+            setShowScrollIndicator(false);
+            onComplete?.();
+          }, 300);
+        }
+      });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
       clearTimeout(timer);
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+      }
       window.removeEventListener("scroll", handleScroll);
     };
   }, [onComplete]);
 
-  // Calculate opacity and transform based on scroll - more gradual
   const opacity = Math.max(0, 1 - scrollProgress * 1.2);
-  const y = scrollProgress * -30;
-  const scale = 1 + scrollProgress * 0.05;
-  const blur = scrollProgress * 4;
+  const y = scrollProgress * (isMobile ? -16 : -30);
+  const scale = 1 + scrollProgress * (isMobile ? 0.02 : 0.05);
+  const blur = isMobile ? 0 : scrollProgress * 4;
+  const heroImageSrc = `${import.meta.env.BASE_URL}${isMobile ? "hero-banner.png" : "hero-landing.png"}`;
 
-  // Don't render if not visible
   if (!isVisible) return null;
 
   return (
@@ -75,26 +79,27 @@ export default function HeroLanding({ onComplete }: HeroLandingProps) {
         scrollSnapAlign: 'start',
         flexShrink: 0,
         position: 'relative',
-        zIndex: 50
+        zIndex: 50,
       }}
     >
-      {/* Background with parallax and blur */}
       <motion.div
         animate={{ 
           y: y, 
           scale: scale,
           opacity: opacity,
-          filter: `blur(${blur}px)`
+          filter: blur ? `blur(${blur}px)` : "none",
         }}
         transition={{ ease: "easeOut", duration: 0.1 }}
-        className="absolute inset-0"
+        className="absolute inset-0 will-change-transform"
+        style={{ willChange: isMobile ? "transform, opacity" : "transform, opacity, filter" }}
       >
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/60" />
         <img
-          src={`${import.meta.env.BASE_URL}hero-landing.png`}
+          src={heroImageSrc}
           alt="TropiColors - Colorantes Alimentarios"
-          className="w-full h-full object-cover object-center"
+          fetchPriority="high"
+          decoding="async"
+          className="h-full w-full object-cover object-center"
         />
       </motion.div>
           

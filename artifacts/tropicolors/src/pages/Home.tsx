@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { enviarMensajeContacto } from "@/lib/email-service";
 import { db } from "@/lib/firebase";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart, MessageCircle, Droplet, CheckCircle, ShieldCheck,
@@ -115,9 +116,41 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   "Industriales": { bg: "#4A4A8A", text: "#ffffff" },
 };
 
+type HomeBlob = {
+  className: string;
+  animationDelay?: string;
+};
+
+const HOME_BLOBS: HomeBlob[] = [
+  { className: "animate-ambient-blob absolute left-[-8%] top-[4%] h-[420px] w-[420px] rounded-full bg-[#003F91]/16 blur-[120px] sm:h-[520px] sm:w-[520px]" },
+  { className: "animate-ambient-blob absolute left-[28%] top-[10%] h-[360px] w-[420px] rounded-full bg-[#00A8B5]/13 blur-[115px] sm:h-[460px] sm:w-[560px]", animationDelay: "-6s" },
+  { className: "animate-ambient-blob absolute right-[-8%] top-[6%] h-[420px] w-[420px] rounded-full bg-[#FFCD00]/18 blur-[120px] sm:h-[520px] sm:w-[520px]", animationDelay: "-10s" },
+  { className: "animate-ambient-blob absolute left-[12%] top-[34%] h-[320px] w-[420px] rounded-full bg-[#FF2E63]/10 blur-[120px] sm:h-[420px] sm:w-[540px]", animationDelay: "-14s" },
+  { className: "animate-ambient-blob absolute right-[10%] top-[42%] h-[320px] w-[420px] rounded-full bg-[#003F91]/10 blur-[120px] sm:h-[420px] sm:w-[540px]", animationDelay: "-18s" },
+  { className: "animate-ambient-blob absolute left-[22%] bottom-[12%] h-[360px] w-[460px] rounded-full bg-[#00A8B5]/10 blur-[125px] sm:h-[460px] sm:w-[620px]", animationDelay: "-8s" },
+];
+
+type AddToCartFn = (item: {
+  productId: string;
+  productName: string;
+  size?: string;
+  price?: number;
+  quantity: number;
+  hexCode?: string;
+}) => void;
+
+type AddFlyingItemFn = (item: {
+  productId: string;
+  imageUrl?: string;
+  hexCode?: string;
+  startX: number;
+  startY: number;
+}) => void;
+
 export default function Home() {
   const { addToCart, addFlyingItem } = useCart();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchQuery, setSearchQuery] = useState("");
   const [contactSent, setContactSent] = useState(false);
@@ -174,26 +207,67 @@ export default function Home() {
     void loadHomeSettings();
   }, [toast]);
 
-  const normalizedSearch = searchQuery.trim().toLowerCase();
-  const filtered = PRODUCTS.filter((product) => {
-    const matchesCategory =
-      activeCategory === "Todos" || product.category === activeCategory;
-    const matchesSearch =
-      normalizedSearch.length === 0 ||
-      product.name.toLowerCase().includes(normalizedSearch);
+  const normalizedSearch = useMemo(
+    () => searchQuery.trim().toLowerCase(),
+    [searchQuery],
+  );
+  const activeCategoryConfig = useMemo(
+    () => CATEGORY_COLORS[activeCategory],
+    [activeCategory],
+  );
+  const filteredProducts = useMemo(
+    () =>
+      PRODUCTS.filter((product) => {
+        const matchesCategory =
+          activeCategory === "Todos" || product.category === activeCategory;
+        const matchesSearch =
+          normalizedSearch.length === 0 ||
+          product.name.toLowerCase().includes(normalizedSearch);
 
-    return matchesCategory && matchesSearch;
-  });
+        return matchesCategory && matchesSearch;
+      }),
+    [activeCategory, normalizedSearch],
+  );
+  const visibleHomeBlobs = useMemo(
+    () => (isMobile ? HOME_BLOBS.slice(0, 3) : HOME_BLOBS),
+    [isMobile],
+  );
+  const handleCategoryChange = useCallback((category: string) => {
+    setActiveCategory((currentCategory) =>
+      currentCategory === category ? currentCategory : category,
+    );
+  }, []);
+  const categoryHandlers = useMemo(
+    () =>
+      Object.fromEntries(
+        CATEGORY_ORDER.map((category) => [
+          category,
+          () => handleCategoryChange(category),
+        ]),
+      ) as Record<string, () => void>,
+    [handleCategoryChange],
+  );
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(event.target.value);
+    },
+    [],
+  );
 
   return (
     <div id="inicio" className="relative overflow-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#fffdf8_32%,#ffffff_68%,#f8fbff_100%)]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="animate-ambient-blob absolute left-[-8%] top-[4%] h-[420px] w-[420px] rounded-full bg-[#003F91]/16 blur-[120px] sm:h-[520px] sm:w-[520px]" />
-        <div className="animate-ambient-blob absolute left-[28%] top-[10%] h-[360px] w-[420px] rounded-full bg-[#00A8B5]/13 blur-[115px] sm:h-[460px] sm:w-[560px]" style={{ animationDelay: "-6s" }} />
-        <div className="animate-ambient-blob absolute right-[-8%] top-[6%] h-[420px] w-[420px] rounded-full bg-[#FFCD00]/18 blur-[120px] sm:h-[520px] sm:w-[520px]" style={{ animationDelay: "-10s" }} />
-        <div className="animate-ambient-blob absolute left-[12%] top-[34%] h-[320px] w-[420px] rounded-full bg-[#FF2E63]/10 blur-[120px] sm:h-[420px] sm:w-[540px]" style={{ animationDelay: "-14s" }} />
-        <div className="animate-ambient-blob absolute right-[10%] top-[42%] h-[320px] w-[420px] rounded-full bg-[#003F91]/10 blur-[120px] sm:h-[420px] sm:w-[540px]" style={{ animationDelay: "-18s" }} />
-        <div className="animate-ambient-blob absolute left-[22%] bottom-[12%] h-[360px] w-[460px] rounded-full bg-[#00A8B5]/10 blur-[125px] sm:h-[460px] sm:w-[620px]" style={{ animationDelay: "-8s" }} />
+        {visibleHomeBlobs.map((blob) => (
+          <div
+            key={blob.className}
+            className={blob.className}
+            style={
+              blob.animationDelay
+                ? { animationDelay: blob.animationDelay }
+                : undefined
+            }
+          />
+        ))}
       </div>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.28)_0%,rgba(255,255,255,0.08)_24%,rgba(255,255,255,0.02)_46%,rgba(255,255,255,0.1)_100%)]" />
       {/* El hero ya no está aquí - está en App.tsx como parte del flujo de scroll */}
@@ -269,7 +343,7 @@ export default function Home() {
                 return (
                   <motion.button
                     key={cat}
-                    onClick={() => setActiveCategory(cat)}
+                    onClick={categoryHandlers[cat]}
                     initial={{ opacity: 0, scale: 0.9 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
@@ -293,9 +367,10 @@ export default function Home() {
             <div className="relative z-10 w-full max-w-xl">
               <input
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={handleSearchChange}
                 placeholder="Buscar color..."
                 className="w-full rounded-2xl border border-slate-200 bg-white/90 px-5 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                aria-label={`Buscar color dentro de ${activeCategoryConfig ? activeCategory : "todos los productos"}`}
               />
             </div>
 
@@ -307,7 +382,7 @@ export default function Home() {
             className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           >
             <AnimatePresence mode="wait">
-              {filtered.map((product, idx) => (
+              {filteredProducts.map((product, idx) => (
                 <motion.div
                   key={product.id}
                   layout
@@ -324,14 +399,13 @@ export default function Home() {
                     product={product}
                     addToCart={addToCart}
                     addFlyingItem={addFlyingItem}
-                    index={idx}
                   />
                 </motion.div>
               ))}
             </AnimatePresence>
           </motion.div>
 
-          {filtered.length === 0 && (
+          {filteredProducts.length === 0 && (
             <div className="text-center py-20 text-muted-foreground">
               No hay productos disponibles con esos filtros.
             </div>
@@ -388,7 +462,6 @@ export default function Home() {
                         product={product}
                         addToCart={addToCart}
                         addFlyingItem={addFlyingItem}
-                        index={idx}
                       />
                     </motion.div>
                   ))}
@@ -532,7 +605,9 @@ export default function Home() {
                 <img
                   src={`${import.meta.env.BASE_URL}images/color-splash.png`}
                   alt="Colorantes Tropicolors"
-                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  className="mx-auto h-full w-full max-w-[1200px] object-cover"
                 />
               </div>
               <div className="absolute -bottom-6 -left-6 bg-[#FFCD00] rounded-2xl px-7 py-5 shadow-2xl">
@@ -766,16 +841,14 @@ function FloatingWhatsApp() {
 }
 
 /* ── Glass Product Card ── */
-function ProductCard({
+const ProductCard = React.memo(function ProductCard({
   product,
   addToCart,
   addFlyingItem,
-  index,
 }: {
   product: Product;
-  addToCart: (item: any) => void;
-  addFlyingItem: (item: { productId: string; imageUrl?: string; hexCode?: string; startX: number; startY: number }) => void;
-  index: number;
+  addToCart: AddToCartFn;
+  addFlyingItem: AddFlyingItemFn;
 }) {
   const availableConcentrations = useMemo(
     () =>
@@ -796,24 +869,63 @@ function ProductCard({
   }, [availableConcentrations, selectedConcentration]);
 
   const prices = product.prices[selectedConcentration];
-  const availablePresentations = prices
-    ? PRESENTATIONS.map((label, i) => ({ label, price: prices[i] })).filter(p => p.price > 0)
-    : [];
+  const availablePresentations = useMemo(
+    () =>
+      prices
+        ? PRESENTATIONS.map((label, i) => ({ label, price: prices[i] })).filter(
+            (presentation) => presentation.price > 0,
+          )
+        : [],
+    [prices],
+  );
 
   useEffect(() => {
     setSelectedIdx(0);
   }, [selectedConcentration]);
 
-  const selected = availablePresentations[selectedIdx] ?? availablePresentations[0];
-  const notAvailable = !prices || availablePresentations.length === 0;
-  const unitPriceLabel = selected
-    ? getUnitPriceLabel(selected.label, selected.price)
-    : null;
+  const selected = useMemo(
+    () => availablePresentations[selectedIdx] ?? availablePresentations[0],
+    [availablePresentations, selectedIdx],
+  );
+  const notAvailable = useMemo(
+    () => !prices || availablePresentations.length === 0,
+    [availablePresentations.length, prices],
+  );
+  const unitPriceLabel = useMemo(
+    () =>
+      selected ? getUnitPriceLabel(selected.label, selected.price) : null,
+    [selected],
+  );
+  const handleAddToCart = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const startX = rect.left + rect.width / 2;
+      const startY = rect.top;
+
+      addFlyingItem({
+        productId: product.id,
+        imageUrl: undefined,
+        hexCode: product.hex,
+        startX,
+        startY,
+      });
+
+      addToCart({
+        productId: product.id,
+        productName: `${product.name} C-${selectedConcentration}`,
+        size: selected?.label,
+        price: selected?.price,
+        quantity: 1,
+        hexCode: product.hex,
+      });
+    },
+    [addFlyingItem, addToCart, product, selected, selectedConcentration],
+  );
 
   return (
     <motion.div
       layout
-      className="relative rounded-2xl overflow-hidden flex flex-col group bg-white hover:-translate-y-1 transition-all duration-300"
+      className="relative overflow-hidden rounded-2xl bg-white transition-all duration-300 will-change-transform hover:-translate-y-1"
       style={{
         boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)",
       }}
@@ -917,31 +1029,7 @@ function ProductCard({
             {/* Actions */}
             <div className="flex gap-2">
               <button
-                onClick={(e) => {
-                  // Get click position for fly animation
-                  const rect = (e.target as HTMLElement).getBoundingClientRect();
-                  const startX = rect.left + rect.width / 2;
-                  const startY = rect.top;
-
-                  // Trigger fly animation with product color
-                  addFlyingItem({
-                    productId: product.id,
-                    imageUrl: undefined,
-                    hexCode: product.hex,
-                    startX,
-                    startY,
-                  });
-
-                  // Add to cart
-                  addToCart({
-                    productId: product.id,
-                    productName: `${product.name} C-${selectedConcentration}`,
-                    size: selected?.label,
-                    price: selected?.price,
-                    quantity: 1,
-                    hexCode: product.hex,
-                  });
-                }}
+                onClick={handleAddToCart}
                 className="flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all duration-200 hover:opacity-90 active:scale-95"
                 style={{ background: product.hex, color: product.textColor }}
               >
@@ -963,4 +1051,4 @@ function ProductCard({
       </div>
     </motion.div>
   );
-}
+});
