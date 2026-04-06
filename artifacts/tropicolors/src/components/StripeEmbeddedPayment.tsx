@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   CheckoutElementsProvider,
   PaymentElement,
@@ -118,7 +118,7 @@ function InnerPaymentForm({
   );
 }
 
-export function StripeEmbeddedPayment({
+export const StripeEmbeddedPayment = React.memo(function StripeEmbeddedPayment({
   publishableKey,
   clientSecret,
   amount,
@@ -171,4 +171,4 @@ export function StripeEmbeddedPayment({
       </CheckoutElementsProvider>
     </div>
   );
-}
+});

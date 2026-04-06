@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -224,6 +224,44 @@ const initialCardValues: CardFormData = {
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const rfcRegex = /^([A-Z&Ñ]{3}|[A-Z&Ñ]{4})\d{6}[A-Z0-9]{3}$/;
+const checkoutFields: CheckoutFieldName[] = [
+  "customerName",
+  "customerEmail",
+  "customerPhone",
+  "customerRfc",
+  "shippingAddress",
+  "shippingExteriorNumber",
+  "shippingInteriorNumber",
+  "shippingPostalCode",
+  "shippingNeighborhood",
+  "shippingMunicipality",
+  "shippingState",
+];
+const paymentOptions: Array<{
+  id: PaymentMethod;
+  title: string;
+  description: string;
+  icon: typeof CreditCard;
+}> = [
+  {
+    id: "card",
+    title: "Tarjeta bancaria",
+    description: "Visa, Mastercard y debito",
+    icon: CreditCard,
+  },
+  {
+    id: "oxxo",
+    title: "Pago con OXXO",
+    description: "Referencia generada al confirmar",
+    icon: Store,
+  },
+  {
+    id: "transfer",
+    title: "Transferencia",
+    description: "SPEI o deposito bancario",
+    icon: Landmark,
+  },
+];
 
 function buildShippingAddress(data: {
   shippingAddress?: string;
@@ -331,21 +369,7 @@ function validateCheckoutForm(
 ): CheckoutFormErrors {
   const nextErrors: CheckoutFormErrors = {};
 
-  (
-    [
-      "customerName",
-      "customerEmail",
-      "customerPhone",
-      "customerRfc",
-      "shippingAddress",
-      "shippingExteriorNumber",
-      "shippingInteriorNumber",
-      "shippingPostalCode",
-      "shippingNeighborhood",
-      "shippingMunicipality",
-      "shippingState",
-    ] as CheckoutFieldName[]
-  ).forEach((field) => {
+  checkoutFields.forEach((field) => {
     const error = validateCheckoutField(field, values, context);
     if (error) {
       nextErrors[field] = error;
@@ -438,7 +462,7 @@ function validateCardForm(values: CardFormData): CardFormErrors {
   return nextErrors;
 }
 
-function CheckoutModal({
+const CheckoutModal = React.memo(function CheckoutModal({
   open,
   items,
   cartTotal,
@@ -526,6 +550,36 @@ function CheckoutModal({
   const isPostalCodeReady = validationContext.hasPostalCodeData;
   const shouldDisableLocationFields =
     (!isPostalCodeReady && !modeManual) || isPostalCodeLoading;
+  const validationErrors = useMemo(
+    () => validateCheckoutForm(formValues, validationContext),
+    [formValues, validationContext],
+  );
+  const itemCount = useMemo(
+    () => items.reduce((sum, item) => sum + item.quantity, 0),
+    [items],
+  );
+  const selectedPaymentOption = useMemo(
+    () =>
+      paymentOptions.find((option) => option.id === selectedPaymentMethod) ||
+      null,
+    [selectedPaymentMethod],
+  );
+  const fieldValidity = useMemo(() => {
+    const nextValidity: Partial<Record<CheckoutFieldName, boolean>> = {};
+
+    checkoutFields.forEach((field) => {
+      if (field === "requiresInvoice") {
+        return;
+      }
+
+      const fieldValue = formValues[field];
+      nextValidity[field] =
+        typeof fieldValue === "string" &&
+        Boolean(hasAttemptedSubmit && !validationErrors[field] && fieldValue.trim());
+    });
+
+    return nextValidity;
+  }, [formValues, hasAttemptedSubmit, validationErrors]);
 
   const updateFieldError = (
     field: CheckoutFieldName,
@@ -735,11 +789,6 @@ function CheckoutModal({
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setHasAttemptedSubmit(true);
-
-    const validationErrors = validateCheckoutForm(
-      formValues,
-      validationContext,
-    );
     setErrors(validationErrors);
 
     if (
@@ -841,15 +890,6 @@ function CheckoutModal({
     };
   }, [open, selectedPaymentMethod, step, stripeClientSecret, stripeOrderId]);
 
-  const isFieldValid = (field: CheckoutFieldName) => {
-    if (field === "requiresInvoice") return false;
-
-    const fieldValue = formValues[field];
-    return (
-      typeof fieldValue === "string" &&
-      Boolean(hasAttemptedSubmit && !errors[field] && fieldValue.trim())
-    );
-  };
   const showNeighborhoodSelect = !modeManual && colonias.length > 1;
   const neighborhoodLockedByLookup = !modeManual && colonias.length === 1;
   const brandLogoSrc = `${import.meta.env.BASE_URL}logo-tropicolors.png`;
@@ -874,32 +914,6 @@ function CheckoutModal({
       setPaymentResult({ orderId: response.orderId });
     }
   };
-
-  const paymentOptions: Array<{
-    id: PaymentMethod;
-    title: string;
-    description: string;
-    icon: typeof CreditCard;
-  }> = [
-    {
-      id: "card",
-      title: "Tarjeta bancaria",
-      description: "Visa, Mastercard y debito",
-      icon: CreditCard,
-    },
-    {
-      id: "oxxo",
-      title: "Pago con OXXO",
-      description: "Referencia generada al confirmar",
-      icon: Store,
-    },
-    {
-      id: "transfer",
-      title: "Transferencia",
-      description: "SPEI o deposito bancario",
-      icon: Landmark,
-    },
-  ];
 
   return (
     <AnimatePresence>
@@ -1034,8 +1048,8 @@ function CheckoutModal({
                   <div className="relative mt-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 shadow-lg shadow-slate-950/20 backdrop-blur-sm">
                     <div className="flex items-center justify-between text-sm text-slate-300">
                       <span>Productos</span>
-                      <span>
-                        {items.reduce((sum, item) => sum + item.quantity, 0)}
+                        <span>
+                        {itemCount}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
@@ -1105,7 +1119,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<UserRound className="h-4 w-4" />}
                             hasError={Boolean(errors.customerName)}
-                            isValid={isFieldValid("customerName")}
+                            isValid={Boolean(fieldValidity.customerName)}
                           >
                             <input
                               value={formValues.customerName}
@@ -1131,7 +1145,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<Mail className="h-4 w-4" />}
                             hasError={Boolean(errors.customerEmail)}
-                            isValid={isFieldValid("customerEmail")}
+                            isValid={Boolean(fieldValidity.customerEmail)}
                           >
                             <input
                               value={formValues.customerEmail}
@@ -1158,7 +1172,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<Phone className="h-4 w-4" />}
                             hasError={Boolean(errors.customerPhone)}
-                            isValid={isFieldValid("customerPhone")}
+                            isValid={Boolean(fieldValidity.customerPhone)}
                           >
                             <input
                               value={formValues.customerPhone}
@@ -1217,7 +1231,7 @@ function CheckoutModal({
                             <FieldShell
                               icon={<Building2 className="h-4 w-4" />}
                               hasError={Boolean(errors.customerRfc)}
-                              isValid={isFieldValid("customerRfc")}
+                              isValid={Boolean(fieldValidity.customerRfc)}
                             >
                               <input
                                 value={formValues.customerRfc}
@@ -1248,7 +1262,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<MapPinHouse className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingAddress)}
-                            isValid={isFieldValid("shippingAddress")}
+                            isValid={Boolean(fieldValidity.shippingAddress)}
                           >
                             <input
                               value={formValues.shippingAddress}
@@ -1274,7 +1288,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<Building2 className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingExteriorNumber)}
-                            isValid={isFieldValid("shippingExteriorNumber")}
+                            isValid={Boolean(fieldValidity.shippingExteriorNumber)}
                           >
                             <input
                               value={formValues.shippingExteriorNumber}
@@ -1302,7 +1316,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<Building2 className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingInteriorNumber)}
-                            isValid={isFieldValid("shippingInteriorNumber")}
+                            isValid={Boolean(fieldValidity.shippingInteriorNumber)}
                           >
                             <input
                               value={formValues.shippingInteriorNumber}
@@ -1330,7 +1344,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<MapPinned className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingPostalCode)}
-                            isValid={isFieldValid("shippingPostalCode")}
+                            isValid={Boolean(fieldValidity.shippingPostalCode)}
                           >
                             <input
                               value={formValues.shippingPostalCode}
@@ -1377,7 +1391,7 @@ function CheckoutModal({
                             <FieldShell
                               icon={<Building2 className="h-4 w-4" />}
                               hasError={Boolean(errors.shippingNeighborhood)}
-                              isValid={isFieldValid("shippingNeighborhood")}
+                              isValid={Boolean(fieldValidity.shippingNeighborhood)}
                               disabled={shouldDisableLocationFields}
                             >
                               <select
@@ -1413,7 +1427,7 @@ function CheckoutModal({
                             <FieldShell
                               icon={<Building2 className="h-4 w-4" />}
                               hasError={Boolean(errors.shippingNeighborhood)}
-                              isValid={isFieldValid("shippingNeighborhood")}
+                              isValid={Boolean(fieldValidity.shippingNeighborhood)}
                               disabled={
                                 shouldDisableLocationFields ||
                                 neighborhoodLockedByLookup
@@ -1468,7 +1482,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<Landmark className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingMunicipality)}
-                            isValid={isFieldValid("shippingMunicipality")}
+                            isValid={Boolean(fieldValidity.shippingMunicipality)}
                             disabled={!modeManual}
                           >
                             <input
@@ -1504,7 +1518,7 @@ function CheckoutModal({
                           <FieldShell
                             icon={<Landmark className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingState)}
-                            isValid={isFieldValid("shippingState")}
+                            isValid={Boolean(fieldValidity.shippingState)}
                             disabled={!modeManual}
                           >
                             <input
@@ -1671,9 +1685,7 @@ function CheckoutModal({
                           Metodo de pago seleccionado
                         </p>
                         <p className="mt-2 text-sm text-slate-500">
-                          {paymentOptions.find(
-                            (option) => option.id === selectedPaymentMethod,
-                          )?.title || "Metodo no seleccionado"}
+                          {selectedPaymentOption?.title || "Metodo no seleccionado"}
                         </p>
                       </div>
 
@@ -1764,7 +1776,7 @@ function CheckoutModal({
       )}
     </AnimatePresence>
   );
-}
+});
 
 export function CartDrawer() {
   const {
@@ -1780,8 +1792,12 @@ export function CartDrawer() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const stripeReturnHandledRef = useRef<string | null>(null);
+  const itemCount = useMemo(
+    () => items.reduce((sum, item) => sum + item.quantity, 0),
+    [items],
+  );
 
-  const confirmStripeOrder = async (
+  const confirmStripeOrder = useCallback(async (
     sessionId: string,
     orderId: string,
   ): Promise<string> => {
@@ -1853,7 +1869,7 @@ export function CartDrawer() {
     }
 
     return order.orderNumber || order.id;
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (isCartOpen) {
@@ -1959,7 +1975,7 @@ export function CartDrawer() {
     };
   }, [clearCart, confirmStripeOrder, setIsCartOpen, toast]);
 
-  const onSubmit = async (
+  const onSubmit = useCallback(async (
     data: CheckoutFormData,
     paymentMethod: PaymentMethod,
     cardData: CardFormData | null,
@@ -2135,9 +2151,9 @@ export function CartDrawer() {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [cartTotal, items, toast]);
 
-  const handleFinalizeCheckout = () => {
+  const handleFinalizeCheckout = useCallback(() => {
     clearCart();
     setIsCheckoutModalOpen(false);
     setIsCartOpen(false);
@@ -2145,7 +2161,10 @@ export function CartDrawer() {
       title: "Pedido realizado con exito",
       description: "Tu pedido ha sido procesado correctamente.",
     });
-  };
+  }, [clearCart, setIsCartOpen, toast]);
+  const handleCloseCheckoutModal = useCallback(() => {
+    setIsCheckoutModalOpen(false);
+  }, []);
 
   return (
     <AnimatePresence>
@@ -2173,7 +2192,7 @@ export function CartDrawer() {
                   Tu Carrito
                 </span>
                 <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-medium text-white">
-                  {items.reduce((sum, item) => sum + item.quantity, 0)}
+                  {itemCount}
                 </span>
               </div>
               <button
@@ -2300,16 +2319,18 @@ export function CartDrawer() {
             )}
           </motion.div>
 
-          <CheckoutModal
-            open={isCheckoutModalOpen}
-            items={items}
-            cartTotal={cartTotal}
-            isProcessing={isProcessing}
-            onSubmit={onSubmit}
-            onConfirmCardPayment={confirmStripeOrder}
-            onFinalize={handleFinalizeCheckout}
-            onClose={() => setIsCheckoutModalOpen(false)}
-          />
+          {isCheckoutModalOpen ? (
+            <CheckoutModal
+              open={isCheckoutModalOpen}
+              items={items}
+              cartTotal={cartTotal}
+              isProcessing={isProcessing}
+              onSubmit={onSubmit}
+              onConfirmCardPayment={confirmStripeOrder}
+              onFinalize={handleFinalizeCheckout}
+              onClose={handleCloseCheckoutModal}
+            />
+          ) : null}
         </>
       )}
     </AnimatePresence>

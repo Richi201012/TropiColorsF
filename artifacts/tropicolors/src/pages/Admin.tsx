@@ -3365,7 +3365,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Tabs */}
-        <div className="flex gap-1 bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-border/30 shadow-sm mb-4 w-fit">
+        <div className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-border/30 bg-white/60 p-1 shadow-sm backdrop-blur-sm sm:flex sm:w-fit">
           {(
             [
               { key: "resumen", label: "Resumen", icon: LayoutDashboard },
@@ -3379,7 +3379,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               key={tab.key}
               onClick={() => handleViewChange(tab.key)}
               className={`
-                relative isolate flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300
+                relative isolate flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 py-3 text-center text-sm font-bold transition-all duration-300 sm:min-h-0 sm:justify-start sm:px-6
                 ${
                   vistaActiva === tab.key
                     ? "bg-slate-950 text-white shadow-sm hover:bg-slate-900"
@@ -3387,7 +3387,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 }
               `}
             >
-              <span className="relative z-10 flex items-center gap-2">
+              <span className="relative z-10 flex items-center gap-2 whitespace-nowrap">
                 <tab.icon size={16} />
                 {tab.label}
               </span>

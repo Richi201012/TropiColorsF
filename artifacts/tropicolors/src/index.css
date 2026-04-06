@@ -328,6 +328,7 @@
 .animate-particle {
   animation: particle-float var(--duration, 8s) ease-in-out infinite;
   animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
 }
 
 .animate-gradient {
@@ -341,11 +342,13 @@
 
 .animate-powder-drift {
   animation: powder-drift 14s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .animate-powder-swirl {
   animation: powder-swirl 18s ease-in-out infinite;
   transform-origin: center;
+  will-change: transform;
 }
 
 .animate-ambient-blob {
@@ -400,8 +403,26 @@
   .animate-float-gentle,
   .animate-pulse-ring,
   .animate-glow-pulse,
-  .animate-ambient-blob {
+  .animate-ambient-blob,
+  .animate-powder-drift,
+  .animate-powder-swirl {
     animation: none;
     opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-particle,
+  .animate-float-gentle,
+  .animate-pulse-ring,
+  .animate-glow-pulse,
+  .animate-ambient-blob,
+  .animate-powder-drift,
+  .animate-powder-swirl {
+    animation: none !important;
   }
 }
