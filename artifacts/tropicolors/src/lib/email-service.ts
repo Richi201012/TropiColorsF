@@ -3,6 +3,8 @@
  * El proxy en vite.config.ts redirige /api → http://localhost:3000
  */
 
+import { apiUrl } from "@/lib/api";
+
 export type ProductoPedido = {
   nombre: string;
   cantidad: number;
@@ -93,7 +95,7 @@ export async function enviarCorreoConfirmacion(
       };
     }
 
-    const url = "/api/enviar-correo-pedido";
+    const url = apiUrl("/api/enviar-correo-pedido");
     console.log("[Email Service] URL:", url);
 
     const response = await fetch(url, {
@@ -162,7 +164,7 @@ export async function enviarCorreoEstadoPedido(
       };
     }
 
-    const url = "/api/enviar-correo-estado";
+    const url = apiUrl("/api/enviar-correo-estado");
     console.log("[Email Estado] URL:", url);
 
     const response = await fetch(url, {
@@ -235,7 +237,7 @@ export async function enviarFacturaCorreo(
       };
     }
 
-    const url = "/api/enviar-correo-factura";
+    const url = apiUrl("/api/enviar-correo-factura");
     console.log("[Email Factura] URL:", url);
 
     const response = await fetch(url, {
@@ -300,7 +302,7 @@ export async function enviarMensajeContacto(
       };
     }
 
-    const response = await fetch("/api/enviar-correo-contacto", {
+    const response = await fetch(apiUrl("/api/enviar-correo-contacto"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

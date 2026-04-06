@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { createOrder } from "@/services/order-service";
 import { createNotification } from "@/services/notification-service";
+import { apiUrl } from "@/lib/api";
 import { enviarCorreoConfirmacion } from "@/lib/email-service";
 import { StripeEmbeddedPayment } from "@/components/StripeEmbeddedPayment";
 
@@ -772,7 +773,7 @@ function CheckoutModal({
       setStripeError(null);
 
       try {
-        const configResponse = await fetch("/api/checkout/config");
+        const configResponse = await fetch(apiUrl("/api/checkout/config"));
         const configText = await configResponse.text();
         let configPayload: { error?: string; publishableKey?: string } = {};
 
@@ -1785,7 +1786,9 @@ export function CartDrawer() {
     orderId: string,
   ): Promise<string> => {
     const response = await fetch(
-      `/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}&order_id=${encodeURIComponent(orderId)}`,
+      apiUrl(
+        `/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}&order_id=${encodeURIComponent(orderId)}`,
+      ),
     );
     const payload = (await response.json()) as {
       error?: string;
@@ -1969,7 +1972,7 @@ export function CartDrawer() {
 
     try {
       if (paymentMethod === "card") {
-        const response = await fetch("/api/checkout", {
+        const response = await fetch(apiUrl("/api/checkout"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
