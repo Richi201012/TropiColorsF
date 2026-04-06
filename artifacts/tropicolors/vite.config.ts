@@ -33,6 +33,63 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+
+          if (!normalizedId.includes("node_modules")) {
+            return undefined;
+          }
+
+          if (
+            normalizedId.includes("/node_modules/react/") ||
+            normalizedId.includes("/node_modules/react-dom/") ||
+            normalizedId.includes("/node_modules/scheduler/")
+          ) {
+            return "framework";
+          }
+
+          if (
+            normalizedId.includes("/node_modules/wouter/") ||
+            normalizedId.includes("/node_modules/@tanstack/")
+          ) {
+            return "app-shell";
+          }
+
+          if (
+            normalizedId.includes("/node_modules/@radix-ui/") ||
+            normalizedId.includes("/node_modules/lucide-react/") ||
+            normalizedId.includes("/node_modules/class-variance-authority/") ||
+            normalizedId.includes("/node_modules/clsx/") ||
+            normalizedId.includes("/node_modules/tailwind-merge/")
+          ) {
+            return "ui";
+          }
+
+          if (normalizedId.includes("/node_modules/firebase/")) {
+            return "firebase";
+          }
+
+          if (normalizedId.includes("/node_modules/@stripe/")) {
+            return "stripe";
+          }
+
+          if (normalizedId.includes("/node_modules/framer-motion/")) {
+            return "motion";
+          }
+
+          if (
+            normalizedId.includes("/node_modules/recharts/") ||
+            normalizedId.includes("/node_modules/d3-")
+          ) {
+            return "charts";
+          }
+
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port,

@@ -39,6 +39,8 @@ export async function createApp(): Promise<Express> {
   const router = await createRouter();
   const frontendPublicDir = resolveFrontendPublicDir();
 
+  app.disable("x-powered-by");
+
   app.use(
     pinoHttp({
       logger,
@@ -77,17 +79,41 @@ export async function createApp(): Promise<Express> {
       allowedHeaders: ["Content-Type", "Authorization"],
     }),
   );
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use((_, res, next) => {
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()",
+    );
+
+    next();
+  });
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
   app.use(
     "/data",
-    express.static(path.join(frontendPublicDir, "data")),
+    express.static(path.join(frontendPublicDir, "data"), {
+      maxAge: "1h",
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "public, max-age=3600");
+      },
+    }),
   );
 
   app.use(
     "/images",
-    express.static(frontendPublicDir),
+    express.static(frontendPublicDir, {
+      maxAge: "7d",
+      setHeaders(res, filePath) {
+        if (/\.(png|jpg|jpeg|webp|svg)$/i.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=604800");
+        }
+      },
+    }),
   );
 
   app.use("/api", router);

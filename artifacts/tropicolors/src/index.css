@@ -132,6 +132,8 @@
     scroll-margin-top: 5rem;
     padding-top: 4rem;
     padding-bottom: 3rem;
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 900px;
   }
 }
 

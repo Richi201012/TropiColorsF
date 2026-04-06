@@ -619,8 +619,6 @@ export default function Home() {
         </div>
       </motion.section>
 
-      <FloatingWhatsApp />
-
       {/* ── BENEFICIOS ── */}
       <motion.section 
         id="beneficios" 
@@ -823,21 +821,6 @@ function getUnitPriceLabel(label: string, price: number): string | null {
   }
 
   return `($${(price / pieces).toFixed(2)} c/u)`;
-}
-
-function FloatingWhatsApp() {
-  return (
-    <a
-      href="https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20colorantes%20Tropicolors"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_16px_40px_rgba(37,211,102,0.38)] transition hover:scale-105 hover:shadow-[0_20px_50px_rgba(37,211,102,0.42)]"
-      aria-label="Contactar por WhatsApp"
-      title="WhatsApp"
-    >
-      <MessageCircle size={28} />
-    </a>
-  );
 }
 
 /* ── Glass Product Card ── */
