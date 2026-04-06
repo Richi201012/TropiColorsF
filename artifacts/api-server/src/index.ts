@@ -16,8 +16,13 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const app = await createApp();
-
-app.listen(port, () => {
-  logger.info({ port }, "Server listening");
-});
+void createApp()
+  .then((app) => {
+    app.listen(port, () => {
+      logger.info({ port }, "Server listening");
+    });
+  })
+  .catch((error) => {
+    logger.error(error, "Failed to initialize app");
+    process.exit(1);
+  });

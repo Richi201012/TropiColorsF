@@ -3,11 +3,8 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import { createRouter } from "./routes";
 import { logger } from "./lib/logger";
+import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const rawAllowedOrigins = process.env["CORS_ALLOWED_ORIGINS"] ?? "";
 const configuredAllowedOrigins = rawAllowedOrigins
   .split(",")
@@ -26,9 +23,21 @@ const allowedOrigins =
       ? []
       : defaultDevOrigins;
 
+function resolveFrontendPublicDir(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "artifacts", "tropicolors", "public"),
+    path.resolve(process.cwd(), "..", "tropicolors", "public"),
+  ];
+
+  const match = candidates.find((candidate) => fs.existsSync(candidate));
+
+  return match ?? candidates[0];
+}
+
 export async function createApp(): Promise<Express> {
   const app: Express = express();
   const router = await createRouter();
+  const frontendPublicDir = resolveFrontendPublicDir();
 
   app.use(
     pinoHttp({
@@ -73,12 +82,12 @@ export async function createApp(): Promise<Express> {
 
   app.use(
     "/data",
-    express.static(path.join(__dirname, "../../tropicolors/public/data")),
+    express.static(path.join(frontendPublicDir, "data")),
   );
 
   app.use(
     "/images",
-    express.static(path.join(__dirname, "../../tropicolors/public")),
+    express.static(frontendPublicDir),
   );
 
   app.use("/api", router);
