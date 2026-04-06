@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { enviarMensajeContacto } from "@/lib/email-service";
@@ -101,7 +101,7 @@ export default function Home() {
   const { addToCart, addFlyingItem } = useCart();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("Todos");
-  const [concentration, setConcentration] = useState<Concentration>("125");
+  const [searchQuery, setSearchQuery] = useState("");
   const [contactSent, setContactSent] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ContactForm>({
@@ -131,7 +131,16 @@ export default function Home() {
     reset();
   };
 
-  const filtered = PRODUCTS.filter(p => activeCategory === "Todos" || p.category === activeCategory);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filtered = PRODUCTS.filter((product) => {
+    const matchesCategory =
+      activeCategory === "Todos" || product.category === activeCategory;
+    const matchesSearch =
+      normalizedSearch.length === 0 ||
+      product.name.toLowerCase().includes(normalizedSearch);
+
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div id="inicio" className="relative overflow-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#fffdf8_32%,#ffffff_68%,#f8fbff_100%)]">
@@ -238,57 +247,14 @@ export default function Home() {
               })}
             </div>
 
-            {/* Separador */}
-            <div className="relative z-10 flex w-full max-w-sm items-center gap-3">
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-              <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest whitespace-nowrap">Concentración</span>
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+            <div className="relative z-10 w-full max-w-xl">
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Buscar color..."
+                className="w-full rounded-2xl border border-slate-200 bg-white/90 px-5 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+              />
             </div>
-
-            {/* Fila 2: Concentraciones - Premium iOS Segmented Control */}
-            <motion.div 
-              className="relative z-10 flex items-center rounded-2xl bg-gray-100/80 p-1 backdrop-blur-sm"
-              style={{
-                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03)"
-              }}
-              whileHover={{ boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.06)" }}
-              transition={{ duration: 0.2 }}
-            >
-              {(["125", "250"] as Concentration[]).map((c, index) => {
-                const isActive = concentration === c;
-                return (
-                  <motion.button
-                    key={c}
-                    onClick={() => setConcentration(c)}
-                    className="relative cursor-pointer overflow-hidden whitespace-nowrap rounded-[14px] px-8 py-3 text-xs font-bold sm:px-10"
-                    whileHover={{ 
-                      backgroundColor: isActive ? undefined : "rgba(0,0,0,0.03)"
-                    }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    <motion.div
-                      layoutId="concentrationToggle"
-                      className="absolute inset-0"
-                      style={{
-                        backgroundColor: isActive ? "#ffffff" : "transparent",
-                        boxShadow: isActive ? "0 2px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)" : "none",
-                        borderRadius: "12px"
-                      }}
-                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                    />
-                    <span 
-                      className="relative z-10 transition-colors duration-200"
-                      style={{ 
-                        color: isActive ? "#003F91" : "#6b7280",
-                        fontWeight: isActive ? 700 : 500
-                      }}
-                    >
-                      {c}g
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </motion.div>
 
           </motion.div>
 
@@ -313,8 +279,6 @@ export default function Home() {
                 >
                   <ProductCard
                     product={product}
-                    prices={product.prices[concentration]}
-                    concentration={concentration}
                     addToCart={addToCart}
                     addFlyingItem={addFlyingItem}
                     index={idx}
@@ -326,7 +290,7 @@ export default function Home() {
 
           {filtered.length === 0 && (
             <div className="text-center py-20 text-muted-foreground">
-              No hay productos disponibles en esta categoría con concentración {concentration}.
+              No hay productos disponibles con esos filtros.
             </div>
           )}
         </div>
@@ -476,6 +440,8 @@ export default function Home() {
           </div>
         </div>
       </motion.section>
+
+      <FloatingWhatsApp />
 
       {/* ── BENEFICIOS ── */}
       <motion.section 
@@ -663,30 +629,83 @@ export default function Home() {
   );
 }
 
+function getPiecesFromLabel(label: string): number | null {
+  const match = label.match(/\((\d+)\s*pz\)/i);
+  return match ? Number(match[1]) : null;
+}
+
+function getUnitPriceLabel(label: string, price: number): string | null {
+  if (/KG/i.test(label)) {
+    return null;
+  }
+
+  const pieces = getPiecesFromLabel(label);
+  if (!pieces || pieces <= 0) {
+    return null;
+  }
+
+  return `($${(price / pieces).toFixed(2)} c/u)`;
+}
+
+function FloatingWhatsApp() {
+  return (
+    <a
+      href="https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20colorantes%20Tropicolors"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_16px_40px_rgba(37,211,102,0.38)] transition hover:scale-105 hover:shadow-[0_20px_50px_rgba(37,211,102,0.42)]"
+      aria-label="Contactar por WhatsApp"
+      title="WhatsApp"
+    >
+      <MessageCircle size={28} />
+    </a>
+  );
+}
+
 /* ── Glass Product Card ── */
 function ProductCard({
   product,
-  prices,
-  concentration,
   addToCart,
   addFlyingItem,
   index,
 }: {
   product: Product;
-  prices: [number, number, number, number, number] | undefined;
-  concentration: Concentration;
   addToCart: (item: any) => void;
   addFlyingItem: (item: { productId: string; imageUrl?: string; hexCode?: string; startX: number; startY: number }) => void;
   index: number;
 }) {
+  const availableConcentrations = useMemo(
+    () =>
+      (["125", "250"] as Concentration[]).filter((value) =>
+        (product.prices[value] || []).some((price) => price > 0),
+      ),
+    [product.prices],
+  );
+  const [selectedConcentration, setSelectedConcentration] =
+    useState<Concentration>(availableConcentrations[0] || "125");
   const [selectedIdx, setSelectedIdx] = useState(0);
 
+  useEffect(() => {
+    if (!availableConcentrations.includes(selectedConcentration)) {
+      setSelectedConcentration(availableConcentrations[0] || "125");
+      setSelectedIdx(0);
+    }
+  }, [availableConcentrations, selectedConcentration]);
+
+  const prices = product.prices[selectedConcentration];
   const availablePresentations = prices
     ? PRESENTATIONS.map((label, i) => ({ label, price: prices[i] })).filter(p => p.price > 0)
     : [];
 
+  useEffect(() => {
+    setSelectedIdx(0);
+  }, [selectedConcentration]);
+
   const selected = availablePresentations[selectedIdx] ?? availablePresentations[0];
   const notAvailable = !prices || availablePresentations.length === 0;
+  const unitPriceLabel = selected
+    ? getUnitPriceLabel(selected.label, selected.price)
+    : null;
 
   return (
     <motion.div
@@ -721,12 +740,23 @@ function ProductCard({
           <div className="min-w-0">
             <h3 className="text-sm font-extrabold text-[#003F91] leading-tight">{product.name}</h3>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <span
-                className="text-[10px] font-extrabold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: "#003F91", color: "#fff" }}
-              >
-                Conc. {concentration}
-              </span>
+              {availableConcentrations.map((value) => {
+                const isActive = selectedConcentration === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSelectedConcentration(value)}
+                    className="text-[10px] font-extrabold px-2 py-0.5 rounded-full transition-all"
+                    style={{
+                      backgroundColor: isActive ? "#003F91" : "#E8EEF8",
+                      color: isActive ? "#fff" : "#003F91",
+                    }}
+                  >
+                    Conc. {value}
+                  </button>
+                );
+              })}
               {(product.industrial || product.note) && (
                 <span className="text-[10px] text-gray-400 font-semibold">
                   {product.industrial ? "Industrial" : product.note}
@@ -739,7 +769,7 @@ function ProductCard({
         {notAvailable ? (
           <div className="flex-1 flex items-center py-2">
             <p className="text-xs text-gray-400 leading-relaxed">
-              No disponible en concentración {concentration}. Consulta la otra concentración.
+              No disponible en la concentración seleccionada. Elige otra si está disponible.
             </p>
           </div>
         ) : (
@@ -767,7 +797,14 @@ function ProductCard({
 
             {/* Price */}
             <div className="flex items-center justify-between rounded-xl px-4 py-3 bg-slate-50 border border-gray-100">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Precio + IVA</span>
+              <div>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Precio + IVA</span>
+                {unitPriceLabel ? (
+                  <p className="mt-1 text-[11px] font-medium text-gray-400">
+                    {unitPriceLabel}
+                  </p>
+                ) : null}
+              </div>
               <span className="text-xl font-black text-[#003F91]">
                 ${selected?.price.toLocaleString("es-MX")}{" "}
                 <span className="text-[10px] font-normal text-gray-400">MXN</span>
@@ -795,7 +832,7 @@ function ProductCard({
                   // Add to cart
                   addToCart({
                     productId: product.id,
-                    productName: `${product.name} C-${concentration}`,
+                    productName: `${product.name} C-${selectedConcentration}`,
                     size: selected?.label,
                     price: selected?.price,
                     quantity: 1,
@@ -809,7 +846,7 @@ function ProductCard({
                 Agregar
               </button>
               <a
-                href={`https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20${encodeURIComponent(product.name)}%20Conc.%20${concentration}%20-%20${encodeURIComponent(selected?.label ?? "")}`}
+                href={`https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20${encodeURIComponent(product.name)}%20Conc.%20${selectedConcentration}%20-%20${encodeURIComponent(selected?.label ?? "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-11 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-[1.05] active:scale-95 bg-[#FFCD00]/15 border border-[#FFCD00]/40 hover:bg-[#FFCD00]/25"

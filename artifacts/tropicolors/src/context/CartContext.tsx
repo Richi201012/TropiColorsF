@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   ReactNode,
 } from "react";
 
@@ -46,6 +47,7 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+const CART_STORAGE_KEY = "tropicolors-cart";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -56,6 +58,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [recentlyAddedToken, setRecentlyAddedToken] = useState(0);
+
+  useEffect(() => {
+    try {
+      const storedCart = window.localStorage.getItem(CART_STORAGE_KEY);
+      if (!storedCart) {
+        return;
+      }
+
+      const parsedCart = JSON.parse(storedCart) as CartItem[];
+      if (Array.isArray(parsedCart)) {
+        setItems(parsedCart);
+      }
+    } catch (error) {
+      console.error("[CartContext] No se pudo restaurar el carrito:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (items.length === 0) {
+        window.localStorage.removeItem(CART_STORAGE_KEY);
+        return;
+      }
+
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error("[CartContext] No se pudo guardar el carrito:", error);
+    }
+  }, [items]);
 
   const addToCart = useCallback((newItem: CartItem) => {
     setItems((currentItems) => {
@@ -118,7 +149,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [removeFromCart],
   );
 
-  const clearCart = useCallback(() => setItems([]), []);
+  const clearCart = useCallback(() => {
+    window.localStorage.removeItem(CART_STORAGE_KEY);
+    setItems([]);
+  }, []);
 
   const cartTotal = useMemo(
     () =>
