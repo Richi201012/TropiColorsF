@@ -1,0 +1,7 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+    "ANTHROPIC_AUTH_TOKEN": "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",
+    "ANTHROPIC_MODEL": "anthropic/claude-3-haiku"
+  }
+}

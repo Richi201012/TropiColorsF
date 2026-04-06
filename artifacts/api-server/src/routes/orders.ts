@@ -57,6 +57,10 @@ function getStripeClient(): Stripe | null {
   return new Stripe(stripeKey);
 }
 
+function getStripePublishableKey(): string | null {
+  return process.env.STRIPE_PUBLISHABLE_KEY || null;
+}
+
 function mapCheckoutItems(items: CheckoutItem[]): FirestoreOrderItem[] {
   return items.map((item) =>
     removeUndefinedFields({
@@ -144,11 +148,11 @@ router.post("/checkout", async (req, res) => {
       `http://localhost:${process.env.PORT || 3000}`;
 
     const session = await stripe.checkout.sessions.create({
+      ui_mode: "custom",
       payment_method_types: ["card"],
       line_items: buildLineItems(normalizedItems),
       mode: "payment",
-      success_url: `${baseUrl}/?order_success=true&order=${orderNumber}&order_id=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/?order_cancelled=true`,
+      return_url: `${baseUrl}/?order_success=true&order=${orderNumber}&order_id=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
       customer_email: customerEmail,
       metadata: {
         orderId,
@@ -195,12 +199,26 @@ router.post("/checkout", async (req, res) => {
       orderId,
       orderNumber,
       sessionId: session.id,
-      sessionUrl: session.url,
+      clientSecret: session.client_secret,
     });
   } catch (error) {
     req.log.error(error, "Error creating checkout session");
     res.status(500).json({ error: "Error al crear sesion de pago" });
   }
+});
+
+router.get("/checkout/config", (_req, res) => {
+  const publishableKey = getStripePublishableKey();
+
+  if (!publishableKey) {
+    res.status(500).json({
+      error:
+        "Stripe publishable key no configurada. Define STRIPE_PUBLISHABLE_KEY en el servidor.",
+    });
+    return;
+  }
+
+  res.json({ publishableKey });
 });
 
 router.get("/checkout/confirm", async (req, res) => {
