@@ -75,12 +75,14 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   addDoc,
   deleteDoc,
   collection,
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { Switch } from "@/components/ui/switch";
 import {
   useOrders,
   type OrderStatus,
@@ -138,6 +140,8 @@ const useAuth = () => {
   }
   return context;
 };
+
+const settingsRef = doc(db, "settings", "home");
 
 const useAuthProvider = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -1924,10 +1928,35 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
   const [securityMessage, setSecurityMessage] = useState<string>("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [gelVisible, setGelVisible] = useState(false);
+  const [isSavingProducts, setIsSavingProducts] = useState(false);
 
   useEffect(() => {
     setProfileForm(userProfile);
   }, [userProfile]);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settingsSnapshot = await getDoc(settingsRef);
+        if (settingsSnapshot.exists()) {
+          setGelVisible(Boolean(settingsSnapshot.data()?.gelVisible));
+        } else {
+          setGelVisible(false);
+        }
+      } catch (error) {
+        console.error("[SettingsView] Error loading settings:", error);
+        toast({
+          title: "No se pudo cargar la configuración",
+          description: "Se usará el valor por defecto para Colorante en Gel.",
+          variant: "destructive",
+        });
+        setGelVisible(false);
+      }
+    };
+
+    void loadSettings();
+  }, []);
 
   const handleSaveProfile = async () => {
     setProfileMessage("");
@@ -1989,6 +2018,30 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
       setSecurityMessage(message);
     } finally {
       setIsSavingPassword(false);
+    }
+  };
+
+  const handleGelVisibilityChange = async (newValue: boolean) => {
+    setIsSavingProducts(true);
+    try {
+      await setDoc(settingsRef, { gelVisible: newValue }, { merge: true });
+      await updateDoc(settingsRef, { gelVisible: newValue });
+      setGelVisible(newValue);
+      toast({
+        title: "Configuración actualizada",
+        description: newValue
+          ? "Colorante en Gel fue activado para compra."
+          : "Colorante en Gel fue desactivado y volverá a mostrarse como próximamente.",
+      });
+    } catch (error) {
+      console.error("[SettingsView] Error updating gelVisible:", error);
+      toast({
+        title: "No se pudo actualizar la configuración",
+        description: "Intenta nuevamente en unos momentos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingProducts(false);
     }
   };
 
@@ -2154,6 +2207,51 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
             )}
             Guardar nueva contraseña
           </button>
+        </div>
+
+        <div className="rounded-3xl border border-border/50 bg-white p-6 shadow-sm xl:col-span-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <Package size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-bold text-slate-950">
+                Productos
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Controla qué líneas de producto están visibles para compra.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-border/60 bg-slate-50/70 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-base font-semibold text-slate-950">
+                  Colorante en Gel
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Al activar, los clientes podrán comprar gel. Al desactivar, se muestra "Próximamente".
+                </p>
+                <p
+                  className={`mt-3 text-sm font-semibold transition-colors ${
+                    gelVisible ? "text-emerald-600" : "text-slate-500"
+                  }`}
+                >
+                  {gelVisible
+                    ? "✓ Activado para compra"
+                    : "✗ Desactivado (Próximamente)"}
+                </p>
+              </div>
+
+              <Switch
+                checked={gelVisible}
+                onCheckedChange={handleGelVisibilityChange}
+                disabled={isSavingProducts}
+                className="data-[state=checked]:bg-emerald-500"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </DashboardSection>
