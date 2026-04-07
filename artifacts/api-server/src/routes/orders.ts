@@ -97,8 +97,13 @@ function calculateTotalAmount(items: FirestoreOrderItem[]): number {
 router.post("/checkout", async (req, res) => {
   try {
     const stripe = getStripeClient();
+    const publishableKey = getStripePublishableKey();
     if (!stripe) {
       res.status(500).json({ error: "Stripe no configurado" });
+      return;
+    }
+    if (!publishableKey) {
+      res.status(500).json({ error: "Stripe publishable key no configurada" });
       return;
     }
 
@@ -200,6 +205,7 @@ router.post("/checkout", async (req, res) => {
       orderNumber,
       sessionId: session.id,
       clientSecret: session.client_secret,
+      publishableKey,
     });
   } catch (error) {
     req.log.error(error, "Error creating checkout session");
