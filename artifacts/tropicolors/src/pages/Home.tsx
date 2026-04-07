@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart, MessageCircle, Droplet, CheckCircle, ShieldCheck,
-  Sparkles, Clock, Award, Star, FlaskConical, ChevronDown
+  Sparkles, Clock, Award, Star, FlaskConical, ChevronDown, Search
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -115,6 +115,21 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   "Especiales":   { bg: "#7B00E0", text: "#ffffff" },
   "Industriales": { bg: "#4A4A8A", text: "#ffffff" },
 };
+
+const STORE_HIGHLIGHTS = [
+  {
+    label: "Entrega comercial",
+    value: "Mayoristas y pedidos directos",
+  },
+  {
+    label: "Tonos disponibles",
+    value: "+20 colores en polvo",
+  },
+  {
+    label: "Respuesta",
+    value: "Atención por WhatsApp y correo",
+  },
+];
 
 type HomeBlob = {
   className: string;
@@ -300,25 +315,43 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="mx-auto mb-10 max-w-4xl border-b border-slate-200/80 pb-8 text-center sm:mb-12 sm:pb-10"
+            className="mx-auto mb-10 max-w-6xl rounded-[32px] border border-white/70 bg-white/75 px-6 py-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-12 sm:px-10 sm:py-10"
           >
-           
-            <h2 className="px-2 text-4xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-6xl">
-              Colorantes en <span 
+            
+            <h2 className="mt-4 px-2 text-10xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-4xl">
+              Color sin límites <span 
                 className="relative"
                 style={{ 
-                  background: "linear-gradient(135deg, #FFCD00 0%, #FF8C00 50%, #FFCD00 100%)",
+                  background: "linear-gradient(135deg, #FFCD00 0%, #FF8C00 50%, #FF2E63 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
-                  filter: "drop-shadow(0 2px 8px rgba(255,205,0,0.3))"
+                  filter: "drop-shadow(0 2px 8px rgba(255,205,0,0.24))"
                 }}
-              >Polvo</span>
+              >TROPICOLORS</span> en cada aplicación.
             </h2>
-            <p className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-x-4 gap-y-2 px-2 text-sm leading-relaxed text-gray-400 sm:mt-6">
-              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Precios + IVA 16%</span>
-              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Cajas completas</span>
-              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-gray-300" />Envío por cuenta del cliente</span>
+            <p className="mx-auto mt-5 max-w-3xl text-sm leading-relaxed text-slate-500 sm:mt-6 sm:text-base">
+              Desde alimentos hasta procesos industriales, precisión, intensidad y consistencia en cada resultado.
             </p>
+            <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-x-4 gap-y-2 px-2 text-sm leading-relaxed text-slate-500">
+              <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5"><span className="h-1.5 w-1.5 rounded-full bg-[#003F91]" />Precios + IVA 16%</span>
+              <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5"><span className="h-1.5 w-1.5 rounded-full bg-[#00A8B5]" />Cajas completas</span>
+              <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5"><span className="h-1.5 w-1.5 rounded-full bg-[#FFCD00]" />Envío por cuenta del cliente</span>
+            </div>
+            <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
+              {STORE_HIGHLIGHTS.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-3xl border border-slate-200/70 bg-white px-5 py-4 shadow-sm"
+                >
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
           </motion.div>
 
           {/* ── Filter Bar ── */}
@@ -327,53 +360,102 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-            className="relative mb-14 flex flex-col items-center gap-8 px-4 py-6 sm:mb-16 sm:gap-10 sm:px-8 sm:py-8"
+            className="relative mb-14 rounded-[32px] border border-white/70 bg-white/70 px-4 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-16 sm:px-8 sm:py-8"
           >
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute left-[8%] top-[-18%] h-28 w-40 rounded-full bg-[#003F91]/12 blur-3xl" />
               <div className="absolute left-1/2 top-[-10%] h-24 w-44 -translate-x-1/2 rounded-full bg-[#00A8B5]/12 blur-3xl" />
               <div className="absolute right-[10%] top-[-14%] h-28 w-44 rounded-full bg-[#FFCD00]/20 blur-3xl" />
             </div>
+            <div className="relative z-10 grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-400">
+                    Explora por familia
+                  </p>
+                  <div className="mt-4 flex w-full flex-wrap gap-3">
+                    {CATEGORY_ORDER.map((cat, index) => {
+                      const isActive = activeCategory === cat;
+                      const colors = CATEGORY_COLORS[cat];
+                      return (
+                        <motion.button
+                          key={cat}
+                          onClick={categoryHandlers[cat]}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          whileInView={{ opacity: 1, scale: 1 }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.25, delay: index * 0.04, ease: "easeOut" }}
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300 sm:px-5 sm:py-2.5"
+                          style={{
+                            backgroundColor: isActive ? colors.bg : "rgba(243,244,246,0.9)",
+                            color: isActive ? colors.text : "#6b7280",
+                            boxShadow: isActive ? `0 10px 24px ${colors.bg}33` : "0 1px 3px rgba(0,0,0,0.05)",
+                            border: `1.5px solid ${isActive ? colors.bg : "rgba(229,231,235,0.8)"}`
+                          }}
+                        >
+                          {cat}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            {/* Fila 1: Categorías de color - Premium Chips */}
-            <div className="relative z-10 flex w-full flex-wrap justify-center gap-3">
-              {CATEGORY_ORDER.map((cat, index) => {
-                const isActive = activeCategory === cat;
-                const colors = CATEGORY_COLORS[cat];
-                return (
-                  <motion.button
-                    key={cat}
-                    onClick={categoryHandlers[cat]}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.25, delay: index * 0.04, ease: "easeOut" }}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300 sm:px-5 sm:py-2.5"
+                <div className="relative z-10 w-full">
+                  <label className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-400">
+                    Buscar color
+                  </label>
+                  <div className="flex items-center gap-3 rounded-[22px] border border-slate-200 bg-white/95 px-4 py-3 shadow-sm">
+                    <Search size={18} className="shrink-0 text-slate-400" />
+                    <input
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      placeholder="Buscar color, familia o tono..."
+                      className="w-full border-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400"
+                      aria-label={`Buscar color dentro de ${activeCategoryConfig ? activeCategory : "todos los productos"}`}
+                    />
+                    <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500 sm:inline-flex">
+                      {filteredProducts.length} resultados
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="relative overflow-hidden rounded-[28px] border border-slate-200/70 bg-[linear-gradient(145deg,#0f172a_0%,#0b3b8c_52%,#0ea5b7_100%)] px-5 py-5 text-white shadow-[0_25px_70px_rgba(15,23,42,0.2)]"
+              >
+                <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                  <div className="absolute -right-10 top-0 h-32 w-32 rounded-full bg-[#FFCD00]/25 blur-3xl" />
+                  <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-[#FF2E63]/20 blur-3xl" />
+                </div>
+                <p className="relative text-[11px] font-extrabold uppercase tracking-[0.24em] text-cyan-100/80">
+                  Selección activa
+                </p>
+                <h3 className="relative mt-3 text-2xl font-black tracking-tight">
+                  {activeCategory}
+                </h3>
+                <p className="relative mt-2 max-w-xs text-sm leading-relaxed text-slate-200">
+                  Navega una colección más clara, encuentra más rápido el tono ideal y cotiza sin salir del catálogo.
+                </p>
+                <div className="relative mt-5 flex items-center gap-3">
+                  <div
+                    className="h-14 w-14 rounded-2xl border border-white/20 shadow-[0_12px_30px_rgba(15,23,42,0.2)]"
                     style={{
-                      backgroundColor: isActive ? colors.bg : "rgba(243,244,246,0.8)",
-                      color: isActive ? colors.text : "#6b7280",
-                      boxShadow: isActive ? `0 4px 16px ${colors.bg}40` : "0 1px 3px rgba(0,0,0,0.05)",
-                      border: `1.5px solid ${isActive ? colors.bg : "rgba(229,231,235,0.8)"}`
+                      background: `linear-gradient(145deg, ${activeCategoryConfig?.bg ?? "#FFCD00"}, ${activeCategoryConfig?.bg ?? "#003F91"})`,
                     }}
-                  >
-                    {cat}
-                  </motion.button>
-                );
-              })}
+                  />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      Curaduría
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {filteredProducts.length} opciones visibles
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <div className="relative z-10 w-full max-w-xl">
-              <input
-                value={searchQuery}
-                onChange={handleSearchChange}
-                placeholder="Buscar color..."
-                className="w-full rounded-2xl border border-slate-200 bg-white/90 px-5 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
-                aria-label={`Buscar color dentro de ${activeCategoryConfig ? activeCategory : "todos los productos"}`}
-              />
-            </div>
-
           </motion.div>
 
           {/* ── Product Grid ── */}
@@ -670,27 +752,36 @@ export default function Home() {
       </motion.section>
 
       {/* ── WHATSAPP CTA ── */}
-      <section className="page-snap-section bg-gradient-to-br from-[#8B5CF6] via-[#7C3AED] to-[#6D28D9] text-white relative overflow-hidden">
+      <section className="page-snap-section relative overflow-hidden bg-[linear-gradient(135deg,#082f49_0%,#003F91_48%,#00A8B5_100%)] text-white">
         {/* Elementos decorativos */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3"></div>
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#FFCD00]/20 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 h-[500px] w-[500px] translate-x-1/3 -translate-y-1/3 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 h-[400px] w-[400px] -translate-x-1/3 translate-y-1/3 rounded-full bg-[#FFCD00]/20 blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/5 blur-3xl"></div>
         
-        <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-5 tracking-tight">¿Necesitas una cotización?</h2>
-          <p className="text-white/70 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+        <div className="relative z-10 mx-auto max-w-5xl px-4 text-center">
+          <div className="mx-auto max-w-4xl rounded-[32px] border border-white/10 bg-white/8 px-6 py-10 shadow-[0_30px_80px_rgba(8,47,73,0.28)] backdrop-blur-xl sm:px-10">
+          <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.24em] text-cyan-100">
+            Atención comercial
+          </p>
+          <h2 className="mt-5 text-4xl font-black tracking-tight text-white md:text-5xl">¿Necesitas una cotización?</h2>
+          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-white/74">
             Contáctanos directamente para precios de mayoreo, envíos a todo México y asesoría especializada.
           </p>
           <a
             href="https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20colorantes%20Tropicolors"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 px-10 py-4.5 bg-white text-purple-700 rounded-full font-bold text-base hover:scale-105 hover:shadow-2xl hover:shadow-white/30 transition-all duration-300"
+            className="mt-8 inline-flex items-center gap-3 rounded-full bg-white px-10 py-4.5 text-base font-bold text-[#003F91] transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-white/30"
           >
             <MessageCircle size={22} />
             Escríbenos por WhatsApp
           </a>
-          <p className="mt-8 text-white/60 text-sm">+52 55 5114 6856 · Lada sin costo: 01 800 8 36 74 68</p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-white/70">
+            <span className="rounded-full bg-white/10 px-3 py-1.5">+52 55 5114 6856</span>
+            <span className="rounded-full bg-white/10 px-3 py-1.5">01 800 8 36 74 68</span>
+            <span className="rounded-full bg-white/10 px-3 py-1.5">Respuesta comercial directa</span>
+          </div>
+          </div>
         </div>
       </section>
 
@@ -908,9 +999,9 @@ const ProductCard = React.memo(function ProductCard({
   return (
     <motion.div
       layout
-      className="relative overflow-hidden rounded-2xl bg-white transition-all duration-300 will-change-transform hover:-translate-y-1"
+      className="relative overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] transition-all duration-300 will-change-transform hover:-translate-y-1"
       style={{
-        boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)",
+        boxShadow: "0 18px 50px rgba(15,23,42,0.08), 0 1px 3px rgba(15,23,42,0.06)",
       }}
     >
       {/* Subtle color glow */}
@@ -925,18 +1016,31 @@ const ProductCard = React.memo(function ProductCard({
         style={{ background: `linear-gradient(90deg, ${product.hex}, ${product.hex2 ?? product.hex})` }}
       />
 
-      <div className="p-5 flex-1 flex flex-col gap-4 relative">
-        {/* Color dot + name */}
+      <div className="relative flex flex-1 flex-col gap-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-500">
+            {product.category}
+          </span>
+          {(product.industrial || product.note) && (
+            <span className="inline-flex rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              {product.industrial ? "Industrial" : product.note}
+            </span>
+          )}
+        </div>
+
         <div className="flex items-center gap-3">
           <div
-            className="w-12 h-12 rounded-full flex-shrink-0 shadow-md"
+            className="h-14 w-14 shrink-0 rounded-[20px] shadow-md"
             style={{
               background: `linear-gradient(135deg, ${product.hex}, ${product.hex2 ?? product.hex})`,
-              boxShadow: `0 4px 12px ${product.hex}55`,
+              boxShadow: `0 12px 30px ${product.hex}40`,
             }}
           />
           <div className="min-w-0">
-            <h3 className="text-sm font-extrabold text-[#003F91] leading-tight">{product.name}</h3>
+            <h3 className="text-base font-extrabold leading-tight text-[#003F91]">{product.name}</h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Tonalidad diseñada para procesos alimentarios con compra por presentación.
+            </p>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
               {availableConcentrations.map((value) => {
                 const isActive = selectedConcentration === value;
@@ -955,11 +1059,6 @@ const ProductCard = React.memo(function ProductCard({
                   </button>
                 );
               })}
-              {(product.industrial || product.note) && (
-                <span className="text-[10px] text-gray-400 font-semibold">
-                  {product.industrial ? "Industrial" : product.note}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -979,7 +1078,7 @@ const ProductCard = React.memo(function ProductCard({
               </label>
               <div className="relative">
                 <select
-                  className="w-full appearance-none bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 pr-8 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15 focus:border-[#003F91]/30 transition-all"
+                  className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-3 py-3 pr-8 text-xs font-semibold text-gray-700 shadow-sm transition-all focus:border-[#003F91]/30 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15"
                   value={selectedIdx}
                   onChange={(e) => setSelectedIdx(Number(e.target.value))}
                 >
@@ -994,39 +1093,45 @@ const ProductCard = React.memo(function ProductCard({
             </div>
 
             {/* Price */}
-            <div className="flex items-center justify-between rounded-xl px-4 py-3 bg-slate-50 border border-gray-100">
+            <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(145deg,rgba(248,250,252,1),rgba(255,255,255,1))] px-4 py-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Precio + IVA</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Precio + IVA</span>
                 {unitPriceLabel ? (
                   <p className="mt-1 text-[11px] font-medium text-gray-400">
                     {unitPriceLabel}
                   </p>
                 ) : null}
               </div>
-              <span className="text-xl font-black text-[#003F91]">
+              <span className="text-2xl font-black text-[#003F91]">
                 ${selected?.price.toLocaleString("es-MX")}{" "}
                 <span className="text-[10px] font-normal text-gray-400">MXN</span>
               </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-semibold text-slate-200">
+                <span>Compra directa</span>
+                <span className="text-cyan-300">Presentación seleccionada</span>
+              </div>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_52px] items-stretch gap-2">
               <button
                 onClick={handleAddToCart}
-                className="flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all duration-200 hover:opacity-90 active:scale-95"
+                className="inline-flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-center text-xs font-extrabold leading-none transition-all duration-200 hover:opacity-90 active:scale-95"
                 style={{ background: product.hex, color: product.textColor }}
               >
                 <ShoppingCart size={13} />
-                Agregar
+                Agregar al carrito
               </button>
               <a
                 href={`https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20${encodeURIComponent(product.name)}%20Conc.%20${selectedConcentration}%20-%20${encodeURIComponent(selected?.label ?? "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-11 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-[1.05] active:scale-95 bg-[#FFCD00]/15 border border-[#FFCD00]/40 hover:bg-[#FFCD00]/25"
+                className="flex min-h-[52px] w-[52px] items-center justify-center self-stretch rounded-2xl border border-[#FFCD00]/40 bg-[#FFCD00]/15 transition-all duration-200 hover:scale-[1.05] hover:bg-[#FFCD00]/25 active:scale-95"
                 title="Cotizar por WhatsApp"
               >
-                <MessageCircle size={15} className="text-[#003F91]" />
+                <MessageCircle size={16} className="text-[#003F91]" />
               </a>
             </div>
           </>
