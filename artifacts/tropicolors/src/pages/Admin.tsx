@@ -1448,9 +1448,39 @@ function OrdersView({
         </div>
       }
     >
+      <div className="mb-4 grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fbff_100%)] px-5 py-4 shadow-sm">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+            Operación
+          </p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">
+            Gestiona el flujo comercial desde una vista más clara y compacta.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              Visibles
+            </p>
+            <p className="mt-2 text-2xl font-display font-bold text-slate-950">
+              {filteredOrders.length}
+            </p>
+          </div>
+          <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              Total
+            </p>
+            <p className="mt-2 text-2xl font-display font-bold text-slate-950">
+              {orders.length}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm flex-1">
+      <div className="mb-4 rounded-3xl border border-slate-200/80 bg-white/90 p-3 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm">
           <Search size={16} className="text-muted-foreground shrink-0" />
           <input
             value={searchTerm}
@@ -1484,6 +1514,7 @@ function OrdersView({
           </select>
         </div>
       </div>
+      </div>
 
       {filteredOrders.length === 0 ? (
         <div className="rounded-3xl border border-border/50 bg-white px-5 py-12 text-center text-sm text-muted-foreground">
@@ -1497,7 +1528,7 @@ function OrdersView({
             {filteredOrders.map((order) => (
               <div
                 key={order.id}
-                className="rounded-3xl border border-border/50 bg-white p-4 shadow-sm"
+                className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_16px_35px_rgba(15,23,42,0.06)]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1583,8 +1614,8 @@ function OrdersView({
             ))}
           </div>
 
-          <div className="hidden overflow-hidden rounded-3xl border border-border/50 md:block">
-            <div className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] gap-4 bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/70">
+          <div className="hidden overflow-hidden rounded-[28px] border border-slate-200/80 shadow-sm md:block">
+            <div className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] gap-4 bg-[linear-gradient(135deg,#020617_0%,#0f172a_30%,#1d4ed8_100%)] px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/74">
               <span>ID</span>
               <span>Cliente</span>
               <span>Fecha</span>
@@ -1596,7 +1627,7 @@ function OrdersView({
             {filteredOrders.map((order) => (
               <div
                 key={order.id}
-                className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
+                className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-slate-50"
               >
                 <span className="truncate font-semibold text-slate-950">
                   {order.id.slice(0, 10)}
@@ -3378,19 +3409,19 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   }, [modalActivo]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_22%),radial-gradient(circle_at_top_right,rgba(20,184,166,0.10),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f7fb_100%)]">
       {/* Header */}
       <header
         className={`sticky top-0 z-30 border-b transition-all duration-300 ${
           isHeaderElevated
-            ? "border-border/70 bg-white/95 shadow-[0_12px_32px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
-            : "border-border/50 bg-white/82 backdrop-blur-xl"
+            ? "border-border/70 bg-white/92 shadow-[0_20px_40px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
+            : "border-border/50 bg-white/78 backdrop-blur-xl"
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-lg shadow-primary/20 ring-1 ring-primary/10">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a_0%,#1d4ed8_55%,#14b8a6_100%)] shadow-[0_16px_30px_rgba(29,78,216,0.22)] ring-1 ring-primary/10">
                 <Lock size={18} className="text-white" />
               </div>
               <div className="min-w-0">
@@ -3407,9 +3438,16 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                   Panel Administrativo
                 </h1>
                 <p className="mt-0.5 max-w-xl text-xs text-muted-foreground">
-                  Supervisa pedidos, facturación y operaciones desde una
-                  interfaz clara y moderna.
+                 
                 </p>
+                <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
+                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+                    Operación centralizada
+                  </span>
+                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+                    Pedidos, clientes y facturas
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:flex-none">
@@ -3457,7 +3495,18 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Tabs */}
-        <div className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-border/30 bg-white/60 p-1 shadow-sm backdrop-blur-sm sm:flex sm:w-fit">
+        <div className="mb-4 rounded-[28px] border border-white/70 bg-white/75 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">
+          <div>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              Navegación del panel
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">
+             
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-1 sm:flex sm:w-fit">
           {(
             [
               { key: "resumen", label: "Resumen", icon: LayoutDashboard },
@@ -3474,8 +3523,8 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 relative isolate flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 py-3 text-center text-sm font-bold transition-all duration-300 sm:min-h-0 sm:justify-start sm:px-6
                 ${
                   vistaActiva === tab.key
-                    ? "bg-slate-950 text-white shadow-sm hover:bg-slate-900"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    ? "bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_70%,#14b8a6_100%)] text-white shadow-[0_12px_30px_rgba(29,78,216,0.24)]"
+                    : "text-muted-foreground hover:bg-slate-100/80 hover:text-foreground"
                 }
               `}
             >
@@ -3486,6 +3535,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             </button>
           ))}
         </div>
+        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -3495,7 +3545,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         </div>
 
         {/* Content Card */}
-        <div className="bg-white rounded-xl border border-border/30 shadow-sm overflow-hidden">
+        <div className="overflow-hidden rounded-[32px] border border-white/80 bg-white/80 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <div
             className={`
             transition-all duration-300
@@ -3565,7 +3615,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             {
               icon: Package,

@@ -20,6 +20,8 @@ import {
   MapPinned,
   Building2,
   Landmark,
+  Lock,
+  BadgeCheck,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
@@ -1086,6 +1088,33 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           ? "Tu pedido quedo registrado correctamente."
                           : "Revisa el resumen final y confirma el pago."}
                   </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {[
+                      {
+                        icon: Lock,
+                        label: "Checkout seguro",
+                      },
+                      {
+                        icon: BadgeCheck,
+                        label: "Stripe procesa la tarjeta",
+                      },
+                      {
+                        icon: Truck,
+                        label: "Envio coordinado al confirmar",
+                      },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <span
+                          key={item.label}
+                          className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm"
+                        >
+                          <Icon className="h-3.5 w-3.5 text-sky-600" />
+                          {item.label}
+                        </span>
+                      );
+                    })}
+                  </div>
 
                   {step === 1 ? (
                     <form
@@ -1588,6 +1617,30 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         </div>
                       </div>
 
+                      <div className="rounded-3xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+                              Resumen de pago
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">
+                              {selectedPaymentOption?.title || "Metodo no seleccionado"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Total estimado: ${cartTotal} MXN
+                            </p>
+                          </div>
+                          <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                              Total
+                            </p>
+                            <p className="mt-1 text-xl font-black text-cyan-300">
+                              ${cartTotal}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                         <button
                           type="button"
@@ -1664,9 +1717,19 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         <p className="text-sm font-semibold text-slate-900">
                           Metodo de pago seleccionado
                         </p>
-                        <p className="mt-2 text-sm text-slate-500">
-                          {selectedPaymentOption?.title || "Metodo no seleccionado"}
-                        </p>
+                        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-4">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {selectedPaymentOption?.title || "Metodo no seleccionado"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {selectedPaymentOption?.description || "Selecciona un metodo para continuar."}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-300">
+                            ${cartTotal} MXN
+                          </div>
+                        </div>
                       </div>
 
                       {selectedPaymentMethod === "card" ? (
@@ -1676,6 +1739,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               <div className="text-center text-sm text-slate-500">
                                 <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />
                                 Preparando checkout seguro de Stripe...
+                                <p className="mt-2 text-xs text-slate-400">
+                                  Estamos generando el intento de pago y cargando el formulario protegido.
+                                </p>
                               </div>
                             </div>
                           ) : stripeError ? (
@@ -1697,6 +1763,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               Esperando configuracion de Stripe...
                             </div>
                           )}
+                          <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800">
+                            Stripe captura los datos de la tarjeta. Tu sistema solo guarda el tipo de pago y el estado del pedido.
+                          </div>
                         </div>
                       ) : (
                         <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
