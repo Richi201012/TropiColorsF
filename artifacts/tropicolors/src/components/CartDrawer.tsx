@@ -198,6 +198,7 @@ type CheckoutSubmitResponse = {
   orderId: string;
   sessionUrl: string;
   clientSecret?: string;
+  publishableKey?: string;
 };
 
 const initialCheckoutValues: CheckoutFormData = {
@@ -822,33 +823,6 @@ const CheckoutModal = React.memo(function CheckoutModal({
       setStripeError(null);
 
       try {
-        const configResponse = await fetch(apiUrl("/api/checkout/config"));
-        const configText = await configResponse.text();
-        let configPayload: { error?: string; publishableKey?: string } = {};
-
-        try {
-          configPayload = configText
-            ? (JSON.parse(configText) as typeof configPayload)
-            : {};
-        } catch {
-          throw new Error(
-            `Respuesta inesperada del servidor (${configResponse.status}).`,
-          );
-        }
-
-        if (!configResponse.ok || !configPayload.publishableKey) {
-          throw new Error(
-            configPayload.error ||
-              "No se pudo cargar la configuracion publica de Stripe.",
-          );
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        setStripePublishableKey(configPayload.publishableKey);
-
         const checkoutResponse = await onSubmitRef.current(
           formValues,
           "card",
@@ -862,7 +836,13 @@ const CheckoutModal = React.memo(function CheckoutModal({
         if (!checkoutResponse.clientSecret) {
           throw new Error("Stripe no devolvio un client secret valido.");
         }
+        if (!checkoutResponse.publishableKey) {
+          throw new Error(
+            "Stripe no devolvio una publishable key valida.",
+          );
+        }
 
+        setStripePublishableKey(checkoutResponse.publishableKey);
         setStripeOrderId(checkoutResponse.orderId);
         setStripeClientSecret(checkoutResponse.clientSecret);
       } catch (error) {
@@ -2025,6 +2005,7 @@ export function CartDrawer() {
           orderId?: string;
           orderNumber?: string;
           clientSecret?: string | null;
+          publishableKey?: string | null;
         } = {};
 
         try {
@@ -2035,7 +2016,12 @@ export function CartDrawer() {
           );
         }
 
-        if (!response.ok || !payload.clientSecret || !payload.orderId) {
+        if (
+          !response.ok ||
+          !payload.clientSecret ||
+          !payload.orderId ||
+          !payload.publishableKey
+        ) {
           throw new Error(
             payload.error || "No se pudo preparar el pago con Stripe.",
           );
@@ -2046,6 +2032,10 @@ export function CartDrawer() {
           orderId: payload.orderId,
           sessionUrl: "",
           clientSecret: payload.clientSecret,
+          publishableKey:
+            typeof payload.publishableKey === "string"
+              ? payload.publishableKey
+              : undefined,
         } satisfies CheckoutSubmitResponse;
       }
 
