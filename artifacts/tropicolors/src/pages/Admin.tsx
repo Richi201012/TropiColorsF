@@ -1427,11 +1427,11 @@ function OrdersView({
       title="Pedidos"
       subtitle="Consulta pedidos, ajusta su estado y accede al detalle desde la misma vista."
       action={
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={() => exportOrdersToCSV(orders)}
-            className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/5 hover:text-primary hover:shadow-md"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/5 hover:text-primary hover:shadow-md sm:w-auto"
             title="Exportar pedidos a CSV"
           >
             <Download size={16} />
@@ -1440,7 +1440,7 @@ function OrdersView({
           <button
             type="button"
             onClick={onCreateOrder}
-            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl sm:w-auto"
           >
             <Package size={16} />
             Nuevo pedido
@@ -1485,83 +1485,175 @@ function OrdersView({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-border/50">
-        <div className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] gap-4 bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/70">
-          <span>ID</span>
-          <span>Cliente</span>
-          <span>Fecha</span>
-          <span>Total</span>
-          <span>Estado</span>
-          <span>Acción</span>
-          <span></span>
+      {filteredOrders.length === 0 ? (
+        <div className="rounded-3xl border border-border/50 bg-white px-5 py-12 text-center text-sm text-muted-foreground">
+          {searchTerm || statusFilter !== "todos"
+            ? "No se encontraron pedidos con los filtros aplicados."
+            : "No hay pedidos registrados."}
         </div>
-        {filteredOrders.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-            {searchTerm || statusFilter !== "todos"
-              ? "No se encontraron pedidos con los filtros aplicados."
-              : "No hay pedidos registrados."}
-          </div>
-        ) : (
-          filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
-            >
-              <span className="font-semibold text-slate-950 truncate">
-                {order.id.slice(0, 10)}
-              </span>
-              <div className="min-w-0">
-                <span className="block truncate text-slate-600">
-                  {order.customer}
-                </span>
-                {order.requiresInvoice && (
-                  <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700 ring-1 ring-amber-200">
-                    RFC para facturar
-                  </span>
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {formatDateShort(order.createdAt)}
-              </span>
-              <span className="font-semibold text-slate-950">
-                ${order.total.toLocaleString("es-MX")}
-              </span>
-              <select
-                value={order.status}
-                onChange={(event) =>
-                  onStatusChange(order.id, event.target.value as OrderStatus)
-                }
-                className={`rounded-xl border px-3 py-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(order.status)}`}
+      ) : (
+        <>
+          <div className="grid gap-3 md:hidden">
+            {filteredOrders.map((order) => (
+              <div
+                key={order.id}
+                className="rounded-3xl border border-border/50 bg-white p-4 shadow-sm"
               >
-                <option value="pendiente">Pendiente</option>
-                <option value="pagado">Pagado</option>
-                <option value="enviado">Enviado</option>
-                <option value="entregado">Entregado</option>
-                <option value="cancelado">Cancelado</option>
-              </select>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onViewDetail(order.id)}
-                  className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
-                >
-                  Ver detalle
-                </button>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                      Pedido
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold text-slate-950">
+                      {order.id.slice(0, 12)}
+                    </p>
+                  </div>
+                  <p className="text-right text-xs text-muted-foreground">
+                    {formatDateShort(order.createdAt)}
+                  </p>
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    Cliente
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-950">
+                    {order.customer}
+                  </p>
+                  <p className="mt-1 break-all text-xs text-slate-500">
+                    {order.email}
+                  </p>
+                  {order.requiresInvoice ? (
+                    <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700 ring-1 ring-amber-200">
+                      RFC para facturar
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border/50 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                      Total
+                    </p>
+                    <p className="mt-1 text-2xl font-display font-bold text-slate-950">
+                      ${order.total.toLocaleString("es-MX")}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border/50 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                      Estado
+                    </p>
+                    <select
+                      value={order.status}
+                      onChange={(event) =>
+                        onStatusChange(
+                          order.id,
+                          event.target.value as OrderStatus,
+                        )
+                      }
+                      className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(order.status)}`}
+                    >
+                      <option value="pendiente">Pendiente</option>
+                      <option value="pagado">Pagado</option>
+                      <option value="enviado">Enviado</option>
+                      <option value="entregado">Entregado</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onViewDetail(order.id)}
+                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-border/60 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
+                  >
+                    Ver detalle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteOrder(order.id, order.customer)}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                    title="Eliminar pedido"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={() => onDeleteOrder(order.id, order.customer)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                  title="Eliminar pedido"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-3xl border border-border/50 md:block">
+            <div className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] gap-4 bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-white/70">
+              <span>ID</span>
+              <span>Cliente</span>
+              <span>Fecha</span>
+              <span>Total</span>
+              <span>Estado</span>
+              <span>Acción</span>
+              <span></span>
             </div>
-          ))
-        )}
-      </div>
+            {filteredOrders.map((order) => (
+              <div
+                key={order.id}
+                className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-muted/20"
+              >
+                <span className="truncate font-semibold text-slate-950">
+                  {order.id.slice(0, 10)}
+                </span>
+                <div className="min-w-0">
+                  <span className="block truncate text-slate-600">
+                    {order.customer}
+                  </span>
+                  {order.requiresInvoice && (
+                    <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700 ring-1 ring-amber-200">
+                      RFC para facturar
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {formatDateShort(order.createdAt)}
+                </span>
+                <span className="font-semibold text-slate-950">
+                  ${order.total.toLocaleString("es-MX")}
+                </span>
+                <select
+                  value={order.status}
+                  onChange={(event) =>
+                    onStatusChange(order.id, event.target.value as OrderStatus)
+                  }
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${orderStatusClasses(order.status)}`}
+                >
+                  <option value="pendiente">Pendiente</option>
+                  <option value="pagado">Pagado</option>
+                  <option value="enviado">Enviado</option>
+                  <option value="entregado">Entregado</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onViewDetail(order.id)}
+                    className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
+                  >
+                    Ver detalle
+                  </button>
+                </div>
+                <div className="flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => onDeleteOrder(order.id, order.customer)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                    title="Eliminar pedido"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       {filteredOrders.length > 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
           Mostrando {filteredOrders.length} de {orders.length} pedidos
