@@ -39,6 +39,8 @@ export async function createApp(): Promise<Express> {
   const router = await createRouter();
   const frontendPublicDir = resolveFrontendPublicDir();
 
+  app.disable("x-powered-by");
+
   app.use(
     pinoHttp({
       logger,
@@ -77,17 +79,45 @@ export async function createApp(): Promise<Express> {
       allowedHeaders: ["Content-Type", "Authorization"],
     }),
   );
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use((_, res, next) => {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebasestorage.app https://api.stripe.com https://r.stripe.com https://m.stripe.network https://hooks.stripe.com ws: wss:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; worker-src 'self' blob:; manifest-src 'self'; trusted-types react-dom default; require-trusted-types-for 'script'; upgrade-insecure-requests",
+    );
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()",
+    );
+
+    next();
+  });
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
   app.use(
     "/data",
-    express.static(path.join(frontendPublicDir, "data")),
+    express.static(path.join(frontendPublicDir, "data"), {
+      maxAge: "1h",
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "public, max-age=3600");
+      },
+    }),
   );
 
   app.use(
     "/images",
-    express.static(frontendPublicDir),
+    express.static(frontendPublicDir, {
+      maxAge: "7d",
+      setHeaders(res, filePath) {
+        if (/\.(png|jpg|jpeg|webp|svg)$/i.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=604800");
+        }
+      },
+    }),
   );
 
   app.use("/api", router);

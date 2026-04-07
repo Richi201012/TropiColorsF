@@ -129,7 +129,7 @@ export default function HeroLanding({ onComplete }: HeroLandingProps) {
               transition={{ delay: 0.7, duration: 0.6 }}
               className="text-xl md:text-2xl text-white/90 max-w-2xl drop-shadow-md"
             >
-              Colorantes Alimentarios de Premium Calidad
+              Colorantes Alimentarios de Calidad Premium 
             </motion.p>
             
             <motion.p

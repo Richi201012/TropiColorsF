@@ -1,7 +1,5 @@
 import { useState, useCallback } from 'react';
-import { pdf } from '@react-pdf/renderer';
 import { buildInvoiceNumber, type InvoiceData } from '../types/invoice';
-import { InvoicePDFDocument } from '../lib/InvoicePDFDocument';
 
 // FunciÃ³n para convertir URL a base64
 const urlToBase64 = async (url: string): Promise<string> => {
@@ -77,6 +75,11 @@ export const useInvoicePDF = () => {
       }
 
       console.log('[PDF] Generando PDF con logoBase64:', logoBase64 ? 'sÃ­' : 'no');
+
+      const [{ pdf }, { InvoicePDFDocument }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('../lib/InvoicePDFDocument'),
+      ]);
 
       const blob = await pdf(
         <InvoicePDFDocument data={validData} logoBase64={logoBase64} />,
