@@ -80,6 +80,10 @@ export async function createApp(): Promise<Express> {
     }),
   );
   app.use((_, res, next) => {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebasestorage.app https://api.stripe.com https://r.stripe.com https://m.stripe.network https://hooks.stripe.com ws: wss:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; worker-src 'self' blob:; manifest-src 'self'; trusted-types react-dom default; require-trusted-types-for 'script'; upgrade-insecure-requests",
+    );
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
