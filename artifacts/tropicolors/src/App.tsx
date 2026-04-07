@@ -12,6 +12,7 @@ import { CartAddNotice } from "@/components/CartAddNotice";
 import { FloatingWhatsApp } from "@/components/FloatingWhatsApp";
 import { FlyToCart } from "@/components/FlyToCart";
 import HeroLanding from "@/components/HeroLanding";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
@@ -25,15 +26,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isAdminPage = location === "/login";
   const [showHero, setShowHero] = useState(true);
   const [heroKey, setHeroKey] = useState(0);
+  const isMobile = useIsMobile();
 
   const isHomePage = location === "/";
 
   useEffect(() => {
     if (isHomePage) {
-      setShowHero(true);
+      setShowHero(!isMobile);
       setHeroKey(prev => prev + 1);
     }
-  }, [location, isHomePage]);
+  }, [location, isHomePage, isMobile]);
 
   const handleHeroComplete = () => {
     // Hero se maneja internamente ahora - puede reaparecer al hacer scroll hacia arriba
@@ -46,10 +48,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="min-h-screen font-sans selection:bg-accent selection:text-primary"
-      style={{ scrollSnapType: "y proximity" }}
+      style={{ scrollSnapType: isMobile ? "none" : "y proximity" }}
     >
       <Navbar />
-      {isHomePage && showHero && (
+      {isHomePage && showHero && !isMobile && (
         <HeroLanding key={heroKey} onComplete={handleHeroComplete} />
       )}
       <main>{children}</main>

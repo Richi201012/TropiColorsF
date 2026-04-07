@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart, MessageCircle, Droplet, CheckCircle, ShieldCheck,
-  Sparkles, Clock, Award, Star, FlaskConical, ChevronDown, Search
+  Sparkles, Clock, Award, Star, FlaskConical, ChevronDown, Search, ArrowRight
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -288,12 +288,8 @@ export default function Home() {
       {/* El hero ya no está aquí - está en App.tsx como parte del flujo de scroll */}
 
       {/* ── CATÁLOGO ── */}
-      <motion.section 
-        id="productos" 
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: false, amount: 0.1 }}
-        transition={{ duration: 0.4 }}
+      <section
+        id="productos"
         className="page-snap-section relative overflow-hidden bg-gradient-to-b from-slate-50 to-white"
       >
         {/* Premium subtle background glow */}
@@ -310,15 +306,11 @@ export default function Home() {
         <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-16 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
 
           {/* Heading */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+          <div
             className="mx-auto mb-10 max-w-6xl rounded-[32px] border border-white/70 bg-white/75 px-6 py-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-12 sm:px-10 sm:py-10"
           >
             
-            <h2 className="mt-4 px-2 text-10xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-4xl">
+            <h2 className="mt-4 px-2 text-4xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-4xl">
               Color sin límites <span 
                 className="relative"
                 style={{ 
@@ -352,14 +344,10 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </div>
 
           {/* ── Filter Bar ── */}
-          <motion.div 
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
+          <div
             className="relative mb-14 rounded-[32px] border border-white/70 bg-white/70 px-4 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-16 sm:px-8 sm:py-8"
           >
             <div className="pointer-events-none absolute inset-0">
@@ -456,36 +444,23 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* ── Product Grid ── */}
-          <motion.div
-            layout
-            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            <AnimatePresence mode="wait">
-              {filteredProducts.map((product, idx) => (
-                <motion.div
-                  key={product.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                  transition={{ 
-                    duration: 0.4, 
-                    ease: [0.25, 0.46, 0.45, 0.94],
-                    delay: idx * 0.05
-                  }}
-                >
-                  <ProductCard
-                    product={product}
-                    addToCart={addToCart}
-                    addFlyingItem={addFlyingItem}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
+          <div className="grid grid-cols-1 gap-6 min-[480px]:gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-3">
+            {filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                className="mx-auto h-full w-full max-w-[440px]"
+              >
+                <ProductCard
+                  product={product}
+                  addToCart={addToCart}
+                  addFlyingItem={addFlyingItem}
+                />
+              </div>
+            ))}
+          </div>
 
           {filteredProducts.length === 0 && (
             <div className="text-center py-20 text-muted-foreground">
@@ -493,7 +468,7 @@ export default function Home() {
             </div>
           )}
         </div>
-      </motion.section>
+      </section>
 
       {/* ── PRÓXIMAMENTE GEL ── */}
       <motion.section 
@@ -524,13 +499,14 @@ export default function Home() {
 
               <motion.div
                 layout
-                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                className="grid grid-cols-1 gap-6 min-[480px]:gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-3"
               >
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   {GEL_PRODUCTS.map((product, idx) => (
                     <motion.div
                       key={product.id}
                       layout
+                      className="mx-auto h-full w-full max-w-[440px]"
                       initial={{ opacity: 0, scale: 0.9, y: 20 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.9, y: -20 }}
@@ -914,6 +890,30 @@ function getUnitPriceLabel(label: string, price: number): string | null {
   return `($${(price / pieces).toFixed(2)} c/u)`;
 }
 
+function getProductDescription(product: Product): string {
+  if (product.industrial) {
+    return "Pigmento de alto rendimiento para procesos exigentes.";
+  }
+
+  if (product.note) {
+    return `${product.note}. Formula consistente y de alto impacto visual.`;
+  }
+
+  return "Color intenso y uniforme para aplicaciones exigentes.";
+}
+
+function getProductHighlights(product: Product): string[] {
+  if (product.industrial) {
+    return ["Alta intensidad", "Uso profesional", "Aplicacion industrial"];
+  }
+
+  if (product.note) {
+    return ["Uso alimentario", "Alta intensidad", "Color estable"];
+  }
+
+  return ["Alta intensidad", "Uso profesional", "Color estable"];
+}
+
 /* ── Glass Product Card ── */
 const ProductCard = React.memo(function ProductCard({
   product,
@@ -970,6 +970,14 @@ const ProductCard = React.memo(function ProductCard({
       selected ? getUnitPriceLabel(selected.label, selected.price) : null,
     [selected],
   );
+  const productDescription = useMemo(
+    () => getProductDescription(product),
+    [product],
+  );
+  const productHighlights = useMemo(
+    () => getProductHighlights(product),
+    [product],
+  );
   const handleAddToCart = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
@@ -999,9 +1007,9 @@ const ProductCard = React.memo(function ProductCard({
   return (
     <motion.div
       layout
-      className="relative overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] transition-all duration-300 will-change-transform hover:-translate-y-1"
+      className="relative h-full overflow-hidden rounded-[26px] border border-white/80 bg-[radial-gradient(circle_at_top,rgba(255,208,74,0.10),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,249,255,0.98)_100%)] transition-all duration-300 will-change-transform hover:-translate-y-1 min-[480px]:rounded-[28px] lg:min-h-[640px]"
       style={{
-        boxShadow: "0 18px 50px rgba(15,23,42,0.08), 0 1px 3px rgba(15,23,42,0.06)",
+        boxShadow: "0 18px 50px rgba(15,23,42,0.10), 0 2px 10px rgba(15,23,42,0.05)",
       }}
     >
       {/* Subtle color glow */}
@@ -1010,75 +1018,112 @@ const ProductCard = React.memo(function ProductCard({
         style={{ backgroundColor: product.hex }}
       />
 
-      {/* Top color stripe */}
       <div
-        className="h-[5px] w-full"
+        className="h-[8px] w-full"
         style={{ background: `linear-gradient(90deg, ${product.hex}, ${product.hex2 ?? product.hex})` }}
       />
 
-      <div className="relative flex flex-1 flex-col gap-4 p-5">
+      <div className="relative flex h-full flex-col p-4 min-[400px]:p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-500">
+          <span className="inline-flex rounded-full border border-slate-200/80 bg-white/90 px-3 py-1.5 text-[8px] font-extrabold uppercase tracking-[0.18em] text-slate-500 shadow-sm min-[400px]:px-4 min-[400px]:py-2 min-[400px]:text-[9px]">
             {product.category}
           </span>
           {(product.industrial || product.note) && (
-            <span className="inline-flex rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+            <span className="inline-flex rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[8px] font-bold uppercase tracking-[0.12em] text-slate-500 shadow-sm min-[400px]:px-3 min-[400px]:py-1.5 min-[400px]:text-[9px]">
               {product.industrial ? "Industrial" : product.note}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 min-[400px]:mt-5 min-[400px]:gap-5">
+        <div className="grid min-h-[112px] items-center gap-3 min-[500px]:grid-cols-[92px_minmax(0,1fr)] min-[500px]:gap-5 min-[400px]:min-h-[126px]">
           <div
-            className="h-14 w-14 shrink-0 rounded-[20px] shadow-md"
+            className="mx-auto mt-1 h-[68px] w-[68px] shrink-0 rounded-full border-[4px] border-white shadow-[0_16px_28px_rgba(255,205,0,0.22)] min-[400px]:h-[78px] min-[400px]:w-[78px] min-[500px]:h-[92px] min-[500px]:w-[92px]"
             style={{
-              background: `linear-gradient(135deg, ${product.hex}, ${product.hex2 ?? product.hex})`,
-              boxShadow: `0 12px 30px ${product.hex}40`,
+              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.35), transparent 28%), linear-gradient(135deg, ${product.hex}, ${product.hex2 ?? product.hex})`,
+              boxShadow: `0 12px 28px ${product.hex}36`,
             }}
           />
-          <div className="min-w-0">
-            <h3 className="text-base font-extrabold leading-tight text-[#003F91]">{product.name}</h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Tonalidad diseñada para procesos alimentarios con compra por presentación.
+          <div className="min-w-0 text-center min-[500px]:text-left">
+            <h3 className="text-[1.4rem] font-black leading-[0.94] tracking-tight text-[#0b2d6b] min-[400px]:text-[1.65rem] min-[500px]:text-[2.05rem]">
+              {product.name}
+            </h3>
+            <p className="mx-auto mt-2 max-w-sm min-h-[2.6rem] overflow-hidden text-[12px] leading-relaxed text-slate-500 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] min-[400px]:mt-2.5 min-[400px]:min-h-[3rem] min-[400px]:text-[13px] min-[500px]:mx-0 min-[500px]:text-[14px]">
+              {productDescription}
             </p>
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              {availableConcentrations.map((value) => {
-                const isActive = selectedConcentration === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setSelectedConcentration(value)}
-                    className="text-[10px] font-extrabold px-2 py-0.5 rounded-full transition-all"
-                    style={{
-                      backgroundColor: isActive ? "#003F91" : "#E8EEF8",
-                      color: isActive ? "#fff" : "#003F91",
-                    }}
-                  >
-                    Conc. {value}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
 
+        <div className="grid min-h-[86px] grid-cols-1 gap-2 min-[400px]:gap-2.5 min-[500px]:grid-cols-2">
+          {productHighlights.slice(0, 3).map((highlight, index) => (
+            <span
+              key={`${product.id}-${highlight}`}
+              className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border border-slate-200/80 bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-slate-700 shadow-sm min-[400px]:gap-1.5 min-[400px]:px-4 min-[400px]:py-2 min-[400px]:text-[11px] min-[500px]:justify-start ${
+                index === 2 ? "min-[500px]:col-span-1" : ""
+              }`}
+            >
+              {index === 0 ? (
+                <Star size={12} className="shrink-0 fill-[#FFCD00] text-[#FFCD00]" />
+              ) : index === 1 ? (
+                <CheckCircle size={12} className="shrink-0 text-[#E0B100]" />
+              ) : (
+                <CheckCircle size={12} className="shrink-0 text-[#5b6b8c]" />
+              )}
+              <span className="truncate text-center min-[500px]:text-left">{highlight}</span>
+            </span>
+          ))}
+        </div>
+        </div>
+
         {notAvailable ? (
-          <div className="flex-1 flex items-center py-2">
+          <div className="mt-auto flex min-h-[168px] items-center py-2">
             <p className="text-xs text-gray-400 leading-relaxed">
               No disponible en la concentración seleccionada. Elige otra si está disponible.
             </p>
           </div>
         ) : (
           <>
-            {/* Presentation select */}
-            <div>
-              <label className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5 block">
-                Presentación
-              </label>
-              <div className="relative">
+            <div className="mt-auto rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f9fbff_100%)] p-4 shadow-[0_14px_30px_rgba(15,23,42,0.05)] min-[400px]:rounded-[24px] min-[400px]:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+                  Elige concentración
+                </p>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {availableConcentrations.map((value) => {
+                  const isActive = selectedConcentration === value;
+                  return (
+                    <button
+                      key={`selector-${value}`}
+                      type="button"
+                      onClick={() => setSelectedConcentration(value)}
+                      className={`rounded-full px-3.5 py-1.5 text-[10px] font-bold transition-all min-[400px]:px-4 min-[400px]:text-[11px] ${
+                        isActive
+                          ? "bg-[#0b2d6b] text-white shadow-lg shadow-[#0b2d6b]/20"
+                          : "border border-slate-200 bg-white text-slate-600"
+                      }`}
+                    >
+                      C-{value}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 border-t border-slate-200/80 pt-4 min-[400px]:mt-5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+                    Elige presentación
+                  </p>
+                  <span className="rounded-full bg-[#0b2d6b]/6 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#0b2d6b]">
+                    C-{selectedConcentration}
+                  </span>
+                </div>
+              </div>
+
+              <div className="relative mt-3 min-[400px]:mt-4">
                 <select
-                  className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-3 py-3 pr-8 text-xs font-semibold text-gray-700 shadow-sm transition-all focus:border-[#003F91]/30 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15"
+                  className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 pr-8 text-xs font-semibold text-gray-700 shadow-sm transition-all focus:border-[#003F91]/30 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15 min-[400px]:py-3 min-[400px]:text-sm"
                   value={selectedIdx}
                   onChange={(e) => setSelectedIdx(Number(e.target.value))}
                 >
@@ -1088,50 +1133,47 @@ const ProductCard = React.memo(function ProductCard({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={14} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
+
+              <div className="mt-4 flex items-end justify-between gap-3 min-[400px]:mt-5 min-[400px]:gap-4">
+                <div className="rounded-full bg-[linear-gradient(180deg,#f4f6fb_0%,#eef2f9_100%)] px-3 py-2 shadow-inner min-[400px]:px-4 min-[400px]:py-2.5">
+                  <span className="text-[10px] font-bold text-[#0b2d6b] min-[400px]:text-[11px]">
+                    Desde {unitPriceLabel ? unitPriceLabel.replace(/[()]/g, "") : "compra directa"}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Precio + IVA</span>
+                  <div className="mt-1 leading-none">
+                    <span className="text-[2rem] font-black tracking-tight text-[#0b4a92] min-[400px]:text-[2.2rem] min-[500px]:text-[2.55rem]">
+                      ${selected?.price.toLocaleString("es-MX")}
+                    </span>{" "}
+                    <span className="text-sm font-medium text-slate-500 min-[400px]:text-base">MXN</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Price */}
-            <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(145deg,rgba(248,250,252,1),rgba(255,255,255,1))] px-4 py-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Precio + IVA</span>
-                {unitPriceLabel ? (
-                  <p className="mt-1 text-[11px] font-medium text-gray-400">
-                    {unitPriceLabel}
-                  </p>
-                ) : null}
-              </div>
-              <span className="text-2xl font-black text-[#003F91]">
-                ${selected?.price.toLocaleString("es-MX")}{" "}
-                <span className="text-[10px] font-normal text-gray-400">MXN</span>
-              </span>
-              </div>
-              <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-semibold text-slate-200">
-                <span>Compra directa</span>
-                <span className="text-cyan-300">Presentación seleccionada</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="grid grid-cols-[minmax(0,1fr)_52px] items-stretch gap-2">
+            <div className="mt-3 space-y-2 min-[400px]:mt-4 min-[400px]:space-y-2.5">
               <button
                 onClick={handleAddToCart}
-                className="inline-flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-center text-xs font-extrabold leading-none transition-all duration-200 hover:opacity-90 active:scale-95"
-                style={{ background: product.hex, color: product.textColor }}
+                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,#FFE34B_0%,#FFD400_55%,#F7C900_100%)] px-4 py-3 text-center text-sm font-extrabold text-[#202531] shadow-[0_18px_30px_rgba(255,205,0,0.30)] transition-all duration-200 hover:brightness-[1.02] active:scale-[0.99] min-[400px]:min-h-[54px] min-[400px]:gap-2.5 min-[400px]:rounded-[22px] min-[400px]:text-base"
               >
-                <ShoppingCart size={13} />
+                <ShoppingCart size={18} className="min-[400px]:h-5 min-[400px]:w-5" />
                 Agregar al carrito
+                <ArrowRight size={16} className="min-[400px]:h-[18px] min-[400px]:w-[18px]" />
               </button>
+
               <a
                 href={`https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20${encodeURIComponent(product.name)}%20Conc.%20${selectedConcentration}%20-%20${encodeURIComponent(selected?.label ?? "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-[52px] w-[52px] items-center justify-center self-stretch rounded-2xl border border-[#FFCD00]/40 bg-[#FFCD00]/15 transition-all duration-200 hover:scale-[1.05] hover:bg-[#FFCD00]/25 active:scale-95"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-1 text-xs font-semibold text-slate-500 transition hover:text-[#003F91] min-[400px]:text-sm"
                 title="Cotizar por WhatsApp"
               >
-                <MessageCircle size={16} className="text-[#003F91]" />
+                <MessageCircle size={15} />
+                Compra directa
+                <ArrowRight size={14} />
               </a>
             </div>
           </>

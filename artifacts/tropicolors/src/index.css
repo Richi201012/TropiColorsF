@@ -137,6 +137,13 @@
   }
 }
 
+@media (max-width: 900px) {
+  .page-snap-section {
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
+  }
+}
+
 /* Premium Login & Dashboard Animations */
 @keyframes fadeInUp {
   from {
