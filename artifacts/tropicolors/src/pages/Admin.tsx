@@ -2814,6 +2814,80 @@ function ProductsView() {
   };
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowAddModal(false);
+        setShowEditModal(false);
+        setShowDeleteModal(false);
+        setShowSuccessModal(false);
+        setPendingDelete(null);
+      }
+    };
+
+    const isAnyModalOpen =
+      showAddModal ||
+      showEditModal ||
+      showDeleteModal ||
+      showSuccessModal ||
+      pendingDelete !== null;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
+
+    if (isAnyModalOpen) {
+      html.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${scrollY}px`;
+      body.style.left = "0";
+      body.style.right = "0";
+      body.style.width = "100%";
+      window.addEventListener("keydown", handleKeyDown);
+    } else {
+      const lockedScrollY = body.style.top
+        ? Math.abs(parseInt(body.style.top, 10))
+        : 0;
+      html.style.overflow = "";
+      body.style.overflow = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      if (lockedScrollY) {
+        window.scrollTo(0, lockedScrollY);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      // Solo restaurar si ningún otro modal está abierto
+      if (!isAnyModalOpen) {
+        const lockedScrollY = body.style.top
+          ? Math.abs(parseInt(body.style.top, 10))
+          : 0;
+        html.style.overflow = "";
+        body.style.overflow = "";
+        body.style.position = "";
+        body.style.top = "";
+        body.style.left = "";
+        body.style.right = "";
+        body.style.width = "";
+        if (lockedScrollY) {
+          window.scrollTo(0, lockedScrollY);
+        }
+      }
+    };
+  }, [
+    showAddModal,
+    showEditModal,
+    showDeleteModal,
+    showSuccessModal,
+    pendingDelete,
+  ]);
+
+  useEffect(() => {
     loadProducts();
   }, []);
 
@@ -3457,10 +3531,10 @@ function ProductsView() {
                   <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
                     Precios • Presentación 125g
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                        <label className="mb-2 block text-xs font-bold text-slate-500 truncate">
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
                           {label}
                         </label>
                         <div className="relative">
@@ -3468,19 +3542,22 @@ function ProductsView() {
                             $
                           </span>
                           <input
-                            type="number"
-                            value={newProduct.prices125[idx]}
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={newProduct.prices125[idx] === 0 ? "" : newProduct.prices125[idx]}
                             onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
                               const newPrices = [...newProduct.prices125] as [
                                 number, number, number, number, number
                               ];
-                              newPrices[idx] = parseFloat(e.target.value) || 0;
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
                               setNewProduct({
                                 ...newProduct,
                                 prices125: newPrices,
                               });
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                           />
                         </div>
                       </div>
@@ -3493,10 +3570,10 @@ function ProductsView() {
                   <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
                     Precios • Presentación 250g
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                        <label className="mb-2 block text-xs font-bold text-slate-500 truncate">
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
                           {label}
                         </label>
                         <div className="relative">
@@ -3504,19 +3581,22 @@ function ProductsView() {
                             $
                           </span>
                           <input
-                            type="number"
-                            value={newProduct.prices250[idx]}
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={newProduct.prices250[idx] === 0 ? "" : newProduct.prices250[idx]}
                             onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
                               const newPrices = [...newProduct.prices250] as [
                                 number, number, number, number, number
                               ];
-                              newPrices[idx] = parseFloat(e.target.value) || 0;
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
                               setNewProduct({
                                 ...newProduct,
                                 prices250: newPrices,
                               });
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                           />
                         </div>
                       </div>
@@ -3714,10 +3794,10 @@ function ProductsView() {
                   <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
                     Precios • Presentación 125g
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                        <label className="mb-2 block text-xs font-bold text-slate-500 truncate">
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
                           {label}
                         </label>
                         <div className="relative">
@@ -3725,19 +3805,22 @@ function ProductsView() {
                             $
                           </span>
                           <input
-                            type="number"
-                            value={editingProduct.prices125[idx]}
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={editingProduct.prices125[idx] === 0 ? "" : editingProduct.prices125[idx]}
                             onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
                               const newPrices = [...editingProduct.prices125] as [
                                 number, number, number, number, number
                               ];
-                              newPrices[idx] = parseFloat(e.target.value) || 0;
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
                               setEditingProduct({
                                 ...editingProduct,
                                 prices125: newPrices,
                               });
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                           />
                         </div>
                       </div>
@@ -3750,10 +3833,10 @@ function ProductsView() {
                   <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
                     Precios • Presentación 250g
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                        <label className="mb-2 block text-xs font-bold text-slate-500 truncate">
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
                           {label}
                         </label>
                         <div className="relative">
@@ -3761,19 +3844,22 @@ function ProductsView() {
                             $
                           </span>
                           <input
-                            type="number"
-                            value={editingProduct.prices250[idx]}
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={editingProduct.prices250[idx] === 0 ? "" : editingProduct.prices250[idx]}
                             onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
                               const newPrices = [...editingProduct.prices250] as [
                                 number, number, number, number, number
                               ];
-                              newPrices[idx] = parseFloat(e.target.value) || 0;
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
                               setEditingProduct({
                                 ...editingProduct,
                                 prices250: newPrices,
                               });
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                           />
                         </div>
                       </div>
@@ -3808,29 +3894,27 @@ function ProductsView() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && pendingDelete && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div
-            className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
             onClick={() => setShowDeleteModal(false)}
           />
-          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl p-6">
-            <div className="text-center">
-              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <Trash2 size={24} className="text-red-600" />
-              </div>
-              <h3 className="text-lg font-display font-bold text-slate-950">
-                ¿Eliminar producto?
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                ¿Estás seguro de eliminar "{pendingDelete.name}"? Esta acción no
-                se puede deshacer.
-              </p>
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-red-100 text-red-600 shadow-inner mb-6 relative">
+              <div className="absolute inset-0 bg-red-500/10 rounded-[1.5rem] animate-pulse" />
+              <Trash2 size={40} strokeWidth={1.5} className="relative z-10" />
             </div>
-            <div className="flex justify-center gap-3 mt-6">
+            <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
+              ¿Eliminar producto?
+            </h3>
+            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+              ¿Estás seguro de eliminar "{pendingDelete.name}"? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
-                className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="w-full rounded-xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
               >
                 Cancelar
               </button>
@@ -3838,8 +3922,9 @@ function ProductsView() {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={saving}
-                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-red-600/20 transition hover:bg-red-700 hover:shadow-red-600/30 disabled:opacity-50"
               >
+                {saving && <Loader2 size={16} className="animate-spin" />}
                 {saving ? "Eliminando..." : "Eliminar"}
               </button>
             </div>
@@ -3849,29 +3934,29 @@ function ProductsView() {
 
       {/* Success Modal */}
       {showSuccessModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div
-            className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
             onClick={() => setShowSuccessModal(false)}
           />
-          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl p-6">
-            <div className="text-center">
-              <div className="mx-auto h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <CheckCircle size={24} className="text-emerald-600" />
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {successMessage}
-              </p>
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-emerald-100 text-emerald-600 shadow-inner mb-6 relative">
+              <div className="absolute inset-0 bg-emerald-500/10 rounded-[1.5rem] animate-pulse" />
+              <CheckCircle size={40} strokeWidth={1.5} className="relative z-10" />
             </div>
-            <div className="flex justify-center mt-6">
-              <button
-                type="button"
-                onClick={() => setShowSuccessModal(false)}
-                className="rounded-xl bg-primary px-6 py-2 text-sm font-semibold text-white hover:bg-primary/90"
-              >
-                Aceptar
-              </button>
-            </div>
+            <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
+              ¡Operación exitosa!
+            </h3>
+            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+              {successMessage}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-emerald-600/30"
+            >
+              Aceptar
+            </button>
           </div>
         </div>, document.body
       )}
