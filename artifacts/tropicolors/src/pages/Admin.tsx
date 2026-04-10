@@ -6,6 +6,7 @@
   useRef,
   useCallback,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   Lock,
   TrendingUp,
@@ -79,6 +80,7 @@ import {
   addDoc,
   deleteDoc,
   collection,
+  getDocs,
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -861,6 +863,7 @@ type DashboardView =
   | "clientes"
   | "estadisticas"
   | "configuracion"
+  | "productos"
   | "notificaciones";
 type ModalActivo =
   | null
@@ -1479,41 +1482,41 @@ function OrdersView({
 
       {/* Filters */}
       <div className="mb-4 rounded-3xl border border-slate-200/80 bg-white/90 p-3 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm">
-          <Search size={16} className="text-muted-foreground shrink-0" />
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, ID o correo..."
-            className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className="text-muted-foreground hover:text-slate-900 transition-colors"
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm">
+            <Search size={16} className="text-muted-foreground shrink-0" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por cliente, ID o correo..."
+              className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="text-muted-foreground hover:text-slate-900 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter size={14} className="text-muted-foreground" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
             >
-              <X size={14} />
-            </button>
-          )}
+              <option value="todos">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="pagado">Pagado</option>
+              <option value="enviado">Enviado</option>
+              <option value="entregado">Entregado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Filter size={14} className="text-muted-foreground" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-          >
-            <option value="todos">Todos los estados</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="pagado">Pagado</option>
-            <option value="enviado">Enviado</option>
-            <option value="entregado">Entregado</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </div>
-      </div>
       </div>
 
       {filteredOrders.length === 0 ? (
@@ -2354,7 +2357,8 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
                   Colorante en Gel
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Al activar, los clientes podrán comprar gel. Al desactivar, se muestra "Próximamente".
+                  Al activar, los clientes podrán comprar gel. Al desactivar, se
+                  muestra "Próximamente".
                 </p>
                 <p
                   className={`mt-3 text-sm font-semibold transition-colors ${
@@ -2380,6 +2384,1589 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
     </DashboardSection>
   );
 }
+
+type FirebaseProduct = {
+  id: string;
+  name: string;
+  category: string;
+  hex: string;
+  hex2?: string;
+  textColor: string;
+  prices: {
+    125?: [number, number, number, number, number];
+    250?: [number, number, number, number, number];
+  };
+  industrial?: boolean;
+  note?: string;
+};
+
+type EditableProduct = {
+  id: string;
+  name: string;
+  category: string;
+  hex: string;
+  hex2?: string;
+  textColor: string;
+  prices125: [number, number, number, number, number];
+  prices250: [number, number, number, number, number];
+  industrial: boolean;
+  note: string;
+};
+
+const PRESENTATION_LABELS = [
+  "Caja chica (24 pz)",
+  "Caja mediana (24 pz)",
+  "Caja grande (6 pz)",
+  "Cubeta 6 KG",
+  "Cubeta 20 KG",
+];
+
+const CATEGORIES = [
+  "Amarillos",
+  "Azul",
+  "Cafés",
+  "Naranja",
+  "Negro",
+  "Rojos",
+  "Verdes",
+  "Especiales",
+  "Industriales",
+  "Gel",
+];
+
+const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
+  {
+    name: "Amarillo Canario",
+    hex: "#FFD700",
+    hex2: "#FFC400",
+    textColor: "#1a1a1a",
+    category: "Amarillos",
+    prices: {
+      "125": [23, 47, 140, 760, 2500],
+      "250": [33, 68, 235, 1300, 4200],
+    },
+  },
+  {
+    name: "Amarillo Huevo",
+    hex: "#FFA500",
+    hex2: "#FF8C00",
+    textColor: "#1a1a1a",
+    category: "Amarillos",
+    prices: {
+      "125": [23, 47, 140, 760, 2500],
+      "250": [33, 68, 235, 1300, 4200],
+    },
+  },
+  {
+    name: "Amarillo Limón",
+    hex: "#E8E800",
+    hex2: "#CCCC00",
+    textColor: "#1a1a1a",
+    category: "Amarillos",
+    prices: {
+      "125": [23, 47, 140, 760, 2500],
+      "250": [33, 68, 235, 1300, 2500],
+    },
+  },
+  {
+    name: "Amarillo Naranja",
+    hex: "#FF8C00",
+    hex2: "#FF6600",
+    textColor: "#ffffff",
+    category: "Amarillos",
+    prices: {
+      "125": [27, 50, 165, 900, 3000],
+      "250": [42, 80, 280, 1560, 5000],
+    },
+  },
+  {
+    name: "Azul",
+    hex: "#0051C8",
+    hex2: "#003F91",
+    textColor: "#ffffff",
+    category: "Azul",
+    prices: {
+      "125": [35, 72, 260, 1500, 5000],
+      "250": [64, 150, 450, 2640, 8100],
+    },
+  },
+  {
+    name: "Café Caramelo",
+    hex: "#D4944A",
+    hex2: "#C68642",
+    textColor: "#ffffff",
+    category: "Cafés",
+    prices: {
+      "125": [26, 55, 180, 1000, 3300],
+      "250": [37, 87, 306, 1774, 5800],
+    },
+  },
+  {
+    name: "Café Chocolate",
+    hex: "#7B4A2D",
+    hex2: "#5C3317",
+    textColor: "#ffffff",
+    category: "Cafés",
+    prices: {
+      "125": [31, 63, 220, 1250, 4100],
+      "250": [43, 111, 400, 2340, 7200],
+    },
+  },
+  {
+    name: "Naranja Pastor",
+    hex: "#FF7000",
+    hex2: "#FF5500",
+    textColor: "#ffffff",
+    category: "Naranja",
+    prices: {
+      "125": [27, 50, 165, 900, 3000],
+      "250": [33, 63, 234, 1260, 4000],
+    },
+  },
+  {
+    name: "Negro",
+    hex: "#2A2A2A",
+    hex2: "#111111",
+    textColor: "#ffffff",
+    category: "Negro",
+    prices: {
+      "125": [74, 175, 680, 4000, 12500],
+      "250": [74, 175, 680, 4000, 12500],
+    },
+  },
+  {
+    name: "Rojo Cochinilla",
+    hex: "#E01B3C",
+    hex2: "#C01030",
+    textColor: "#ffffff",
+    category: "Rojos",
+    prices: {
+      "125": [38, 76, 265, 1530, 4800],
+      "250": [60, 130, 480, 2646, 8400],
+    },
+  },
+  {
+    name: "Rojo Fresa",
+    hex: "#FF2E63",
+    hex2: "#E01050",
+    textColor: "#ffffff",
+    category: "Rojos",
+    prices: {
+      "125": [33, 76, 217, 1240, 3950],
+      "250": [57, 125, 370, 2150, 6500],
+    },
+  },
+  {
+    name: "Rojo Grosella",
+    hex: "#C71585",
+    hex2: "#A01070",
+    textColor: "#ffffff",
+    category: "Rojos",
+    prices: {
+      "125": [38, 76, 265, 1530, 4800],
+      "250": [60, 130, 450, 2640, 8100],
+    },
+  },
+  {
+    name: "Rojo Púrpura",
+    hex: "#8B1A35",
+    hex2: "#6B1025",
+    textColor: "#ffffff",
+    category: "Rojos",
+    prices: {
+      "125": [33, 76, 217, 1240, 3950],
+      "250": [57, 125, 370, 2150, 6500],
+    },
+  },
+  {
+    name: "Rojo Uva",
+    hex: "#7D2D3C",
+    hex2: "#5E1F2A",
+    textColor: "#ffffff",
+    category: "Rojos",
+    prices: {
+      "125": [38, 76, 265, 1530, 4800],
+      "250": [60, 130, 450, 2640, 8100],
+    },
+  },
+  {
+    name: "Verde Esmeralda",
+    hex: "#1E8A44",
+    hex2: "#166832",
+    textColor: "#ffffff",
+    category: "Verdes",
+    prices: {
+      "125": [32, 63, 200, 1130, 3700],
+      "250": [56, 111, 354, 2060, 6370],
+    },
+  },
+  {
+    name: "Verde Limón",
+    hex: "#8EC600",
+    hex2: "#72A000",
+    textColor: "#ffffff",
+    category: "Verdes",
+    prices: {
+      "125": [24.5, 49, 152, 830, 2700],
+      "250": [33, 63, 234, 1340, 4000],
+    },
+  },
+  {
+    name: "Violeta Alimentos",
+    hex: "#7B00E0",
+    hex2: "#5800A8",
+    textColor: "#ffffff",
+    category: "Especiales",
+    prices: { "125": [78, 0, 575, 0, 0] },
+    note: "Uso alimentario",
+  },
+  {
+    name: "Rosa Alimentos",
+    hex: "#FF70B8",
+    hex2: "#E0509A",
+    textColor: "#ffffff",
+    category: "Especiales",
+    prices: { "125": [78, 0, 680, 0, 0] },
+    note: "Uso alimentario",
+  },
+  {
+    name: "Violeta Industrial",
+    hex: "#6A0DB8",
+    hex2: "#4E0A8A",
+    textColor: "#ffffff",
+    category: "Industriales",
+    industrial: true,
+    prices: { "125": [78, 154, 575, 3350, 10500] },
+  },
+  {
+    name: "Rosa Brillante",
+    hex: "#FF0099",
+    hex2: "#CC0077",
+    textColor: "#ffffff",
+    category: "Industriales",
+    industrial: true,
+    prices: {
+      "125": [36, 72, 260, 1480, 4700],
+      "250": [64, 147, 440, 2580, 7920],
+    },
+  },
+];
+
+const GEL_COLORS_DEFAULT: Omit<FirebaseProduct, "id">[] = [
+  {
+    name: "Amarillo Gel",
+    hex: "#FFD700",
+    hex2: "#FFC200",
+    textColor: "#1a1a1a",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Naranja Gel",
+    hex: "#FF7000",
+    hex2: "#FF5500",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Azul Gel",
+    hex: "#0051C8",
+    hex2: "#003F91",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Rojo Gel",
+    hex: "#E01B3C",
+    hex2: "#C01030",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Verde Gel",
+    hex: "#1E8A44",
+    hex2: "#166832",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Rosa Gel",
+    hex: "#FF70B8",
+    hex2: "#E050A0",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Morado Gel",
+    hex: "#7B00E0",
+    hex2: "#5800A8",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Café Gel",
+    hex: "#7B4A2D",
+    hex2: "#5C3317",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Negro Gel",
+    hex: "#2A2A2A",
+    hex2: "#111111",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+  {
+    name: "Turquesa Gel",
+    hex: "#00A8B5",
+    hex2: "#007E8A",
+    textColor: "#ffffff",
+    category: "Gel",
+    prices: {
+      "125": [180, 380, 1200, 6500, 21000],
+      "250": [280, 580, 1800, 9800, 32000],
+    },
+    note: "Colorante en gel",
+  },
+];
+
+function ProductsView() {
+  const [products, setProducts] = useState<EditableProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("todos");
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [editingProduct, setEditingProduct] = useState<EditableProduct | null>(
+    null,
+  );
+  const [newProduct, setNewProduct] = useState<EditableProduct>({
+    id: "",
+    name: "",
+    category: "Amarillos",
+    hex: "#FFD700",
+    hex2: "#FFC400",
+    textColor: "#1a1a1a",
+    prices125: [23, 47, 140, 760, 2500],
+    prices250: [33, 68, 235, 1300, 4200],
+    industrial: false,
+    note: "",
+  });
+
+  const showMessage = (message: string) => {
+    setSuccessMessage(message);
+    setShowSuccessModal(true);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowAddModal(false);
+        setShowEditModal(false);
+        setShowDeleteModal(false);
+        setShowSuccessModal(false);
+        setPendingDelete(null);
+      }
+    };
+
+    const isAnyModalOpen =
+      showAddModal ||
+      showEditModal ||
+      showDeleteModal ||
+      showSuccessModal ||
+      pendingDelete !== null;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
+
+    if (isAnyModalOpen) {
+      html.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${scrollY}px`;
+      body.style.left = "0";
+      body.style.right = "0";
+      body.style.width = "100%";
+      window.addEventListener("keydown", handleKeyDown);
+    } else {
+      const lockedScrollY = body.style.top
+        ? Math.abs(parseInt(body.style.top, 10))
+        : 0;
+      html.style.overflow = "";
+      body.style.overflow = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      if (lockedScrollY) {
+        window.scrollTo(0, lockedScrollY);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      // Solo restaurar si ningún otro modal está abierto
+      if (!isAnyModalOpen) {
+        const lockedScrollY = body.style.top
+          ? Math.abs(parseInt(body.style.top, 10))
+          : 0;
+        html.style.overflow = "";
+        body.style.overflow = "";
+        body.style.position = "";
+        body.style.top = "";
+        body.style.left = "";
+        body.style.right = "";
+        body.style.width = "";
+        if (lockedScrollY) {
+          window.scrollTo(0, lockedScrollY);
+        }
+      }
+    };
+  }, [
+    showAddModal,
+    showEditModal,
+    showDeleteModal,
+    showSuccessModal,
+    pendingDelete,
+  ]);
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    setLoading(true);
+    try {
+      const snapshot = await getDocs(collection(db, "products"));
+      if (snapshot.empty) {
+        setProducts([]);
+      } else {
+        const loaded: EditableProduct[] = snapshot.docs.map((doc) => {
+          const data = doc.data() as FirebaseProduct;
+          return {
+            id: doc.id,
+            name: data.name || "",
+            category: data.category || "",
+            hex: data.hex || "#000000",
+            hex2: data.hex2 || "",
+            textColor: data.textColor || "#ffffff",
+            prices125: (Array.isArray(data.prices?.["125"])
+              ? data.prices?.["125"]
+              : [0, 0, 0, 0, 0]
+            )
+              .map((v) => Number(v) || 0)
+              .slice(0, 5) as [number, number, number, number, number],
+            prices250: (Array.isArray(data.prices?.["250"])
+              ? data.prices?.["250"]
+              : [0, 0, 0, 0, 0]
+            )
+              .map((v) => Number(v) || 0)
+              .slice(0, 5) as [number, number, number, number, number],
+            industrial: data.industrial || false,
+            note: data.note || "",
+          };
+        });
+        setProducts(loaded);
+      }
+    } catch (error) {
+      console.error("[ProductsView] Error loading products:", error);
+      showMessage("Error al cargar productos de Firebase.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddProductClick = () => {
+    setNewProduct({
+      id: "",
+      name: "",
+      category: "Amarillos",
+      hex: "#FFD700",
+      hex2: "#FFC400",
+      textColor: "#1a1a1a",
+      prices125: [23, 47, 140, 760, 2500],
+      prices250: [33, 68, 235, 1300, 4200],
+      industrial: false,
+      note: "",
+    });
+    setShowAddModal(true);
+  };
+
+  const handleSaveNewProduct = async () => {
+    if (!newProduct.name.trim()) {
+      showMessage("El nombre del producto es obligatorio.");
+      return;
+    }
+
+    setSaving(true);
+    const newId = `nuevo-${Date.now()}`;
+
+    try {
+      const productData: Record<string, unknown> = {
+        name: newProduct.name,
+        category: newProduct.category,
+        hex: newProduct.hex,
+        hex2: newProduct.hex2,
+        textColor: newProduct.textColor,
+        prices: {
+          125: newProduct.prices125,
+          250: newProduct.prices250,
+        },
+        createdAt: new Date().toISOString(),
+      };
+
+      if (newProduct.industrial) {
+        productData.industrial = true;
+      }
+      if (newProduct.note) {
+        productData.note = newProduct.note;
+      }
+
+      await setDoc(doc(db, "products", newId), productData);
+      setShowAddModal(false);
+      showMessage(`Producto "${newProduct.name}" creado correctamente.`);
+      await loadProducts();
+    } catch (error) {
+      console.error("[ProductsView] Error adding product:", error);
+      showMessage("Error al crear el producto.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+
+    setSaving(true);
+    try {
+      await deleteDoc(doc(db, "products", pendingDelete.id));
+      setShowDeleteModal(false);
+      setPendingDelete(null);
+      showMessage(`Producto "${pendingDelete.name}" eliminado correctamente.`);
+      await loadProducts();
+    } catch (error) {
+      console.error("[ProductsView] Error deleting product:", error);
+      showMessage("Error al eliminar el producto.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFieldChange = (
+    id: string,
+    field: keyof EditableProduct,
+    value: unknown,
+  ) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
+    );
+    setHasChanges(true);
+  };
+
+  const handlePriceChange = (
+    id: string,
+    size: "125" | "250",
+    index: number,
+    value: string,
+  ) => {
+    const numValue = parseFloat(value) || 0;
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const newPrices =
+          size === "125"
+            ? {
+                ...p,
+                prices125: [...p.prices125] as [
+                  number,
+                  number,
+                  number,
+                  number,
+                  number,
+                ],
+              }
+            : {
+                ...p,
+                prices250: [...p.prices250] as [
+                  number,
+                  number,
+                  number,
+                  number,
+                  number,
+                ],
+              };
+        if (size === "125") {
+          (newPrices.prices125 as number[])[index] = numValue;
+        } else {
+          (newPrices.prices250 as number[])[index] = numValue;
+        }
+        return newPrices as EditableProduct;
+      }),
+    );
+    setHasChanges(true);
+  };
+
+  const handleSaveProduct = async (product: EditableProduct) => {
+    setSaving(true);
+    try {
+      const productData: Record<string, unknown> = {
+        name: product.name,
+        category: product.category,
+        hex: product.hex,
+        hex2: product.hex2,
+        textColor: product.textColor,
+        prices: {
+          125: product.prices125,
+          250: product.prices250,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (product.industrial) {
+        productData.industrial = product.industrial;
+      }
+      if (product.note) {
+        productData.note = product.note;
+      }
+
+      await setDoc(doc(db, "products", product.id), productData, {
+        merge: true,
+      });
+      showMessage(`Producto "${product.name}" actualizado correctamente.`);
+      setHasChanges(false);
+    } catch (error) {
+      console.error("[ProductsView] Error saving product:", error);
+      showMessage("Error al guardar los cambios.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddProduct = async () => {
+    const newId = `nuevo-${Date.now()}`;
+    const newProduct: EditableProduct = {
+      id: newId,
+      name: "Nuevo Producto",
+      category: "Amarillos",
+      hex: "#FFD700",
+      hex2: "#FFC400",
+      textColor: "#1a1a1a",
+      prices125: [23, 47, 140, 760, 2500],
+      prices250: [33, 68, 235, 1300, 4200],
+      industrial: false,
+      note: "",
+    };
+
+    try {
+      const productData: Record<string, unknown> = {
+        name: newProduct.name,
+        category: newProduct.category,
+        hex: newProduct.hex,
+        hex2: newProduct.hex2,
+        textColor: newProduct.textColor,
+        prices: {
+          125: newProduct.prices125,
+          250: newProduct.prices250,
+        },
+        createdAt: new Date().toISOString(),
+      };
+
+      if (newProduct.industrial) {
+        productData.industrial = newProduct.industrial;
+      }
+      if (newProduct.note) {
+        productData.note = newProduct.note;
+      }
+
+      await setDoc(doc(db, "products", newId), productData);
+      setProducts((prev) => [...prev, newProduct]);
+      showMessage("Nuevo producto creado correctamente.");
+    } catch (error) {
+      console.error("[ProductsView] Error adding product:", error);
+      showMessage("Error al crear nuevo producto.");
+    }
+  };
+
+  const handleDeleteProduct = (id: string, name: string) => {
+    setPendingDelete({ id, name });
+    setShowDeleteModal(true);
+  };
+
+  const handleEditClick = (product: EditableProduct) => {
+    setEditingProduct({ ...product });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingProduct) return;
+    if (!editingProduct.name.trim()) {
+      showMessage("El nombre del producto es obligatorio.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const productData: Record<string, unknown> = {
+        name: editingProduct.name,
+        category: editingProduct.category,
+        hex: editingProduct.hex,
+        hex2: editingProduct.hex2,
+        textColor: editingProduct.textColor,
+        prices: {
+          125: editingProduct.prices125,
+          250: editingProduct.prices250,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (editingProduct.industrial) {
+        productData.industrial = true;
+      }
+      if (editingProduct.note) {
+        productData.note = editingProduct.note;
+      }
+
+      await setDoc(doc(db, "products", editingProduct.id), productData, {
+        merge: true,
+      });
+      setShowEditModal(false);
+      showMessage(
+        `Producto "${editingProduct.name}" actualizado correctamente.`,
+      );
+      await loadProducts();
+    } catch (error) {
+      console.error("[ProductsView] Error saving product:", error);
+      showMessage("Error al guardar los cambios.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      !searchTerm ||
+      product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "todos" || product.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <DashboardSection
+      title="Gestión de Productos"
+      subtitle="Edita precios, colores y disponibilidad de productos desde Firebase."
+      action={
+        <button
+          type="button"
+          onClick={handleAddProductClick}
+          className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+        >
+          <Package size={16} />
+          Agregar producto
+        </button>
+      }
+    >
+      <div className="mb-7 grid gap-5 md:grid-cols-[1fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fbff_100%)] px-7 py-9 shadow-sm">
+          <p className="text-[15px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+            Control de productos
+          </p>
+          
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              Visibles
+            </p>
+            <p className="mt-2 text-2xl font-display font-bold text-slate-950">
+              {filteredProducts.length}
+            </p>
+          </div>
+          <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+              Total
+            </p>
+            <p className="mt-2 text-2xl font-display font-bold text-slate-950">
+              {products.length}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-3xl border border-slate-200/80 bg-white/90 p-3 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm">
+            <Search size={16} className="text-muted-foreground shrink-0" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nombre..."
+              className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="text-muted-foreground hover:text-slate-900 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter size={14} className="text-muted-foreground" />
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+            >
+              <option value="todos">Todas las categorías</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="rounded-3xl border border-border/50 bg-white p-12 text-center">
+          <Loader2 size={32} className="mx-auto animate-spin text-primary" />
+          <p className="mt-4 text-sm text-muted-foreground">
+            Cargando productos...
+          </p>
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="rounded-3xl border border-border/50 bg-white px-5 py-12 text-center text-sm text-muted-foreground">
+          {searchTerm || categoryFilter !== "todos"
+            ? "No se encontraron productos con los filtros aplicados."
+            : "No hay productos en Firebase. Agrega uno nuevo."}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filteredProducts.map((product) => (
+            <div
+              key={product.id}
+              className="group relative overflow-hidden rounded-[24px] border border-border/60 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)]"
+            >
+              {/* Color Header */}
+              <div
+                className="relative h-28 w-full overflow-hidden"
+                style={{ backgroundColor: product.hex || "#f1f5f9" }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent mix-blend-overlay" />
+                <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.2)_0%,transparent_100%)]" />
+                <div className="absolute right-3 top-3 flex gap-2">
+                  {product.industrial && (
+                    <span className="rounded-full bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
+                      Industrial
+                    </span>
+                  )}
+                  <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-800 shadow-sm backdrop-blur-md">
+                    {product.category}
+                  </span>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="mb-4">
+                  <h3 className="font-display text-lg font-bold text-slate-950 truncate transition-colors group-hover:text-primary">
+                    {product.name}
+                  </h3>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span
+                      className="h-3.5 w-3.5 rounded-full border border-slate-200 shadow-sm"
+                      style={{ backgroundColor: product.hex || "#f1f5f9" }}
+                    />
+                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                      {product.hex || "N/A"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mb-5 rounded-2xl bg-slate-50/80 p-3 border border-slate-100">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Precio desde
+                  </p>
+                  <p className="text-lg font-extrabold text-slate-900">
+                    ${Math.min(...product.prices125.filter((p) => p > 0), ...product.prices250.filter((p) => p > 0)) || "0"}
+                    <span className="text-sm font-semibold text-slate-500">
+                      {" "}
+                      MXN
+                    </span>
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 mt-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleEditClick(product)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProduct(product.id, product.name)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                    title="Eliminar producto"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Product Modal */}
+      {showAddModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowAddModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-5 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 shadow-inner">
+                  <Package size={24} strokeWidth={1.5} />
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold text-slate-950">
+                    Agregar Nuevo Producto
+                  </h3>
+                  <p className="text-sm text-slate-500 font-medium">
+                    Completa la información para catalogar el producto
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
+              <div className="space-y-6">
+                {/* General Info */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Información General
+                  </h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Nombre del producto
+                      </label>
+                      <input
+                        type="text"
+                        value={newProduct.name}
+                        onChange={(e) =>
+                          setNewProduct({ ...newProduct, name: e.target.value })
+                        }
+                        placeholder="Ej: Rojo Fresa"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Categoría
+                      </label>
+                      <select
+                        value={newProduct.category}
+                        onChange={(e) =>
+                          setNewProduct({ ...newProduct, category: e.target.value })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Color (Hex)
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                          <input
+                            type="color"
+                            value={newProduct.hex}
+                            onChange={(e) =>
+                              setNewProduct({ ...newProduct, hex: e.target.value })
+                            }
+                            className="absolute -inset-4 h-20 w-20 cursor-pointer appearance-none bg-transparent"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={newProduct.hex}
+                          onChange={(e) =>
+                            setNewProduct({ ...newProduct, hex: e.target.value })
+                          }
+                          placeholder="#000000"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium uppercase outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Notas (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newProduct.note}
+                        onChange={(e) =>
+                          setNewProduct({ ...newProduct, note: e.target.value })
+                        }
+                        placeholder="Detalles adicionales..."
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Industrial Toggle */}
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-100/50">
+                  <label className="flex cursor-pointer items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-slate-900">Uso Industrial</p>
+                      <p className="text-xs text-slate-500">Marcar si este producto es de grado industrial.</p>
+                    </div>
+                    <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 [&:has(:checked)]:bg-emerald-600">
+                      <input
+                        type="checkbox"
+                        className="peer sr-only"
+                        checked={newProduct.industrial}
+                        onChange={(e) =>
+                          setNewProduct({
+                            ...newProduct,
+                            industrial: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className="inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform peer-checked:translate-x-6" />
+                    </div>
+                  </label>
+                </div>
+
+                {/* Pricing 125g */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Precios • Presentación 125g
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {PRESENTATION_LABELS.map((label, idx) => (
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                          {label}
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                            $
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={newProduct.prices125[idx] === 0 ? "" : newProduct.prices125[idx]}
+                            onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
+                              const newPrices = [...newProduct.prices125] as [
+                                number, number, number, number, number
+                              ];
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
+                              setNewProduct({
+                                ...newProduct,
+                                prices125: newPrices,
+                              });
+                            }}
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pricing 250g */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Precios • Presentación 250g
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {PRESENTATION_LABELS.map((label, idx) => (
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                          {label}
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                            $
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={newProduct.prices250[idx] === 0 ? "" : newProduct.prices250[idx]}
+                            onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
+                              const newPrices = [...newProduct.prices250] as [
+                                number, number, number, number, number
+                              ];
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
+                              setNewProduct({
+                                ...newProduct,
+                                prices250: newPrices,
+                              });
+                            }}
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-auto sticky bottom-0 z-10 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveNewProduct}
+                disabled={saving}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-emerald-600/30 disabled:opacity-50"
+              >
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {saving ? "Guardando..." : "Crear Producto"}
+              </button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditModal && editingProduct && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowEditModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-5 shrink-0">
+              <div className="flex items-center gap-4">
+                <div 
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-inner relative overflow-hidden" 
+                  style={{ backgroundColor: editingProduct.hex || "#3b82f6" }}
+                >
+                  <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
+                  <Package size={24} strokeWidth={1.5} className="relative z-10" />
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold text-slate-950">
+                    Editar Producto
+                  </h3>
+                  <p className="text-sm text-slate-500 font-medium">
+                    Actualiza la información y precios de este artículo
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
+              <div className="space-y-6">
+                {/* General Info */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Información General
+                  </h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Nombre del producto
+                      </label>
+                      <input
+                        type="text"
+                        value={editingProduct.name}
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            name: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Categoría
+                      </label>
+                      <select
+                        value={editingProduct.category}
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            category: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Color (Hex)
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                          <input
+                            type="color"
+                            value={editingProduct.hex}
+                            onChange={(e) =>
+                              setEditingProduct({
+                                ...editingProduct,
+                                hex: e.target.value,
+                              })
+                            }
+                            className="absolute -inset-4 h-20 w-20 cursor-pointer appearance-none bg-transparent"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={editingProduct.hex}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              hex: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium uppercase outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Notas (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={editingProduct.note}
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            note: e.target.value,
+                          })
+                        }
+                        placeholder="Detalles adicionales..."
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Industrial Toggle */}
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-100/50">
+                  <label className="flex cursor-pointer items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-slate-900">Uso Industrial</p>
+                      <p className="text-xs text-slate-500">Marcar si este producto es de grado industrial.</p>
+                    </div>
+                    <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 [&:has(:checked)]:bg-primary">
+                      <input
+                        type="checkbox"
+                        className="peer sr-only"
+                        checked={editingProduct.industrial}
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            industrial: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className="inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform peer-checked:translate-x-6" />
+                    </div>
+                  </label>
+                </div>
+
+                {/* Pricing 125g */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Precios • Presentación 125g
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {PRESENTATION_LABELS.map((label, idx) => (
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                          {label}
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                            $
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={editingProduct.prices125[idx] === 0 ? "" : editingProduct.prices125[idx]}
+                            onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
+                              const newPrices = [...editingProduct.prices125] as [
+                                number, number, number, number, number
+                              ];
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
+                              setEditingProduct({
+                                ...editingProduct,
+                                prices125: newPrices,
+                              });
+                            }}
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pricing 250g */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Precios • Presentación 250g
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {PRESENTATION_LABELS.map((label, idx) => (
+                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                          {label}
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                            $
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={editingProduct.prices250[idx] === 0 ? "" : editingProduct.prices250[idx]}
+                            onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
+                              const newPrices = [...editingProduct.prices250] as [
+                                number, number, number, number, number
+                              ];
+                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
+                              setEditingProduct({
+                                ...editingProduct,
+                                prices250: newPrices,
+                              });
+                            }}
+                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-auto sticky bottom-0 z-10 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 hover:shadow-blue-600/30 disabled:opacity-50"
+              >
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {saving ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && pendingDelete && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowDeleteModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-red-100 text-red-600 shadow-inner mb-6 relative">
+              <div className="absolute inset-0 bg-red-500/10 rounded-[1.5rem] animate-pulse" />
+              <Trash2 size={40} strokeWidth={1.5} className="relative z-10" />
+            </div>
+            <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
+              ¿Eliminar producto?
+            </h3>
+            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+              ¿Estás seguro de eliminar "{pendingDelete.name}"? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={saving}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-red-600/20 transition hover:bg-red-700 hover:shadow-red-600/30 disabled:opacity-50"
+              >
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {saving ? "Eliminando..." : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowSuccessModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-emerald-100 text-emerald-600 shadow-inner mb-6 relative">
+              <div className="absolute inset-0 bg-emerald-500/10 rounded-[1.5rem] animate-pulse" />
+              <CheckCircle size={40} strokeWidth={1.5} className="relative z-10" />
+            </div>
+            <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
+              ¡Operación exitosa!
+            </h3>
+            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+              {successMessage}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-emerald-600/30"
+            >
+              Aceptar
+            </button>
+          </div>
+        </div>, document.body
+      )}
+    </DashboardSection>
+  );
+}
+
+
+
+
+
+
 
 function NotificationsView({
   notifications,
@@ -2522,7 +4109,7 @@ function NotificationsView({
       )}
 
       {/* Modal de confirmación de eliminación de notificación */}
-      {pendingDelete && (
+      {pendingDelete && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
@@ -2592,7 +4179,7 @@ function NotificationsView({
               </div>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
     </DashboardSection>
   );
@@ -2969,7 +4556,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
           ? {
               cancellationReason: shippingForm.cancellationReason.trim(),
             }
-        : undefined;
+          : undefined;
 
     // Actualizar en Firebase
     try {
@@ -3437,9 +5024,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 <h1 className="mt-1.5 text-lg font-display font-bold tracking-tight text-slate-950">
                   Panel Administrativo
                 </h1>
-                <p className="mt-0.5 max-w-xl text-xs text-muted-foreground">
-                 
-                </p>
+                <p className="mt-0.5 max-w-xl text-xs text-muted-foreground"></p>
                 <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
                   <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
                     Operación centralizada
@@ -3496,30 +5081,33 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Tabs */}
         <div className="mb-4 rounded-[28px] border border-white/70 bg-white/75 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-        <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">
-          <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
-              Navegación del panel
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">
-             
-            </p>
+          <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+                Navegación del panel
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-900"></p>
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-1 sm:flex sm:w-fit">
-          {(
-            [
-              { key: "resumen", label: "Resumen", icon: LayoutDashboard },
-              { key: "pedidos", label: "Pedidos", icon: Package },
-              { key: "facturas", label: "Facturas", icon: FileText },
-              { key: "notificaciones", label: "Notificaciones", icon: Bell },
-              { key: "configuracion", label: "Configuración", icon: Settings },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => handleViewChange(tab.key)}
-              className={`
+          <div className="grid grid-cols-2 gap-1 sm:flex sm:w-fit">
+            {(
+              [
+                { key: "resumen", label: "Resumen", icon: LayoutDashboard },
+                { key: "pedidos", label: "Pedidos", icon: Package },
+                { key: "facturas", label: "Facturas", icon: FileText },
+                { key: "productos", label: "Productos", icon: ShoppingBag },
+                { key: "notificaciones", label: "Notificaciones", icon: Bell },
+                {
+                  key: "configuracion",
+                  label: "Configuración",
+                  icon: Settings,
+                },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => handleViewChange(tab.key)}
+                className={`
                 relative isolate flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 py-3 text-center text-sm font-bold transition-all duration-300 sm:min-h-0 sm:justify-start sm:px-6
                 ${
                   vistaActiva === tab.key
@@ -3527,14 +5115,14 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                     : "text-muted-foreground hover:bg-slate-100/80 hover:text-foreground"
                 }
               `}
-            >
-              <span className="relative z-10 flex items-center gap-2 whitespace-nowrap">
-                <tab.icon size={16} />
-                {tab.label}
-              </span>
-            </button>
-          ))}
-        </div>
+              >
+                <span className="relative z-10 flex items-center gap-2 whitespace-nowrap">
+                  <tab.icon size={16} />
+                  {tab.label}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -3611,6 +5199,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             {vistaActiva === "configuracion" && (
               <SettingsView onLogout={handleLogout} />
             )}
+            {vistaActiva === "productos" && <ProductsView />}
           </div>
         </div>
 
@@ -4226,7 +5815,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
             ? "Ingresa los datos del envío para notificar al cliente"
             : pendingStatusUpdate?.newStatus === "cancelado"
               ? "Indica el motivo de cancelación para notificar al cliente"
-            : "¿Estás seguro de que deseas cambiar el estado de este pedido?"
+              : "¿Estás seguro de que deseas cambiar el estado de este pedido?"
         }
         onClose={isUpdatingStatus ? () => {} : cancelStatusUpdate}
       >
