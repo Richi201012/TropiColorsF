@@ -3223,14 +3223,12 @@ function ProductsView() {
         </button>
       }
     >
-      <div className="mb-4 grid gap-3 md:grid-cols-[1fr_0.8fr]">
-        <div className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fbff_100%)] px-5 py-4 shadow-sm">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
-            Firebase Products
+      <div className="mb-7 grid gap-5 md:grid-cols-[1fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fbff_100%)] px-7 py-9 shadow-sm">
+          <p className="text-[15px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+            Control de productos
           </p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">
-            Los cambios se guardan directamente en Firestore.
-          </p>
+          
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
