@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
+import Inventario from "@/pages/Inventario";
 
 const Admin = lazy(() => import("@/pages/Admin"));
 
@@ -23,7 +24,7 @@ const queryClient = new QueryClient();
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const isAdminPage = location === "/login";
+  const isAdminPage = location === "/login" || location === "/inventario";
   const [showHero, setShowHero] = useState(true);
   const [heroKey, setHeroKey] = useState(0);
   const isMobile = useIsMobile();
@@ -33,7 +34,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isHomePage) {
       setShowHero(!isMobile);
-      setHeroKey(prev => prev + 1);
+      setHeroKey((prev) => prev + 1);
     }
   }, [location, isHomePage, isMobile]);
 
@@ -76,6 +77,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/login" component={Admin} />
+        <Route path="/inventario" component={Inventario} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

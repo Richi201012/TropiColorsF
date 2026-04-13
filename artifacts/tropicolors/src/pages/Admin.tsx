@@ -46,6 +46,7 @@ import {
   Calendar,
   CreditCard,
   Trash2,
+  Warehouse,
 } from "lucide-react";
 import {
   BarChart,
@@ -1202,6 +1203,29 @@ function SummaryView({
   orders: AdminOrder[];
   clientes: AdminClient[];
 }) {
+  const [products, setProducts] = useState<{ stock?: number }[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "products"));
+        const prods = snapshot.docs.map((doc) => ({
+          stock: doc.data().stock || 0,
+        }));
+        setProducts(prods);
+      } catch (err) {
+        console.error("Error loading products:", err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    loadProducts();
+  }, []);
+
+  const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+  const productsWithStock = products.filter((p) => (p.stock || 0) > 0).length;
+
   const recentOrders = orders.slice(0, 5);
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
@@ -2411,6 +2435,7 @@ type EditableProduct = {
   prices250: [number, number, number, number, number];
   industrial: boolean;
   note: string;
+  stock?: number;
 };
 
 const PRESENTATION_LABELS = [
@@ -2921,6 +2946,7 @@ function ProductsView() {
               .slice(0, 5) as [number, number, number, number, number],
             industrial: data.industrial || false,
             note: data.note || "",
+            stock: data.stock || 0,
           };
         });
         setProducts(loaded);
@@ -3228,7 +3254,6 @@ function ProductsView() {
           <p className="text-[15px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
             Control de productos
           </p>
-          
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
@@ -3333,14 +3358,27 @@ function ProductsView() {
                   <h3 className="font-display text-lg font-bold text-slate-950 truncate transition-colors group-hover:text-primary">
                     {product.name}
                   </h3>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span
-                      className="h-3.5 w-3.5 rounded-full border border-slate-200 shadow-sm"
-                      style={{ backgroundColor: product.hex || "#f1f5f9" }}
-                    />
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                      {product.hex || "N/A"}
-                    </span>
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-3.5 w-3.5 rounded-full border border-slate-200 shadow-sm"
+                        style={{ backgroundColor: product.hex || "#f1f5f9" }}
+                      />
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        {product.hex || "N/A"}
+                      </span>
+                    </div>
+                    <div
+                      className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                        (product.stock || 0) > 10
+                          ? "bg-green-100 text-green-700"
+                          : (product.stock || 0) > 0
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      Stock: {product.stock || 0}
+                    </div>
                   </div>
                 </div>
 
@@ -3349,7 +3387,11 @@ function ProductsView() {
                     Precio desde
                   </p>
                   <p className="text-lg font-extrabold text-slate-900">
-                    ${Math.min(...product.prices125.filter((p) => p > 0), ...product.prices250.filter((p) => p > 0)) || "0"}
+                    $
+                    {Math.min(
+                      ...product.prices125.filter((p) => p > 0),
+                      ...product.prices250.filter((p) => p > 0),
+                    ) || "0"}
                     <span className="text-sm font-semibold text-slate-500">
                       {" "}
                       MXN
@@ -3368,7 +3410,9 @@ function ProductsView() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteProduct(product.id, product.name)}
+                    onClick={() =>
+                      handleDeleteProduct(product.id, product.name)
+                    }
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
                     title="Eliminar producto"
                   >
@@ -3382,343 +3426,416 @@ function ProductsView() {
       )}
 
       {/* Add Product Modal */}
-      {showAddModal && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          <div
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowAddModal(false)}
-          />
-          <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh]">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-5 shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 shadow-inner">
-                  <Package size={24} strokeWidth={1.5} />
+      {showAddModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <div
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+              onClick={() => setShowAddModal(false)}
+            />
+            <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-5 shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 shadow-inner">
+                    <Package size={24} strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-xl font-bold text-slate-950">
+                      Agregar Nuevo Producto
+                    </h3>
+                    <p className="text-sm text-slate-500 font-medium">
+                      Completa la información para catalogar el producto
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-display text-xl font-bold text-slate-950">
-                    Agregar Nuevo Producto
-                  </h3>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Completa la información para catalogar el producto
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-900"
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-900"
-              >
-                <X size={20} />
-              </button>
-            </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
-              <div className="space-y-6">
-                {/* General Info */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Información General
-                  </h4>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="md:col-span-2">
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Nombre del producto
-                      </label>
-                      <input
-                        type="text"
-                        value={newProduct.name}
-                        onChange={(e) =>
-                          setNewProduct({ ...newProduct, name: e.target.value })
-                        }
-                        placeholder="Ej: Rojo Fresa"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Categoría
-                      </label>
-                      <select
-                        value={newProduct.category}
-                        onChange={(e) =>
-                          setNewProduct({ ...newProduct, category: e.target.value })
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Color (Hex)
-                      </label>
-                      <div className="flex gap-2">
-                        <div className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                          <input
-                            type="color"
-                            value={newProduct.hex}
-                            onChange={(e) =>
-                              setNewProduct({ ...newProduct, hex: e.target.value })
-                            }
-                            className="absolute -inset-4 h-20 w-20 cursor-pointer appearance-none bg-transparent"
-                          />
-                        </div>
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
+                <div className="space-y-6">
+                  {/* General Info */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                      Información General
+                    </h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="md:col-span-2">
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Nombre del producto
+                        </label>
                         <input
                           type="text"
-                          value={newProduct.hex}
+                          value={newProduct.name}
                           onChange={(e) =>
-                            setNewProduct({ ...newProduct, hex: e.target.value })
+                            setNewProduct({
+                              ...newProduct,
+                              name: e.target.value,
+                            })
                           }
-                          placeholder="#000000"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium uppercase outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                          placeholder="Ej: Rojo Fresa"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Categoría
+                        </label>
+                        <select
+                          value={newProduct.category}
+                          onChange={(e) =>
+                            setNewProduct({
+                              ...newProduct,
+                              category: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                        >
+                          {CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Color (Hex)
+                        </label>
+                        <div className="flex gap-2">
+                          <div className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                            <input
+                              type="color"
+                              value={newProduct.hex}
+                              onChange={(e) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  hex: e.target.value,
+                                })
+                              }
+                              className="absolute -inset-4 h-20 w-20 cursor-pointer appearance-none bg-transparent"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            value={newProduct.hex}
+                            onChange={(e) =>
+                              setNewProduct({
+                                ...newProduct,
+                                hex: e.target.value,
+                              })
+                            }
+                            placeholder="#000000"
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium uppercase outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Notas (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={newProduct.note}
+                          onChange={(e) =>
+                            setNewProduct({
+                              ...newProduct,
+                              note: e.target.value,
+                            })
+                          }
+                          placeholder="Detalles adicionales..."
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
                         />
                       </div>
                     </div>
+                  </div>
 
-                    <div className="md:col-span-2">
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Notas (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        value={newProduct.note}
-                        onChange={(e) =>
-                          setNewProduct({ ...newProduct, note: e.target.value })
-                        }
-                        placeholder="Detalles adicionales..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
-                      />
+                  {/* Industrial Toggle */}
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-100/50">
+                    <label className="flex cursor-pointer items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          Uso Industrial
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Marcar si este producto es de grado industrial.
+                        </p>
+                      </div>
+                      <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 [&:has(:checked)]:bg-emerald-600">
+                        <input
+                          type="checkbox"
+                          className="peer sr-only"
+                          checked={newProduct.industrial}
+                          onChange={(e) =>
+                            setNewProduct({
+                              ...newProduct,
+                              industrial: e.target.checked,
+                            })
+                          }
+                        />
+                        <span className="inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform peer-checked:translate-x-6" />
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Pricing 125g */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                      Precios • Presentación 125g
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {PRESENTATION_LABELS.map((label, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                            {label}
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                              $
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={
+                                newProduct.prices125[idx] === 0
+                                  ? ""
+                                  : newProduct.prices125[idx]
+                              }
+                              onChange={(e) => {
+                                const rawValue = e.target.value.replace(
+                                  /[^0-9.]/g,
+                                  "",
+                                );
+                                const newPrices = [...newProduct.prices125] as [
+                                  number,
+                                  number,
+                                  number,
+                                  number,
+                                  number,
+                                ];
+                                newPrices[idx] =
+                                  rawValue === ""
+                                    ? 0
+                                    : parseFloat(rawValue) || 0;
+                                setNewProduct({
+                                  ...newProduct,
+                                  prices125: newPrices,
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
 
-                {/* Industrial Toggle */}
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-100/50">
-                  <label className="flex cursor-pointer items-center justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-slate-900">Uso Industrial</p>
-                      <p className="text-xs text-slate-500">Marcar si este producto es de grado industrial.</p>
-                    </div>
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 [&:has(:checked)]:bg-emerald-600">
-                      <input
-                        type="checkbox"
-                        className="peer sr-only"
-                        checked={newProduct.industrial}
-                        onChange={(e) =>
-                          setNewProduct({
-                            ...newProduct,
-                            industrial: e.target.checked,
-                          })
-                        }
-                      />
-                      <span className="inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform peer-checked:translate-x-6" />
-                    </div>
-                  </label>
-                </div>
-
-                {/* Pricing 125g */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Precios • Presentación 125g
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
-                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                          {label}
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                            $
-                          </span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="0"
-                            value={newProduct.prices125[idx] === 0 ? "" : newProduct.prices125[idx]}
-                            onChange={(e) => {
-                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
-                              const newPrices = [...newProduct.prices125] as [
-                                number, number, number, number, number
-                              ];
-                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
-                              setNewProduct({
-                                ...newProduct,
-                                prices125: newPrices,
-                              });
-                            }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                          />
+                  {/* Pricing 250g */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                      Precios • Presentación 250g
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {PRESENTATION_LABELS.map((label, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                            {label}
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                              $
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={
+                                newProduct.prices250[idx] === 0
+                                  ? ""
+                                  : newProduct.prices250[idx]
+                              }
+                              onChange={(e) => {
+                                const rawValue = e.target.value.replace(
+                                  /[^0-9.]/g,
+                                  "",
+                                );
+                                const newPrices = [...newProduct.prices250] as [
+                                  number,
+                                  number,
+                                  number,
+                                  number,
+                                  number,
+                                ];
+                                newPrices[idx] =
+                                  rawValue === ""
+                                    ? 0
+                                    : parseFloat(rawValue) || 0;
+                                setNewProduct({
+                                  ...newProduct,
+                                  prices250: newPrices,
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pricing 250g */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Precios • Presentación 250g
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
-                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                          {label}
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                            $
-                          </span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="0"
-                            value={newProduct.prices250[idx] === 0 ? "" : newProduct.prices250[idx]}
-                            onChange={(e) => {
-                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
-                              const newPrices = [...newProduct.prices250] as [
-                                number, number, number, number, number
-                              ];
-                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
-                              setNewProduct({
-                                ...newProduct,
-                                prices250: newPrices,
-                              });
-                            }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className="mt-auto sticky bottom-0 z-10 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveNewProduct}
-                disabled={saving}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-emerald-600/30 disabled:opacity-50"
-              >
-                {saving && <Loader2 size={16} className="animate-spin" />}
-                {saving ? "Guardando..." : "Crear Producto"}
-              </button>
+              {/* Footer */}
+              <div className="mt-auto sticky bottom-0 z-10 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNewProduct}
+                  disabled={saving}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-emerald-600/30 disabled:opacity-50"
+                >
+                  {saving && <Loader2 size={16} className="animate-spin" />}
+                  {saving ? "Guardando..." : "Crear Producto"}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>, document.body
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Edit Product Modal */}
-      {showEditModal && editingProduct && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          <div
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowEditModal(false)}
-          />
-          <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh]">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-5 shrink-0">
-              <div className="flex items-center gap-4">
-                <div 
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-inner relative overflow-hidden" 
-                  style={{ backgroundColor: editingProduct.hex || "#3b82f6" }}
+      {showEditModal &&
+        editingProduct &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <div
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+              onClick={() => setShowEditModal(false)}
+            />
+            <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-5 shrink-0">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-inner relative overflow-hidden"
+                    style={{ backgroundColor: editingProduct.hex || "#3b82f6" }}
+                  >
+                    <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
+                    <Package
+                      size={24}
+                      strokeWidth={1.5}
+                      className="relative z-10"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-xl font-bold text-slate-950">
+                      Editar Producto
+                    </h3>
+                    <p className="text-sm text-slate-500 font-medium">
+                      Actualiza la información y precios de este artículo
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-900"
                 >
-                  <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
-                  <Package size={24} strokeWidth={1.5} className="relative z-10" />
-                </div>
-                <div>
-                  <h3 className="font-display text-xl font-bold text-slate-950">
-                    Editar Producto
-                  </h3>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Actualiza la información y precios de este artículo
-                  </p>
-                </div>
+                  <X size={20} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-900"
-              >
-                <X size={20} />
-              </button>
-            </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
-              <div className="space-y-6">
-                {/* General Info */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Información General
-                  </h4>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="md:col-span-2">
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Nombre del producto
-                      </label>
-                      <input
-                        type="text"
-                        value={editingProduct.name}
-                        onChange={(e) =>
-                          setEditingProduct({
-                            ...editingProduct,
-                            name: e.target.value,
-                          })
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
-                      />
-                    </div>
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
+                <div className="space-y-6">
+                  {/* General Info */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                      Información General
+                    </h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="md:col-span-2">
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Nombre del producto
+                        </label>
+                        <input
+                          type="text"
+                          value={editingProduct.name}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              name: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Categoría
-                      </label>
-                      <select
-                        value={editingProduct.category}
-                        onChange={(e) =>
-                          setEditingProduct({
-                            ...editingProduct,
-                            category: e.target.value,
-                          })
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Categoría
+                        </label>
+                        <select
+                          value={editingProduct.category}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              category: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                        >
+                          {CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Color (Hex)
-                      </label>
-                      <div className="flex gap-2">
-                        <div className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Color (Hex)
+                        </label>
+                        <div className="flex gap-2">
+                          <div className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                            <input
+                              type="color"
+                              value={editingProduct.hex}
+                              onChange={(e) =>
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  hex: e.target.value,
+                                })
+                              }
+                              className="absolute -inset-4 h-20 w-20 cursor-pointer appearance-none bg-transparent"
+                            />
+                          </div>
                           <input
-                            type="color"
+                            type="text"
                             value={editingProduct.hex}
                             onChange={(e) =>
                               setEditingProduct({
@@ -3726,247 +3843,270 @@ function ProductsView() {
                                 hex: e.target.value,
                               })
                             }
-                            className="absolute -inset-4 h-20 w-20 cursor-pointer appearance-none bg-transparent"
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium uppercase outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
                           />
                         </div>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Notas (Opcional)
+                        </label>
                         <input
                           type="text"
-                          value={editingProduct.hex}
+                          value={editingProduct.note}
                           onChange={(e) =>
                             setEditingProduct({
                               ...editingProduct,
-                              hex: e.target.value,
+                              note: e.target.value,
                             })
                           }
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium uppercase outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+                          placeholder="Detalles adicionales..."
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
                         />
                       </div>
                     </div>
+                  </div>
 
-                    <div className="md:col-span-2">
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Notas (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        value={editingProduct.note}
-                        onChange={(e) =>
-                          setEditingProduct({
-                            ...editingProduct,
-                            note: e.target.value,
-                          })
-                        }
-                        placeholder="Detalles adicionales..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
-                      />
+                  {/* Industrial Toggle */}
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-100/50">
+                    <label className="flex cursor-pointer items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          Uso Industrial
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Marcar si este producto es de grado industrial.
+                        </p>
+                      </div>
+                      <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 [&:has(:checked)]:bg-primary">
+                        <input
+                          type="checkbox"
+                          className="peer sr-only"
+                          checked={editingProduct.industrial}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              industrial: e.target.checked,
+                            })
+                          }
+                        />
+                        <span className="inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform peer-checked:translate-x-6" />
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Pricing 125g */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                      Precios • Presentación 125g
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {PRESENTATION_LABELS.map((label, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                            {label}
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                              $
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={
+                                editingProduct.prices125[idx] === 0
+                                  ? ""
+                                  : editingProduct.prices125[idx]
+                              }
+                              onChange={(e) => {
+                                const rawValue = e.target.value.replace(
+                                  /[^0-9.]/g,
+                                  "",
+                                );
+                                const newPrices = [
+                                  ...editingProduct.prices125,
+                                ] as [number, number, number, number, number];
+                                newPrices[idx] =
+                                  rawValue === ""
+                                    ? 0
+                                    : parseFloat(rawValue) || 0;
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  prices125: newPrices,
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
 
-                {/* Industrial Toggle */}
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-100/50">
-                  <label className="flex cursor-pointer items-center justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-slate-900">Uso Industrial</p>
-                      <p className="text-xs text-slate-500">Marcar si este producto es de grado industrial.</p>
-                    </div>
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 [&:has(:checked)]:bg-primary">
-                      <input
-                        type="checkbox"
-                        className="peer sr-only"
-                        checked={editingProduct.industrial}
-                        onChange={(e) =>
-                          setEditingProduct({
-                            ...editingProduct,
-                            industrial: e.target.checked,
-                          })
-                        }
-                      />
-                      <span className="inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform peer-checked:translate-x-6" />
-                    </div>
-                  </label>
-                </div>
-
-                {/* Pricing 125g */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Precios • Presentación 125g
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
-                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                          {label}
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                            $
-                          </span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="0"
-                            value={editingProduct.prices125[idx] === 0 ? "" : editingProduct.prices125[idx]}
-                            onChange={(e) => {
-                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
-                              const newPrices = [...editingProduct.prices125] as [
-                                number, number, number, number, number
-                              ];
-                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
-                              setEditingProduct({
-                                ...editingProduct,
-                                prices125: newPrices,
-                              });
-                            }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                          />
+                  {/* Pricing 250g */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                      Precios • Presentación 250g
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {PRESENTATION_LABELS.map((label, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                            {label}
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                              $
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={
+                                editingProduct.prices250[idx] === 0
+                                  ? ""
+                                  : editingProduct.prices250[idx]
+                              }
+                              onChange={(e) => {
+                                const rawValue = e.target.value.replace(
+                                  /[^0-9.]/g,
+                                  "",
+                                );
+                                const newPrices = [
+                                  ...editingProduct.prices250,
+                                ] as [number, number, number, number, number];
+                                newPrices[idx] =
+                                  rawValue === ""
+                                    ? 0
+                                    : parseFloat(rawValue) || 0;
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  prices250: newPrices,
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pricing 250g */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Precios • Presentación 250g
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {PRESENTATION_LABELS.map((label, idx) => (
-                      <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
-                        <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                          {label}
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                            $
-                          </span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="0"
-                            value={editingProduct.prices250[idx] === 0 ? "" : editingProduct.prices250[idx]}
-                            onChange={(e) => {
-                              const rawValue = e.target.value.replace(/[^0-9.]/g, '');
-                              const newPrices = [...editingProduct.prices250] as [
-                                number, number, number, number, number
-                              ];
-                              newPrices[idx] = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
-                              setEditingProduct({
-                                ...editingProduct,
-                                prices250: newPrices,
-                              });
-                            }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className="mt-auto sticky bottom-0 z-10 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={saving}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 hover:shadow-blue-600/30 disabled:opacity-50"
-              >
-                {saving && <Loader2 size={16} className="animate-spin" />}
-                {saving ? "Guardando..." : "Guardar Cambios"}
-              </button>
+              {/* Footer */}
+              <div className="mt-auto sticky bottom-0 z-10 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={saving}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 hover:shadow-blue-600/30 disabled:opacity-50"
+                >
+                  {saving && <Loader2 size={16} className="animate-spin" />}
+                  {saving ? "Guardando..." : "Guardar Cambios"}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>, document.body
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && pendingDelete && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          <div
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowDeleteModal(false)}
-          />
-          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-red-100 text-red-600 shadow-inner mb-6 relative">
-              <div className="absolute inset-0 bg-red-500/10 rounded-[1.5rem] animate-pulse" />
-              <Trash2 size={40} strokeWidth={1.5} className="relative z-10" />
+      {showDeleteModal &&
+        pendingDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <div
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+              onClick={() => setShowDeleteModal(false)}
+            />
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-red-100 text-red-600 shadow-inner mb-6 relative">
+                <div className="absolute inset-0 bg-red-500/10 rounded-[1.5rem] animate-pulse" />
+                <Trash2 size={40} strokeWidth={1.5} className="relative z-10" />
+              </div>
+              <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
+                ¿Eliminar producto?
+              </h3>
+              <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+                ¿Estás seguro de eliminar "{pendingDelete.name}"? Esta acción no
+                se puede deshacer.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={saving}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-red-600/20 transition hover:bg-red-700 hover:shadow-red-600/30 disabled:opacity-50"
+                >
+                  {saving && <Loader2 size={16} className="animate-spin" />}
+                  {saving ? "Eliminando..." : "Eliminar"}
+                </button>
+              </div>
             </div>
-            <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
-              ¿Eliminar producto?
-            </h3>
-            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
-              ¿Estás seguro de eliminar "{pendingDelete.name}"? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(false)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={saving}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-red-600/20 transition hover:bg-red-700 hover:shadow-red-600/30 disabled:opacity-50"
-              >
-                {saving && <Loader2 size={16} className="animate-spin" />}
-                {saving ? "Eliminando..." : "Eliminar"}
-              </button>
-            </div>
-          </div>
-        </div>, document.body
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Success Modal */}
-      {showSuccessModal && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          <div
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowSuccessModal(false)}
-          />
-          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-emerald-100 text-emerald-600 shadow-inner mb-6 relative">
-              <div className="absolute inset-0 bg-emerald-500/10 rounded-[1.5rem] animate-pulse" />
-              <CheckCircle size={40} strokeWidth={1.5} className="relative z-10" />
-            </div>
-            <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
-              ¡Operación exitosa!
-            </h3>
-            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
-              {successMessage}
-            </p>
-            <button
-              type="button"
+      {showSuccessModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <div
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
               onClick={() => setShowSuccessModal(false)}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-emerald-600/30"
-            >
-              Aceptar
-            </button>
-          </div>
-        </div>, document.body
-      )}
+            />
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl p-8 text-center animate-fade-in-scale">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-emerald-100 text-emerald-600 shadow-inner mb-6 relative">
+                <div className="absolute inset-0 bg-emerald-500/10 rounded-[1.5rem] animate-pulse" />
+                <CheckCircle
+                  size={40}
+                  strokeWidth={1.5}
+                  className="relative z-10"
+                />
+              </div>
+              <h3 className="font-display text-2xl font-bold text-slate-950 mb-2">
+                ¡Operación exitosa!
+              </h3>
+              <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+                {successMessage}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-emerald-600/30"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </DashboardSection>
   );
 }
-
-
-
-
-
-
 
 function NotificationsView({
   notifications,
@@ -4109,78 +4249,82 @@ function NotificationsView({
       )}
 
       {/* Modal de confirmación de eliminación de notificación */}
-      {pendingDelete && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
-            onClick={() => !isDeleting && setPendingDelete(null)}
-          />
-          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20 animate-fade-in-scale">
-            <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
-              <div>
-                <h3 className="text-xl font-display font-bold text-slate-950">
-                  Eliminar notificación
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Esta acción no se puede deshacer
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => !isDeleting && setPendingDelete(null)}
-                disabled={isDeleting}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950 disabled:opacity-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="px-6 py-5 space-y-5">
-              <div className="flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50 p-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
-                  <AlertCircle size={18} className="text-red-600" />
-                </div>
+      {pendingDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+              onClick={() => !isDeleting && setPendingDelete(null)}
+            />
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20 animate-fade-in-scale">
+              <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
                 <div>
-                  <p className="text-sm font-semibold text-red-900">
-                    ¿Deseas eliminar esta notificación?
-                  </p>
-                  <p className="mt-1 text-xs text-red-700">
-                    Se eliminará permanentemente.
+                  <h3 className="text-xl font-display font-bold text-slate-950">
+                    Eliminar notificación
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Esta acción no se puede deshacer
                   </p>
                 </div>
-              </div>
-
-              <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                  Cliente
-                </p>
-                <p className="text-sm font-semibold text-slate-950">
-                  {pendingDelete.customerName}
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setPendingDelete(null)}
+                  onClick={() => !isDeleting && setPendingDelete(null)}
                   disabled={isDeleting}
-                  className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950 disabled:opacity-50"
                 >
-                  Cancelar
+                  <X size={18} />
                 </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDelete}
-                  disabled={isDeleting}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-                >
-                  {isDeleting && <Loader2 size={16} className="animate-spin" />}
-                  {isDeleting ? "Eliminando..." : "Eliminar"}
-                </button>
+              </div>
+              <div className="px-6 py-5 space-y-5">
+                <div className="flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                    <AlertCircle size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-red-900">
+                      ¿Deseas eliminar esta notificación?
+                    </p>
+                    <p className="mt-1 text-xs text-red-700">
+                      Se eliminará permanentemente.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    Cliente
+                  </p>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {pendingDelete.customerName}
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(null)}
+                    disabled={isDeleting}
+                    className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {isDeleting && (
+                      <Loader2 size={16} className="animate-spin" />
+                    )}
+                    {isDeleting ? "Eliminando..." : "Eliminar"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>, document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </DashboardSection>
   );
 }
@@ -4277,6 +4421,34 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     isLoading: isLoadingOrders,
     error: errorOrders,
   } = useOrders();
+
+  // Estado para inventario en tiempo real
+  const [productosStock, setProductosStock] = useState<{ stock: number }[]>([]);
+  const [loadingStock, setLoadingStock] = useState(true);
+
+  useEffect(() => {
+    const loadStock = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "products"));
+        const prods = snapshot.docs.map((doc) => ({
+          stock: doc.data().stock || 0,
+        }));
+        setProductosStock(prods);
+      } catch (err) {
+        console.error("Error loading stock:", err);
+      } finally {
+        setLoadingStock(false);
+      }
+    };
+    loadStock();
+
+    // Actualizar cada 10 segundos
+    const interval = setInterval(loadStock, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalStock = productosStock.reduce((sum, p) => sum + p.stock, 0);
+  const productosConStock = productosStock.filter((p) => p.stock > 0).length;
 
   // Hook para notificaciones en tiempo real
   const { notifications, unreadCount, newNotification, clearNewNotification } =
@@ -4450,14 +4622,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       bgColor: "bg-secondary/10",
     },
     {
-      icon: Clock,
-      label: "Pendientes",
-      value: String(
-        orders.filter((order) => order.status === "pendiente").length,
-      ),
-      trend: { value: 3.1, isPositive: false },
-      color: "text-amber-600",
-      bgColor: "bg-amber-50",
+      icon: Warehouse,
+      label: "Stock Total",
+      value: loadingStock ? "..." : String(totalStock),
+      trend: { value: 0, isPositive: true },
+      color: "text-green-600",
+      bgColor: "bg-green-50",
     },
     {
       icon: Users,
