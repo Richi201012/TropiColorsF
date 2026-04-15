@@ -2479,8 +2479,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#1a1a1a",
     category: "Amarillos",
     prices: {
-      "125": [23, 47, 140, 760, 2500],
-      "250": [33, 68, 235, 1300, 4200],
+      "125": [21.6, 44, 131.9, 720, 2400],
+      "250": [31.5, 65.2, 224, 1179, 4200],
     },
   },
   {
@@ -2490,8 +2490,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#1a1a1a",
     category: "Amarillos",
     prices: {
-      "125": [23, 47, 140, 760, 2500],
-      "250": [33, 68, 235, 1300, 4200],
+      "125": [21.6, 44, 131.9, 720, 2400],
+      "250": [31.5, 65.2, 224, 1179, 4200],
     },
   },
   {
@@ -2501,8 +2501,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#1a1a1a",
     category: "Amarillos",
     prices: {
-      "125": [23, 47, 140, 760, 2500],
-      "250": [33, 68, 235, 1300, 2500],
+      "125": [21.6, 44, 131.9, 720, 2400],
+      "250": [31.5, 65.2, 224, 1179, 4200],
     },
   },
   {
@@ -2512,8 +2512,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Amarillos",
     prices: {
-      "125": [27, 50, 165, 900, 3000],
-      "250": [42, 80, 280, 1560, 5000],
+      "125": [25.7, 47.4, 154.8, 858, 2850],
+      "250": [40.3, 76, 267, 1420, 5000],
     },
   },
   {
@@ -2523,8 +2523,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Azul",
     prices: {
-      "125": [35, 72, 260, 1500, 5000],
-      "250": [64, 150, 450, 2640, 8100],
+      "125": [34.6, 68, 251.5, 1440, 4800],
+      "250": [63.4, 145, 514.8, 3025, 10080],
     },
   },
   {
@@ -2534,8 +2534,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Cafés",
     prices: {
-      "125": [26, 55, 180, 1000, 3300],
-      "250": [37, 87, 306, 1774, 5800],
+      "125": [24.5, 51.9, 169.9, 950, 3150],
+      "250": [35.5, 82.9, 292, 1690, 5800],
     },
   },
   {
@@ -2545,8 +2545,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Cafés",
     prices: {
-      "125": [31, 63, 220, 1250, 4100],
-      "250": [43, 111, 400, 2340, 7200],
+      "125": [29, 59, 208, 1180, 3900],
+      "250": [41, 106, 390, 2114, 7200],
     },
   },
   {
@@ -2556,8 +2556,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Naranja",
     prices: {
-      "125": [27, 50, 165, 900, 3000],
-      "250": [33, 63, 234, 1260, 4000],
+      "125": [24.3, 51.8, 147.8, 817, 2700],
+      "250": [31.5, 60.3, 223.5, 1200, 4000],
     },
   },
   {
@@ -2567,8 +2567,7 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Negro",
     prices: {
-      "125": [74, 175, 680, 4000, 12500],
-      "250": [74, 175, 680, 4000, 12500],
+      "250": [69.6, 176, 640, 3780, 12500],
     },
   },
   {
@@ -2578,8 +2577,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Rojos",
     prices: {
-      "125": [38, 76, 265, 1530, 4800],
-      "250": [60, 130, 480, 2646, 8400],
+      "125": [36, 71.7, 252, 1440, 4800],
+      "250": [57.1, 125, 464, 2520, 8390],
     },
   },
   {
@@ -2589,8 +2588,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Rojos",
     prices: {
-      "125": [33, 76, 217, 1240, 3950],
-      "250": [57, 125, 370, 2150, 6500],
+      "125": [31, 62.2, 205, 1160, 3850],
+      "250": [51.8, 122.5, 465, 2700, 9094],
     },
   },
   {
@@ -2600,8 +2599,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Rojos",
     prices: {
-      "125": [38, 76, 265, 1530, 4800],
-      "250": [60, 130, 450, 2640, 8100],
+      "125": [36, 71.7, 252, 1440, 4800],
+      "250": [57.1, 125, 464, 2520, 8390],
     },
   },
   {
@@ -2611,8 +2610,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Rojos",
     prices: {
-      "125": [33, 76, 217, 1240, 3950],
-      "250": [57, 125, 370, 2150, 6500],
+      "125": [31, 62.2, 205, 1160, 3850],
+      "250": [54.6, 114, 417, 2440, 8130],
     },
   },
   {
@@ -2622,8 +2621,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Rojos",
     prices: {
-      "125": [38, 76, 265, 1530, 4800],
-      "250": [60, 130, 450, 2640, 8100],
+      "125": [36, 71.7, 252, 1440, 4800],
+      "250": [54.6, 114, 417, 2440, 8130],
     },
   },
   {
@@ -2633,8 +2632,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Verdes",
     prices: {
-      "125": [32, 63, 200, 1130, 3700],
-      "250": [56, 111, 354, 2060, 6370],
+      "125": [29.7, 54.9, 188.2, 1060, 3500],
+      "250": [53.4, 106, 353.2, 2055, 6850],
     },
   },
   {
@@ -2644,8 +2643,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Verdes",
     prices: {
-      "125": [24.5, 49, 152, 830, 2700],
-      "250": [33, 63, 234, 1340, 4000],
+      "125": [22.9, 46.5, 143, 789, 2600],
+      "250": [31.5, 60.4, 223, 1200, 4000],
     },
   },
   {
@@ -2654,7 +2653,7 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     hex2: "#5800A8",
     textColor: "#ffffff",
     category: "Especiales",
-    prices: { "125": [78, 0, 575, 0, 0] },
+    prices: { "125": [73.4, 144.7, 540, 0, 0] },
     note: "Uso alimentario",
   },
   {
@@ -2673,7 +2672,7 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     textColor: "#ffffff",
     category: "Industriales",
     industrial: true,
-    prices: { "125": [78, 154, 575, 3350, 10500] },
+    prices: { "125": [74.3, 144.7, 540, 3170, 10500] },
   },
   {
     name: "Rosa Brillante",
@@ -2683,8 +2682,8 @@ const DEFAULT_PRODUCTS: Omit<FirebaseProduct, "id">[] = [
     category: "Industriales",
     industrial: true,
     prices: {
-      "125": [36, 72, 260, 1480, 4700],
-      "250": [64, 147, 440, 2580, 7920],
+      "125": [34.2, 66.7, 242.6, 1388, 4600],
+      "250": [61, 140, 521.8, 3066, 10220],
     },
   },
 ];
