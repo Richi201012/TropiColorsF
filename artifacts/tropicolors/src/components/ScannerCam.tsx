@@ -105,7 +105,7 @@ export function ScannerCam({ onScan, isActive = true }: ScannerCamProps) {
               "Detectado:",
               decodedText,
               "formato:",
-              result?.format?.formatName,
+              result ? "detectado" : "desconocido",
             );
 
             if (scanCooldownRef.current) return;

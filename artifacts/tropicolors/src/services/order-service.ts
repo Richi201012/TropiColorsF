@@ -32,8 +32,9 @@ export type CreateOrderInput = {
   shippingMunicipality: string;
   shippingState: string;
   paymentMethod: "card" | "oxxo" | "transfer";
-  paymentStatus: "paid";
+  paymentStatus: "paid" | "pending";
   orderStatus: "pending";
+  paymentReference?: string;
   total: number;
   items: OrderItemInput[];
   paymentDetails?: {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -12,7 +12,6 @@ import {
   Truck,
   ShieldCheck,
   CreditCard,
-  Store,
   UserRound,
   Mail,
   Phone,
@@ -20,17 +19,20 @@ import {
   MapPinned,
   Building2,
   Landmark,
-  Lock,
-  BadgeCheck,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { createOrder } from "@/services/order-service";
 import { createNotification } from "@/services/notification-service";
-import { apiUrl } from "@/lib/api";
-import { enviarCorreoConfirmacion } from "@/lib/email-service";
-import { StripeEmbeddedPayment } from "@/components/StripeEmbeddedPayment";
+import { enviarCorreoEstadoPedido } from "@/lib/email-service";
+
+const WHATSAPP_NUMBER = "525551146856";
+const TRANSFER_ACCOUNT = {
+  bank: "NU",
+  accountHolder: "ERICK JONATAN VARGAS VAZQUEZ",
+  clabe: "638180000163120892",
+};
 
 function VaciarCarritoModal({
   open,
@@ -158,49 +160,18 @@ type CheckoutFormData = {
 type CheckoutFieldName = keyof CheckoutFormData;
 type CheckoutFormErrors = Partial<Record<CheckoutFieldName, string>>;
 type CheckoutStep = 1 | 2;
-type PaymentMethod = "card" | "oxxo" | "transfer";
-type CardFormData = {
-  cardNumber: string;
-  expiryDate: string;
-  cvv: string;
-  cardholderName: string;
-};
-type CardFieldName = keyof CardFormData;
-type CardFormErrors = Partial<Record<CardFieldName, string>>;
+type PaymentMethod = "transfer";
 type CheckoutValidationContext = {
   hasPostalCodeData: boolean;
   modeManual: boolean;
-};
-
-type StripeCheckoutOrder = {
-  id: string;
-  orderNumber?: string;
-  customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  requiresInvoice?: boolean;
-  customerRfc?: string;
-  total?: number;
-  shippingAddress?: string;
-  shippingExteriorNumber?: string;
-  shippingInteriorNumber?: string;
-  shippingNeighborhood?: string;
-  shippingMunicipality?: string;
-  shippingState?: string;
-  shippingPostalCode?: string;
-  items?: Array<{
-    productName?: string;
-    price?: number;
-    quantity?: number;
-  }>;
 };
 
 type CheckoutSubmitResponse = {
   success: boolean;
   orderId: string;
   sessionUrl: string;
-  clientSecret?: string;
-  publishableKey?: string;
+  transferReference: string;
+  whatsappUrl: string;
 };
 
 const initialCheckoutValues: CheckoutFormData = {
@@ -218,13 +189,6 @@ const initialCheckoutValues: CheckoutFormData = {
   shippingState: "",
 };
 
-const initialCardValues: CardFormData = {
-  cardNumber: "",
-  expiryDate: "",
-  cvv: "",
-  cardholderName: "",
-};
-
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const rfcRegex = /^([A-Z&Ñ]{3}|[A-Z&Ñ]{4})\d{6}[A-Z0-9]{3}$/;
 const checkoutFields: CheckoutFieldName[] = [
@@ -240,32 +204,6 @@ const checkoutFields: CheckoutFieldName[] = [
   "shippingMunicipality",
   "shippingState",
 ];
-const paymentOptions: Array<{
-  id: PaymentMethod;
-  title: string;
-  description: string;
-  icon: typeof CreditCard;
-}> = [
-  {
-    id: "card",
-    title: "Tarjeta bancaria",
-    description: "Visa, Mastercard y debito",
-    icon: CreditCard,
-  },
-  {
-    id: "oxxo",
-    title: "Pago con OXXO",
-    description: "Referencia generada al confirmar",
-    icon: Store,
-  },
-  {
-    id: "transfer",
-    title: "Transferencia",
-    description: "SPEI o deposito bancario",
-    icon: Landmark,
-  },
-];
-
 function buildShippingAddress(data: {
   shippingAddress?: string;
   shippingExteriorNumber?: string;
@@ -290,6 +228,35 @@ function buildShippingAddress(data: {
   ]
     .filter(Boolean)
     .join(", ");
+}
+
+function buildTransferReference(name: string, phone: string): string {
+  const normalizedName = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase()
+    .slice(0, 8);
+  const lastDigits = phone.replace(/\D/g, "").slice(-4) || "0000";
+  return `TC-${normalizedName || "CLIENTE"}-${lastDigits}`;
+}
+
+function buildWhatsAppUrl(params: {
+  orderId: string;
+  customerName: string;
+  total: number;
+  transferReference: string;
+}) {
+  const message = [
+    "Hola, ya realice mi transferencia de Tropicolors.",
+    `Pedido: ${params.orderId}`,
+    `Nombre: ${params.customerName}`,
+    `Monto: $${params.total} MXN`,
+    `Concepto: ${params.transferReference}`,
+    "Adjunto mi comprobante de transferencia.",
+  ].join("\n");
+
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
 function validateCheckoutField(
@@ -421,57 +388,12 @@ function FieldShell({
   );
 }
 
-function validateCardField(
-  field: CardFieldName,
-  values: CardFormData,
-): string | null {
-  switch (field) {
-    case "cardNumber":
-      if (!values.cardNumber.trim()) return "Ingresa el numero de tarjeta.";
-      if (values.cardNumber.replace(/\s/g, "").length < 16)
-        return "Ingresa una tarjeta valida de 16 digitos.";
-      return null;
-    case "expiryDate":
-      if (!values.expiryDate.trim()) return "Ingresa la fecha MM/YY.";
-      if (!/^\d{2}\/\d{2}$/.test(values.expiryDate))
-        return "Usa el formato MM/YY.";
-      return null;
-    case "cvv":
-      if (!values.cvv.trim()) return "Ingresa el CVV.";
-      if (!/^\d{3,4}$/.test(values.cvv))
-        return "El CVV debe tener 3 o 4 digitos.";
-      return null;
-    case "cardholderName":
-      if (!values.cardholderName.trim())
-        return "Ingresa el nombre del titular.";
-      if (values.cardholderName.trim().length < 3)
-        return "El nombre del titular debe tener al menos 3 caracteres.";
-      return null;
-  }
-}
-
-function validateCardForm(values: CardFormData): CardFormErrors {
-  const nextErrors: CardFormErrors = {};
-
-  (
-    ["cardNumber", "expiryDate", "cvv", "cardholderName"] as CardFieldName[]
-  ).forEach((field) => {
-    const error = validateCardField(field, values);
-    if (error) {
-      nextErrors[field] = error;
-    }
-  });
-
-  return nextErrors;
-}
-
 const CheckoutModal = React.memo(function CheckoutModal({
   open,
   items,
   cartTotal,
   isProcessing,
   onSubmit,
-  onConfirmCardPayment,
   onFinalize,
   onClose,
 }: {
@@ -482,15 +404,11 @@ const CheckoutModal = React.memo(function CheckoutModal({
   onSubmit: (
     data: CheckoutFormData,
     paymentMethod: PaymentMethod,
-    cardData: CardFormData | null,
   ) => Promise<CheckoutSubmitResponse>;
-  onConfirmCardPayment: (
-    sessionId: string,
-    orderId: string,
-  ) => Promise<string>;
   onFinalize: () => void;
   onClose: () => void;
 }) {
+  const { toast } = useToast();
   const [step, setStep] = useState<CheckoutStep>(1);
   const [formValues, setFormValues] = useState<CheckoutFormData>(
     initialCheckoutValues,
@@ -508,30 +426,12 @@ const CheckoutModal = React.memo(function CheckoutModal({
     Array<{ name: string; type: string | null }>
   >([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
-    useState<PaymentMethod>("card");
-  const [cardValues, setCardValues] = useState<CardFormData>(initialCardValues);
-  const [cardErrors, setCardErrors] = useState<CardFormErrors>({});
-  const [cardTouched, setCardTouched] = useState<
-    Partial<Record<CardFieldName, boolean>>
-  >({});
-  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(
-    null,
-  );
-  const [stripeOrderId, setStripeOrderId] = useState<string | null>(null);
-  const [stripePublishableKey, setStripePublishableKey] = useState<
-    string | null
-  >(null);
-  const [stripeError, setStripeError] = useState<string | null>(null);
-  const [isPreparingStripe, setIsPreparingStripe] = useState(false);
-  const stripePreparationStartedRef = useRef(false);
-  const onSubmitRef = useRef(onSubmit);
+    useState<PaymentMethod>("transfer");
   const [paymentResult, setPaymentResult] = useState<{
     orderId: string;
+    transferReference: string;
+    whatsappUrl: string;
   } | null>(null);
-
-  useEffect(() => {
-    onSubmitRef.current = onSubmit;
-  }, [onSubmit]);
 
   const postalCode = formValues.shippingPostalCode;
   const {
@@ -561,11 +461,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
     () => items.reduce((sum, item) => sum + item.quantity, 0),
     [items],
   );
-  const selectedPaymentOption = useMemo(
-    () =>
-      paymentOptions.find((option) => option.id === selectedPaymentMethod) ||
-      null,
-    [selectedPaymentMethod],
+  const transferReference = useMemo(
+    () => buildTransferReference(formValues.customerName, formValues.customerPhone),
+    [formValues.customerName, formValues.customerPhone],
   );
   const fieldValidity = useMemo(() => {
     const nextValidity: Partial<Record<CheckoutFieldName, boolean>> = {};
@@ -622,30 +520,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
       setModeManual(false);
       setPostalCodeWarning(null);
       setColonias([]);
-      setSelectedPaymentMethod("card");
-      setCardValues(initialCardValues);
-      setCardErrors({});
-      setCardTouched({});
-      setStripeClientSecret(null);
-      setStripeOrderId(null);
-      setStripePublishableKey(null);
-      setStripeError(null);
-      setIsPreparingStripe(false);
-      stripePreparationStartedRef.current = false;
+      setSelectedPaymentMethod("transfer");
       setPaymentResult(null);
     }
   }, [open]);
-
-  useEffect(() => {
-    if (selectedPaymentMethod !== "card" || step !== 2) {
-      stripePreparationStartedRef.current = false;
-      setStripeClientSecret(null);
-      setStripeOrderId(null);
-      setStripePublishableKey(null);
-      setStripeError(null);
-      setIsPreparingStripe(false);
-    }
-  }, [selectedPaymentMethod, step]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -789,6 +667,29 @@ const CheckoutModal = React.memo(function CheckoutModal({
     }));
   };
 
+  const handleCopyValue = useCallback(
+    async (label: string, value: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch {
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      toast({
+        title: `${label} copiado`,
+        description: value,
+      });
+    },
+    [toast],
+  );
+
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setHasAttemptedSubmit(true);
@@ -805,95 +706,20 @@ const CheckoutModal = React.memo(function CheckoutModal({
     setStep(2);
   };
 
-  useEffect(() => {
-    if (
-      !open ||
-      step !== 2 ||
-      selectedPaymentMethod !== "card" ||
-      stripeClientSecret ||
-      stripeOrderId ||
-      stripePreparationStartedRef.current
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const prepareStripeCheckout = async () => {
-      stripePreparationStartedRef.current = true;
-      setIsPreparingStripe(true);
-      setStripeError(null);
-
-      try {
-        const checkoutResponse = await onSubmitRef.current(
-          formValues,
-          "card",
-          null,
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        if (!checkoutResponse.clientSecret) {
-          throw new Error("Stripe no devolvio un client secret valido.");
-        }
-        if (!checkoutResponse.publishableKey) {
-          throw new Error(
-            "Stripe no devolvio una publishable key valida.",
-          );
-        }
-
-        setStripePublishableKey(checkoutResponse.publishableKey);
-        setStripeOrderId(checkoutResponse.orderId);
-        setStripeClientSecret(checkoutResponse.clientSecret);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        setStripeError(
-          error instanceof Error
-            ? error.message
-            : "No se pudo preparar el checkout de Stripe.",
-        );
-        stripePreparationStartedRef.current = false;
-      } finally {
-        if (!cancelled) {
-          setIsPreparingStripe(false);
-        }
-      }
-    };
-
-    void prepareStripeCheckout();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, selectedPaymentMethod, step, stripeClientSecret, stripeOrderId]);
-
   const showNeighborhoodSelect = !modeManual && colonias.length > 1;
   const neighborhoodLockedByLookup = !modeManual && colonias.length === 1;
   const brandLogoSrc = `${import.meta.env.BASE_URL}logo-tropicolors.png`;
 
-  const handleStripePaymentConfirmed = async (sessionId: string) => {
-    if (!stripeOrderId) {
-      throw new Error("No se encontro el pedido pendiente de Stripe.");
-    }
-
-    const confirmedOrderId = await onConfirmCardPayment(sessionId, stripeOrderId);
-    setPaymentResult({ orderId: confirmedOrderId });
-  };
-
   const handlePaymentSubmit = async () => {
-    if (selectedPaymentMethod === "card") {
-      return;
-    }
-
-    const response = await onSubmit(formValues, selectedPaymentMethod, null);
+    const response = await onSubmit(formValues, selectedPaymentMethod);
 
     if (response.success) {
-      setPaymentResult({ orderId: response.orderId });
+      setPaymentResult({
+        orderId: response.orderId,
+        transferReference: response.transferReference,
+        whatsappUrl: response.whatsappUrl,
+      });
+      window.open(response.whatsappUrl, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -1067,8 +893,8 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           {step === 1
                             ? ""
                             : paymentResult
-                              ? "Pago realizado con exito"
-                              : "Confirmar y pagar"}
+                              ? "Pedido registrado"
+                              : "Confirmar pedido"}
                         </h3>
                       </div>
                     </div>
@@ -1083,24 +909,20 @@ const CheckoutModal = React.memo(function CheckoutModal({
                   </div>
                   <p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-500">
                       {step === 1
-                        ? "Completa tus datos, direccion y metodo de pago antes de continuar."
+                        ? "Completa tus datos y registra el pedido para pago por transferencia."
                         : paymentResult
-                          ? "Tu pedido quedo registrado correctamente."
-                          : "Revisa el resumen final y confirma el pago."}
+                          ? "Tu pedido quedo registrado y sera validado manualmente."
+                          : "Revisa el resumen final antes de registrar el pedido."}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {[
                       {
-                        icon: Lock,
-                        label: "Checkout seguro",
-                      },
-                      {
-                        icon: BadgeCheck,
-                        label: "Stripe procesa la tarjeta",
+                        icon: Landmark,
+                        label: "Pago por transferencia",
                       },
                       {
                         icon: Truck,
-                        label: "Envio coordinado al confirmar",
+                        label: "Envio tras validacion",
                       },
                     ].map((item) => {
                       const Icon = item.icon;
@@ -1563,55 +1385,21 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               Metodo de pago
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              Selecciona como deseas completar tu compra.
+                              Este pedido se registra solo con transferencia bancaria.
                             </p>
-
-                            <div className="mt-4 grid gap-3">
-                              {paymentOptions.map((option) => {
-                                const OptionIcon = option.icon;
-                                const isSelected =
-                                  selectedPaymentMethod === option.id;
-
-                                return (
-                                  <button
-                                    key={option.id}
-                                    type="button"
-                                    onClick={() =>
-                                      setSelectedPaymentMethod(option.id)
-                                    }
-                                    className={`flex items-center gap-4 rounded-3xl border p-4 text-left transition duration-200 ${
-                                      isSelected
-                                        ? "border-sky-500 bg-sky-50 shadow-lg shadow-sky-100"
-                                        : "border-slate-200 bg-white/90 hover:border-sky-200 hover:shadow-md"
-                                    }`}
-                                  >
-                                    <div
-                                      className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                                        isSelected
-                                          ? "bg-sky-600 text-white"
-                                          : "bg-slate-100 text-slate-500"
-                                      }`}
-                                    >
-                                      <OptionIcon className="h-5 w-5" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-semibold text-slate-900">
-                                        {option.title}
-                                      </p>
-                                      <p className="mt-1 text-xs text-slate-500">
-                                        {option.description}
-                                      </p>
-                                    </div>
-                                    <div
-                                      className={`h-4 w-4 rounded-full border-2 ${
-                                        isSelected
-                                          ? "border-sky-500 bg-sky-500"
-                                          : "border-slate-300"
-                                      }`}
-                                    />
-                                  </button>
-                                );
-                              })}
+                            <div className="mt-4 flex items-center gap-4 rounded-3xl border border-sky-200 bg-sky-50 p-4">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-600 text-white">
+                                <Landmark className="h-5 w-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-slate-900">
+                                  Transferencia bancaria
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Pago manual validado por el equipo de Tropicolors.
+                                </p>
+                              </div>
+                              <div className="h-4 w-4 rounded-full border-2 border-sky-500 bg-sky-500" />
                             </div>
                           </div>
                         </div>
@@ -1624,10 +1412,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               Resumen de pago
                             </p>
                             <p className="mt-1 text-sm font-semibold text-slate-900">
-                              {selectedPaymentOption?.title || "Metodo no seleccionado"}
+                              Transferencia bancaria
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              Total estimado: ${cartTotal} MXN
+                              Pendiente de validacion manual: ${cartTotal} MXN
                             </p>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right">
@@ -1668,15 +1456,35 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         <ShieldCheck className="h-10 w-10" />
                       </div>
                       <h4 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">
-                        Pago realizado con exito
+                        Pedido registrado correctamente
                       </h4>
                       <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-                        Tu compra fue simulada correctamente. Ya puedes cerrar
-                        este paso y volver al catalogo.
+                        Tu pedido quedo pendiente de validacion. Un administrador
+                        revisara la transferencia y despues enviara la confirmacion.
                       </p>
+                      <div className="mt-5 w-full max-w-md rounded-2xl border border-sky-100 bg-sky-50/90 px-4 py-4 text-left text-sm text-sky-900">
+                        <p className="font-semibold">Siguiente paso</p>
+                        <p className="mt-2">
+                          Envia tu comprobante por WhatsApp usando el boton de abajo
+                          para que el equipo valide tu pago mas rapido.
+                        </p>
+                      </div>
                       <p className="mt-4 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold tracking-[0.18em] text-slate-600">
                         {paymentResult.orderId}
                       </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          window.open(
+                            paymentResult.whatsappUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          )
+                        }
+                        className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                      >
+                        Enviar comprobante por WhatsApp
+                      </button>
                       <button
                         type="button"
                         onClick={onFinalize}
@@ -1715,15 +1523,15 @@ const CheckoutModal = React.memo(function CheckoutModal({
 
                       <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                         <p className="text-sm font-semibold text-slate-900">
-                          Metodo de pago seleccionado
+                          Pago con transferencia
                         </p>
                         <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-4">
                           <div>
                             <p className="text-sm font-semibold text-slate-900">
-                              {selectedPaymentOption?.title || "Metodo no seleccionado"}
+                              Transferencia bancaria interbancaria
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              {selectedPaymentOption?.description || "Selecciona un metodo para continuar."}
+                              Tu pedido se registra y queda pendiente de validacion.
                             </p>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-300">
@@ -1732,55 +1540,73 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         </div>
                       </div>
 
-                      {selectedPaymentMethod === "card" ? (
-                        <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-                          {isPreparingStripe ? (
-                            <div className="flex min-h-[260px] items-center justify-center rounded-3xl border border-slate-200 bg-slate-50/80">
-                              <div className="text-center text-sm text-slate-500">
-                                <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />
-                                Preparando checkout seguro de Stripe...
-                                <p className="mt-2 text-xs text-slate-400">
-                                  Estamos generando el intento de pago y cargando el formulario protegido.
+                      <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                        <p className="text-sm font-semibold text-slate-900">
+                          Transferencia bancaria
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                          Al continuar, el pedido se registrara para que tu
+                          equipo valide manualmente la transferencia desde el
+                          panel administrativo.
+                        </p>
+                        <div className="mt-4 rounded-[28px] border border-slate-200 bg-[linear-gradient(145deg,#0f172a_0%,#111827_52%,#082f49_100%)] p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-200/75">
+                                Datos bancarios
+                              </p>
+                              <p className="mt-2 text-lg font-semibold">
+                                {TRANSFER_ACCOUNT.bank}
+                              </p>
+                            </div>
+                            <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                              Transferencia SPEI
+                            </div>
+                          </div>
+
+                          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                            {[
+                              {
+                                label: "Titular",
+                                value: TRANSFER_ACCOUNT.accountHolder,
+                              },
+                              {
+                                label: "CLABE interbancaria",
+                                value: TRANSFER_ACCOUNT.clabe,
+                              },
+                              {
+                                label: "Concepto",
+                                value: transferReference,
+                              },
+                              {
+                                label: "Monto",
+                                value: `$${cartTotal} MXN`,
+                              },
+                            ].map((item) => (
+                              <div
+                                key={item.label}
+                                className="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm"
+                              >
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-100/70">
+                                  {item.label}
                                 </p>
+                                <p className="mt-2 break-words text-sm font-semibold text-white">
+                                  {item.value}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyValue(item.label, item.value)
+                                  }
+                                  className="mt-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
+                                >
+                                  Copiar {item.label.toLowerCase()}
+                                </button>
                               </div>
-                            </div>
-                          ) : stripeError ? (
-                            <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                              {stripeError}
-                            </div>
-                          ) : stripePublishableKey &&
-                            stripeClientSecret &&
-                            stripeOrderId ? (
-                            <StripeEmbeddedPayment
-                              publishableKey={stripePublishableKey}
-                              clientSecret={stripeClientSecret}
-                              amount={cartTotal}
-                              orderId={stripeOrderId}
-                              onPaymentConfirmed={handleStripePaymentConfirmed}
-                            />
-                          ) : (
-                            <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-500">
-                              Esperando configuracion de Stripe...
-                            </div>
-                          )}
-                          <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800">
-                            Stripe captura los datos de la tarjeta. Tu sistema solo guarda el tipo de pago y el estado del pedido.
+                            ))}
                           </div>
                         </div>
-                      ) : (
-                        <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-                          <p className="text-sm font-semibold text-slate-900">
-                            {selectedPaymentMethod === "oxxo"
-                              ? "Pago en OXXO"
-                              : "Transferencia bancaria"}
-                          </p>
-                          <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                            {selectedPaymentMethod === "oxxo"
-                              ? "Generaremos una referencia simulada para pago en tienda al continuar."
-                              : "Te mostraremos una referencia simulada para transferencia al continuar."}
-                          </p>
-                        </div>
-                      )}
+                      </div>
 
                       <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                         <div className="flex items-center justify-between text-sm text-slate-500">
@@ -1799,21 +1625,21 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         >
                           Regresar
                         </button>
-                        {selectedPaymentMethod !== "card" ? (
-                          <button
-                            type="button"
-                            onClick={handlePaymentSubmit}
-                            disabled={isProcessing}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                          >
-                            {isProcessing ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <CreditCard className="h-4 w-4" />
-                            )}
-                            {isProcessing ? "Procesando pago..." : "Pagar ahora"}
-                          </button>
-                        ) : null}
+                        <button
+                          type="button"
+                          onClick={handlePaymentSubmit}
+                          disabled={isProcessing}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                        >
+                          {isProcessing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Landmark className="h-4 w-4" />
+                          )}
+                          {isProcessing
+                            ? "Registrando pedido..."
+                            : "Registrar pedido y enviar comprobante"}
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1840,85 +1666,10 @@ export function CartDrawer() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const stripeReturnHandledRef = useRef<string | null>(null);
   const itemCount = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
     [items],
   );
-
-  const confirmStripeOrder = useCallback(async (
-    sessionId: string,
-    orderId: string,
-  ): Promise<string> => {
-    const response = await fetch(
-      apiUrl(
-        `/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}&order_id=${encodeURIComponent(orderId)}`,
-      ),
-    );
-    const payload = (await response.json()) as {
-      error?: string;
-      order?: StripeCheckoutOrder;
-    };
-
-    if (!response.ok || !payload.order) {
-      throw new Error(payload.error || "No se pudo confirmar el pago en Stripe.");
-    }
-
-    const order = payload.order;
-    const notificationKey = `stripe-notification:${order.id}`;
-    const emailKey = `stripe-email:${order.id}`;
-
-    if (!sessionStorage.getItem(notificationKey)) {
-      await createNotification({
-        orderId: order.id,
-        customerName: order.customerName || "Cliente",
-        total: Number(order.total || 0),
-        requiresInvoice: Boolean(order.requiresInvoice),
-        customerRfc: order.customerRfc || "",
-      });
-      sessionStorage.setItem(notificationKey, "1");
-    }
-
-    if (
-      order.customerName &&
-      order.customerEmail &&
-      !sessionStorage.getItem(emailKey)
-    ) {
-      const emailResult = await enviarCorreoConfirmacion({
-        nombre: order.customerName,
-        email: order.customerEmail,
-        telefono: order.customerPhone || "",
-        direccion: buildShippingAddress(order),
-        numeroExterior: order.shippingExteriorNumber || "",
-        numeroInterior: order.shippingInteriorNumber || "",
-        total: Number(order.total || 0),
-        numeroPedido: order.orderNumber || order.id,
-        productos: (order.items || []).map((item) => ({
-          nombre: item.productName || "Producto",
-          cantidad: item.quantity || 1,
-          precio: item.price || 0,
-        })),
-      });
-
-      if (emailResult.success) {
-        sessionStorage.setItem(emailKey, "1");
-      } else {
-        console.error(
-          "[CartDrawer] No se pudo enviar el correo de confirmacion de Stripe:",
-          emailResult.error,
-        );
-        toast({
-          title: "Pago confirmado sin correo",
-          description:
-            emailResult.error ||
-            "El pedido se confirmo, pero no se pudo enviar el correo.",
-          variant: "destructive",
-        });
-      }
-    }
-
-    return order.orderNumber || order.id;
-  }, [toast]);
 
   useEffect(() => {
     if (isCartOpen) {
@@ -1943,91 +1694,9 @@ export function CartDrawer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isCartOpen, isCheckoutModalOpen, setIsCartOpen]);
 
-  useEffect(() => {
-    const cleanupCheckoutParams = () => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("order_success");
-      url.searchParams.delete("order_cancelled");
-      url.searchParams.delete("order");
-      url.searchParams.delete("order_id");
-      url.searchParams.delete("session_id");
-      const nextSearch = url.searchParams.toString();
-      const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ""}${url.hash}`;
-      window.history.replaceState({}, document.title, nextUrl);
-    };
-
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get("order_cancelled") === "true") {
-      cleanupCheckoutParams();
-      toast({
-        title: "Pago cancelado",
-        description: "El checkout de Stripe fue cancelado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const sessionId = params.get("session_id");
-    const orderId = params.get("order_id");
-    const isOrderSuccess = params.get("order_success") === "true";
-
-    if (!isOrderSuccess || !sessionId || !orderId) {
-      return;
-    }
-
-    const requestKey = `${sessionId}:${orderId}`;
-    if (stripeReturnHandledRef.current === requestKey) {
-      return;
-    }
-    stripeReturnHandledRef.current = requestKey;
-
-    let cancelled = false;
-
-    const confirmStripeCheckout = async () => {
-      setIsProcessing(true);
-
-      try {
-        const confirmedOrderId = await confirmStripeOrder(sessionId, orderId);
-
-        if (cancelled) return;
-
-        clearCart();
-        setIsCheckoutModalOpen(false);
-        setIsCartOpen(false);
-        toast({
-          title: "Pago confirmado",
-          description: `Tu pedido ${confirmedOrderId} fue confirmado correctamente.`,
-        });
-      } catch (error) {
-        if (cancelled) return;
-
-        toast({
-          title: "Error",
-          description:
-            error instanceof Error
-              ? error.message
-              : "No se pudo confirmar el pago en Firestore.",
-          variant: "destructive",
-        });
-      } finally {
-        if (cancelled) return;
-        setIsProcessing(false);
-        cleanupCheckoutParams();
-      }
-    };
-
-    void confirmStripeCheckout();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [clearCart, confirmStripeOrder, setIsCartOpen, toast]);
-
   const onSubmit = useCallback(async (
     data: CheckoutFormData,
     paymentMethod: PaymentMethod,
-    cardData: CardFormData | null,
   ) => {
     if (items.length === 0) {
       throw new Error("No hay productos en el carrito.");
@@ -2036,78 +1705,10 @@ export function CartDrawer() {
     setIsProcessing(true);
 
     try {
-      if (paymentMethod === "card") {
-        const response = await fetch(apiUrl("/api/checkout"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            customerName: data.customerName,
-            customerEmail: data.customerEmail,
-            customerPhone: data.customerPhone,
-            requiresInvoice: data.requiresInvoice,
-            customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
-            shippingAddress: data.shippingAddress,
-            shippingExteriorNumber: data.shippingExteriorNumber.trim(),
-            shippingInteriorNumber: data.shippingInteriorNumber.trim(),
-            shippingPostalCode: data.shippingPostalCode,
-            shippingNeighborhood: data.shippingNeighborhood,
-            shippingMunicipality: data.shippingMunicipality,
-            shippingState: data.shippingState,
-            items: items.map((item) => ({
-              productId: item.productId,
-              productName: item.productName,
-              size: item.size,
-              unitPrice: item.price,
-              price: item.price,
-              quantity: item.quantity,
-              hexCode: item.hexCode,
-              imageUrl: item.imageUrl,
-            })),
-          }),
-        });
-
-        const text = await response.text();
-        let payload: {
-          error?: string;
-          orderId?: string;
-          orderNumber?: string;
-          clientSecret?: string | null;
-          publishableKey?: string | null;
-        } = {};
-
-        try {
-          payload = text ? (JSON.parse(text) as typeof payload) : {};
-        } catch {
-          throw new Error(
-            `Respuesta inesperada del servidor (${response.status}).`,
-          );
-        }
-
-        if (
-          !response.ok ||
-          !payload.clientSecret ||
-          !payload.orderId ||
-          !payload.publishableKey
-        ) {
-          throw new Error(
-            payload.error || "No se pudo preparar el pago con Stripe.",
-          );
-        }
-
-        return {
-          success: true,
-          orderId: payload.orderId,
-          sessionUrl: "",
-          clientSecret: payload.clientSecret,
-          publishableKey:
-            typeof payload.publishableKey === "string"
-              ? payload.publishableKey
-              : undefined,
-        } satisfies CheckoutSubmitResponse;
-      }
-
+      const currentTransferReference = buildTransferReference(
+        data.customerName,
+        data.customerPhone,
+      );
       const orderDocumentId = await createOrder({
         customerName: data.customerName,
         customerEmail: data.customerEmail,
@@ -2122,8 +1723,9 @@ export function CartDrawer() {
         shippingMunicipality: data.shippingMunicipality,
         shippingState: data.shippingState,
         paymentMethod,
-        paymentStatus: "paid",
+        paymentStatus: "pending",
         orderStatus: "pending",
+        paymentReference: currentTransferReference,
         total: cartTotal,
         items: items.map((item) => ({
           productId: item.productId,
@@ -2150,44 +1752,40 @@ export function CartDrawer() {
         console.error("[CartDrawer] Error al crear notificación:", notifError);
       }
 
-      // Enviar correo de confirmación del pedido
       try {
-        const direccionCompleta = buildShippingAddress(data);
         const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
-        const emailResult = await enviarCorreoConfirmacion({
+        const emailResult = await enviarCorreoEstadoPedido({
           nombre: data.customerName,
           email: data.customerEmail,
-          telefono: data.customerPhone,
-          direccion: direccionCompleta,
-          numeroExterior: data.shippingExteriorNumber.trim(),
-          numeroInterior: data.shippingInteriorNumber.trim(),
-          total: cartTotal,
-          numeroPedido: numeroPedido,
+          estado: "Pendiente",
           productos: items.map((item) => ({
             nombre: item.productName,
             cantidad: item.quantity,
             precio: item.price,
           })),
+          total: cartTotal,
+          direccion: buildShippingAddress(data),
+          numeroExterior: data.shippingExteriorNumber.trim(),
+          numeroInterior: data.shippingInteriorNumber.trim(),
+          numeroPedido,
         });
 
-        if (emailResult.success) {
-          console.log("[CartDrawer] Correo de confirmacion enviado exitosamente");
-        } else {
+        if (!emailResult.success) {
           console.error(
-            "[CartDrawer] No se pudo enviar el correo de confirmacion:",
+            "[CartDrawer] No se pudo enviar el correo de pedido pendiente:",
             emailResult.error,
           );
           toast({
-            title: "Pedido guardado sin correo",
+            title: "Pedido registrado sin correo",
             description:
               emailResult.error ||
-              "El pedido se guardo, pero el correo no pudo enviarse.",
+              "El pedido se registro, pero no se pudo enviar el correo de seguimiento.",
             variant: "destructive",
           });
         }
       } catch (emailError) {
         console.error(
-          "[CartDrawer] Error al enviar correo de confirmación:",
+          "[CartDrawer] Error al enviar correo de pedido pendiente:",
           emailError,
         );
       }
@@ -2196,14 +1794,18 @@ export function CartDrawer() {
         success: true,
         orderId: `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`,
         sessionUrl: "",
+        transferReference: currentTransferReference,
+        whatsappUrl: buildWhatsAppUrl({
+          orderId: `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`,
+          customerName: data.customerName,
+          total: cartTotal,
+          transferReference: currentTransferReference,
+        }),
       } satisfies CheckoutSubmitResponse;
     } catch (error) {
       toast({
         title: "Error",
-        description:
-          paymentMethod === "card"
-            ? "No se pudo iniciar el checkout de Stripe. Intenta nuevamente."
-            : "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
+        description: "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
         variant: "destructive",
       });
       throw error;
@@ -2217,8 +1819,8 @@ export function CartDrawer() {
     setIsCheckoutModalOpen(false);
     setIsCartOpen(false);
     toast({
-      title: "Pedido realizado con exito",
-      description: "Tu pedido ha sido procesado correctamente.",
+      title: "Pedido registrado",
+      description: "Tu pedido quedo pendiente de validacion por transferencia.",
     });
   }, [clearCart, setIsCartOpen, toast]);
   const handleCloseCheckoutModal = useCallback(() => {
@@ -2385,7 +1987,6 @@ export function CartDrawer() {
               cartTotal={cartTotal}
               isProcessing={isProcessing}
               onSubmit={onSubmit}
-              onConfirmCardPayment={confirmStripeOrder}
               onFinalize={handleFinalizeCheckout}
               onClose={handleCloseCheckoutModal}
             />

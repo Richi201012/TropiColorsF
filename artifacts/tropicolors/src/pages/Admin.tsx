@@ -2422,6 +2422,7 @@ type FirebaseProduct = {
   };
   industrial?: boolean;
   note?: string;
+  stock?: number;
 };
 
 type EditableProduct = {
