@@ -2006,8 +2006,7 @@ export function CartDrawer() {
                   <span className="font-semibold">${cartTotal}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>Envio</span>
-                  <span>Se confirma en el modal</span>
+                  
                 </div>
                 <div className="flex items-center justify-between border-t pt-2">
                   <span className="text-lg font-bold">Total</span>
