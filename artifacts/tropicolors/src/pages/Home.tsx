@@ -25,7 +25,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { doc, getDoc, getDocs, collection } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, onSnapshot } from "firebase/firestore";
 import {
   buildCartItemKey,
   calculateMayoreoUnitTotal,
@@ -500,16 +500,18 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const loadHomeSettings = async () => {
-      try {
-        const settingsSnapshot = await getDoc(doc(db, "settings", "home"));
+    const settingsDocRef = doc(db, "settings", "home");
+    const unsubscribe = onSnapshot(
+      settingsDocRef,
+      (settingsSnapshot) => {
         if (settingsSnapshot.exists()) {
           setGelVisible(Boolean(settingsSnapshot.data()?.gelVisible));
           return;
         }
 
         setGelVisible(false);
-      } catch (error) {
+      },
+      (error) => {
         console.error("[Home] No se pudo cargar settings/home:", error);
         toast({
           title: "No se pudo cargar la configuración del sitio",
@@ -518,10 +520,10 @@ export default function Home() {
           variant: "destructive",
         });
         setGelVisible(false);
-      }
-    };
+      },
+    );
 
-    void loadHomeSettings();
+    return () => unsubscribe();
   }, [toast]);
 
   const normalizedSearch = useMemo(
@@ -535,11 +537,14 @@ export default function Home() {
   const products = useMemo(() => {
     const sourceProducts = firebaseProducts || PRODUCTS;
     const hasNaranja850 = sourceProducts.some((product) => product.id === "naranja-850");
-
-    return hasNaranja850
+    const normalizedProducts = hasNaranja850
       ? sourceProducts
       : [...sourceProducts, PRODUCTS.find((product) => product.id === "naranja-850")!];
-  }, [firebaseProducts]);
+
+    return normalizedProducts.filter(
+      (product) => gelVisible || product.category !== "Gel",
+    );
+  }, [firebaseProducts, gelVisible]);
 
   const filteredProducts = useMemo(
     () =>
