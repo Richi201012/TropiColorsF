@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { calculateCartItemSubtotal } from "@/lib/commerce";
 import {
   X,
   Loader2,
@@ -18,6 +19,8 @@ type OrderDetailItem = {
   name: string;
   quantity: number;
   price: number;
+  subtotal?: number;
+  description?: string;
 };
 
 type HistorialEntry = {
@@ -70,6 +73,13 @@ type FirestoreOrderData = {
     productName?: string;
     quantity?: number;
     price?: number;
+    unitPrice?: number;
+    subtotal?: number;
+    purchaseType?: string;
+    piecesPerBox?: number | null;
+    quantityBoxes?: number;
+    totalPieces?: number;
+    size?: string;
     [key: string]: unknown;
   }>;
   [key: string]: unknown;
@@ -207,7 +217,18 @@ export function OrderDetailModal({
         const items: OrderDetailItem[] = (data.items || []).map((item) => ({
           name: item.name || item.productName || "Producto",
           quantity: Number(item.quantity) || 1,
-          price: Number(item.price) || 0,
+          price: Number(item.unitPrice) || Number(item.price) || 0,
+          subtotal: calculateCartItemSubtotal(item),
+          description:
+            item.purchaseType === "pieza"
+              ? `Compra por pieza · ${Number(item.quantity) || 1} ${(Number(item.quantity) || 1) === 1 ? "pieza" : "piezas"}`
+              : item.purchaseType === "mayoreo"
+                ? item.piecesPerBox
+                  ? `Compra por mayoreo · ${Number(item.quantityBoxes) || Number(item.quantity) || 1} ${(Number(item.quantityBoxes) || Number(item.quantity) || 1) === 1 ? "caja" : "cajas"} de ${Number(item.piecesPerBox)} piezas`
+                  : "Compra por mayoreo"
+                : typeof item.size === "string"
+                  ? item.size
+                  : undefined,
         }));
         console.log(
           "[OrderDetailModal] items mapeados:",
@@ -216,7 +237,7 @@ export function OrderDetailModal({
 
         const totalFromData = Number(data.total) || 0;
         const totalFromItems = items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
+          (sum, item) => sum + calculateCartItemSubtotal(item),
           0,
         );
         const calculatedTotal =
@@ -459,6 +480,11 @@ export function OrderDetailModal({
                     >
                       <span className="font-medium text-slate-900">
                         {item.name}
+                        {item.description ? (
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {item.description}
+                          </span>
+                        ) : null}
                       </span>
                       <span className="text-center text-slate-600">
                         {item.quantity}
@@ -467,7 +493,7 @@ export function OrderDetailModal({
                         ${item.price.toLocaleString("es-MX")}
                       </span>
                       <span className="text-right font-semibold text-slate-950">
-                        ${(item.price * item.quantity).toLocaleString("es-MX")}
+                        ${calculateCartItemSubtotal(item).toLocaleString("es-MX")}
                       </span>
                     </div>
                   ))}

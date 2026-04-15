@@ -19,11 +19,20 @@ import {
   ChevronDown,
   Search,
   ArrowRight,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { doc, getDoc, getDocs, collection } from "firebase/firestore";
+import {
+  buildCartItemKey,
+  calculateMayoreoUnitTotal,
+  calculatePiecePrice,
+  getPiecesFromPresentationLabel,
+  type PurchaseType,
+} from "@/lib/commerce";
 
 const contactSchema = z.object({
   name: z.string().min(2, "Nombre requerido"),
@@ -50,6 +59,11 @@ type Product = {
   prices: ProductPrices;
   industrial?: boolean;
   note?: string;
+  purchaseWarning?: string;
+  presentationOverrides?: Partial<
+    Record<Concentration, Array<{ label: string; price: number }>>
+  >;
+  specialWholesaleBoxes?: Partial<Record<Concentration, number[]>>;
 };
 
 const PRESENTATIONS = [
@@ -132,6 +146,24 @@ const PRODUCTS: Product[] = [
     textColor: "#fff",
     category: "Naranja",
     prices: { 125: [27, 50, 165, 900, 3000], 250: [33, 63, 234, 1260, 4000] },
+  },
+  {
+    id: "naranja-850",
+    name: "Naranja 850",
+    hex: "#FF6B00",
+    hex2: "#FF4500",
+    textColor: "#fff",
+    category: "Naranja",
+    prices: { 250: [169, 0, 0, 0, 0] },
+    note: "Solo disponible en 250 gramos",
+    purchaseWarning:
+      "Este producto normalmente se vende por caja de 18 o 32 piezas",
+    presentationOverrides: {
+      250: [{ label: "250 gramos", price: 169 }],
+    },
+    specialWholesaleBoxes: {
+      250: [18, 32],
+    },
   },
   {
     id: "negro",
@@ -358,12 +390,22 @@ const HOME_BLOBS: HomeBlob[] = [
 ];
 
 type AddToCartFn = (item: {
+  cartKey: string;
   productId: string;
   productName: string;
-  size?: string;
-  price?: number;
+  size: string;
+  price: number;
   quantity: number;
-  hexCode?: string;
+  hexCode: string;
+  concentration?: string;
+  purchaseType: PurchaseType;
+  priceBase: number;
+  unitPrice: number;
+  subtotal: number;
+  piecesPerBox?: number | null;
+  quantityBoxes?: number;
+  totalPieces?: number;
+  warningMessage?: string;
 }) => void;
 
 type AddFlyingItemFn = (item: {
@@ -437,6 +479,9 @@ export default function Home() {
               prices: data.prices || {},
               industrial: data.industrial || false,
               note: data.note || undefined,
+              purchaseWarning: data.purchaseWarning || undefined,
+              presentationOverrides: data.presentationOverrides || undefined,
+              specialWholesaleBoxes: data.specialWholesaleBoxes || undefined,
             };
           });
           setFirebaseProducts(loaded);
@@ -487,7 +532,14 @@ export default function Home() {
     () => CATEGORY_COLORS[activeCategory],
     [activeCategory],
   );
-  const products = firebaseProducts || PRODUCTS;
+  const products = useMemo(() => {
+    const sourceProducts = firebaseProducts || PRODUCTS;
+    const hasNaranja850 = sourceProducts.some((product) => product.id === "naranja-850");
+
+    return hasNaranja850
+      ? sourceProducts
+      : [...sourceProducts, PRODUCTS.find((product) => product.id === "naranja-850")!];
+  }, [firebaseProducts]);
 
   const filteredProducts = useMemo(
     () =>
@@ -1294,22 +1346,32 @@ export default function Home() {
   );
 }
 
-function getPiecesFromLabel(label: string): number | null {
-  const match = label.match(/\((\d+)\s*pz\)/i);
-  return match ? Number(match[1]) : null;
+function getPresentationOptions(
+  product: Product,
+  concentration: Concentration,
+): Array<{ label: string; price: number }> {
+  const overridden = product.presentationOverrides?.[concentration];
+  if (overridden?.length) {
+    return overridden.filter((presentation) => presentation.price > 0);
+  }
+
+  const prices = product.prices[concentration];
+  if (!prices) {
+    return [];
+  }
+
+  return PRESENTATIONS.map((label, index) => ({
+    label,
+    price: prices[index],
+  })).filter((presentation) => presentation.price > 0);
 }
 
-function getUnitPriceLabel(label: string, price: number): string | null {
-  if (/KG/i.test(label)) {
-    return null;
+function clampQuantity(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 1;
   }
 
-  const pieces = getPiecesFromLabel(label);
-  if (!pieces || pieces <= 0) {
-    return null;
-  }
-
-  return `($${(price / pieces).toFixed(2)} c/u)`;
+  return Math.max(1, Math.floor(value));
 }
 
 function getProductDescription(product: Product): string {
@@ -1346,16 +1408,23 @@ const ProductCard = React.memo(function ProductCard({
   addToCart: AddToCartFn;
   addFlyingItem: AddFlyingItemFn;
 }) {
+  const { toast } = useToast();
   const availableConcentrations = useMemo(
-    () =>
-      (["125", "250"] as Concentration[]).filter((value) =>
-        (product.prices[value] || []).some((price) => price > 0),
-      ),
-    [product.prices],
+    () => (["125", "250"] as Concentration[]).filter((value) => {
+      const options = getPresentationOptions(product, value);
+      return options.length > 0;
+    }),
+    [product],
   );
   const [selectedConcentration, setSelectedConcentration] =
     useState<Concentration>(availableConcentrations[0] || "125");
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [purchaseType, setPurchaseType] = useState<PurchaseType>("mayoreo");
+  const [pieceQuantity, setPieceQuantity] = useState(1);
+  const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
+  const [selectedWholesalePieces, setSelectedWholesalePieces] = useState<
+    number | null
+  >(null);
 
   useEffect(() => {
     if (!availableConcentrations.includes(selectedConcentration)) {
@@ -1364,32 +1433,82 @@ const ProductCard = React.memo(function ProductCard({
     }
   }, [availableConcentrations, selectedConcentration]);
 
-  const prices = product.prices[selectedConcentration];
   const availablePresentations = useMemo(
+    () => getPresentationOptions(product, selectedConcentration),
+    [product, selectedConcentration],
+  );
+  const pieceReferencePresentation = useMemo(
     () =>
-      prices
-        ? PRESENTATIONS.map((label, i) => ({ label, price: prices[i] })).filter(
-            (presentation) => presentation.price > 0,
-          )
-        : [],
-    [prices],
+      availablePresentations.find((presentation) => {
+        const pieces = getPiecesFromPresentationLabel(presentation.label);
+        return Boolean(pieces) || /gram/i.test(presentation.label);
+      }) ?? availablePresentations[0],
+    [availablePresentations],
   );
 
   useEffect(() => {
     setSelectedIdx(0);
+    setPieceQuantity(1);
+    setWholesaleQuantity(1);
   }, [selectedConcentration]);
 
   const selected = useMemo(
     () => availablePresentations[selectedIdx] ?? availablePresentations[0],
     [availablePresentations, selectedIdx],
   );
-  const notAvailable = useMemo(
-    () => !prices || availablePresentations.length === 0,
-    [availablePresentations.length, prices],
-  );
-  const unitPriceLabel = useMemo(
-    () => (selected ? getUnitPriceLabel(selected.label, selected.price) : null),
+  const piecesPerBoxFromPresentation = useMemo(
+    () => (selected ? getPiecesFromPresentationLabel(selected.label) : null),
     [selected],
+  );
+  const specialWholesaleBoxes = useMemo(
+    () => product.specialWholesaleBoxes?.[selectedConcentration] || [],
+    [product.specialWholesaleBoxes, selectedConcentration],
+  );
+  const wholesalePiecesOptions = useMemo(() => {
+    if (specialWholesaleBoxes.length > 0) {
+      return specialWholesaleBoxes;
+    }
+
+    if (piecesPerBoxFromPresentation) {
+      return [piecesPerBoxFromPresentation];
+    }
+
+    return [];
+  }, [piecesPerBoxFromPresentation, specialWholesaleBoxes]);
+
+  useEffect(() => {
+    const defaultWholesalePieces = wholesalePiecesOptions[0] ?? null;
+    setSelectedWholesalePieces(defaultWholesalePieces);
+  }, [wholesalePiecesOptions]);
+
+  const priceBase = selected?.price ?? 0;
+  const piecePriceBase = pieceReferencePresentation?.price ?? 0;
+  const isPieceEligiblePresentation =
+    Boolean(pieceReferencePresentation) &&
+    (Boolean(
+      pieceReferencePresentation
+        ? getPiecesFromPresentationLabel(pieceReferencePresentation.label)
+        : null,
+    ) ||
+      /gram/i.test(pieceReferencePresentation?.label || "") ||
+      specialWholesaleBoxes.length > 0);
+  const allowsPiece = piecePriceBase > 0 && isPieceEligiblePresentation;
+  const allowsMayoreo = priceBase > 0;
+
+  useEffect(() => {
+    if (purchaseType === "pieza" && !allowsPiece) {
+      setPurchaseType("mayoreo");
+      return;
+    }
+
+    if (purchaseType === "mayoreo" && !allowsMayoreo) {
+      setPurchaseType("pieza");
+    }
+  }, [allowsMayoreo, allowsPiece, purchaseType]);
+
+  const notAvailable = useMemo(
+    () => availablePresentations.length === 0,
+    [availablePresentations.length],
   );
   const productDescription = useMemo(
     () => getProductDescription(product),
@@ -1399,11 +1518,46 @@ const ProductCard = React.memo(function ProductCard({
     () => getProductHighlights(product),
     [product],
   );
+  const piecePrice = useMemo(
+    () => calculatePiecePrice(piecePriceBase),
+    [piecePriceBase],
+  );
+  const wholesaleUnitTotal = useMemo(
+    () => calculateMayoreoUnitTotal(priceBase, selectedWholesalePieces),
+    [priceBase, selectedWholesalePieces],
+  );
+  const currentSubtotal =
+    purchaseType === "pieza"
+      ? piecePrice * pieceQuantity
+      : wholesaleUnitTotal * wholesaleQuantity;
   const handleAddToCart = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (!selected || priceBase <= 0) {
+        return;
+      }
+
+      if (purchaseType === "mayoreo" && !allowsMayoreo) {
+        toast({
+          title: "Compra no disponible",
+          description:
+            "Esta presentación no admite mayoreo por caja en la configuración actual.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const rect = event.currentTarget.getBoundingClientRect();
       const startX = rect.left + rect.width / 2;
       const startY = rect.top;
+      const effectiveQuantity =
+        purchaseType === "pieza" ? pieceQuantity : wholesaleQuantity;
+      const effectivePiecesPerBox =
+        purchaseType === "mayoreo" ? selectedWholesalePieces : null;
+      const effectiveUnitPrice =
+        purchaseType === "pieza" ? piecePrice : wholesaleUnitTotal;
+      const effectivePriceBase =
+        purchaseType === "pieza" ? piecePriceBase : priceBase;
+      const effectiveSubtotal = effectiveUnitPrice * effectiveQuantity;
 
       addFlyingItem({
         productId: product.id,
@@ -1414,15 +1568,51 @@ const ProductCard = React.memo(function ProductCard({
       });
 
       addToCart({
+        cartKey: buildCartItemKey({
+          productId: product.id,
+          concentration: selectedConcentration,
+          size: selected.label,
+          purchaseType,
+          piecesPerBox: effectivePiecesPerBox,
+        }),
         productId: product.id,
         productName: `${product.name} C-${selectedConcentration}`,
-        size: selected?.label,
-        price: selected?.price,
-        quantity: 1,
+        size: selected.label,
+        price: effectiveUnitPrice,
+        quantity: effectiveQuantity,
         hexCode: product.hex,
+        concentration: selectedConcentration,
+        purchaseType,
+        priceBase: effectivePriceBase,
+        unitPrice: effectiveUnitPrice,
+        subtotal: effectiveSubtotal,
+        piecesPerBox: effectivePiecesPerBox,
+        quantityBoxes:
+          purchaseType === "mayoreo" ? effectiveQuantity : undefined,
+        totalPieces:
+          purchaseType === "mayoreo" && effectivePiecesPerBox
+            ? effectivePiecesPerBox * effectiveQuantity
+            : effectiveQuantity,
+        warningMessage: product.purchaseWarning,
       });
     },
-    [addFlyingItem, addToCart, product, selected, selectedConcentration],
+    [
+      addFlyingItem,
+      addToCart,
+      allowsMayoreo,
+      piecePrice,
+      piecePriceBase,
+      pieceQuantity,
+      priceBase,
+      product,
+      purchaseType,
+      selected,
+      selectedConcentration,
+      selectedWholesalePieces,
+      toast,
+      wholesaleQuantity,
+      wholesaleUnitTotal,
+    ],
   );
 
   return (
@@ -1569,26 +1759,171 @@ const ProductCard = React.memo(function ProductCard({
                 />
               </div>
 
-              <div className="mt-4 flex items-end justify-between gap-3 min-[400px]:mt-5 min-[400px]:gap-4">
-                <div className="rounded-full bg-[linear-gradient(180deg,#f4f6fb_0%,#eef2f9_100%)] px-3 py-2 shadow-inner min-[400px]:px-4 min-[400px]:py-2.5">
-                  <span className="text-[10px] font-bold text-[#0b2d6b] min-[400px]:text-[11px]">
-                    Desde{" "}
-                    {unitPriceLabel
-                      ? unitPriceLabel.replace(/[()]/g, "")
-                      : "compra directa"}
-                  </span>
+              <div className="mt-4 space-y-4 min-[400px]:mt-5">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseType("pieza")}
+                    disabled={!allowsPiece}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      purchaseType === "pieza"
+                        ? "border-[#0b2d6b] bg-[#0b2d6b] text-white shadow-lg shadow-[#0b2d6b]/15"
+                        : "border-slate-200 bg-white text-slate-700"
+                    } ${!allowsPiece ? "cursor-not-allowed opacity-50" : ""}`}
+                  >
+                    <p className="text-[11px] font-extrabold uppercase tracking-[0.16em]">
+                      Precio por pieza
+                    </p>
+                    <p className="mt-2 text-lg font-black">
+                      ${piecePrice.toLocaleString("es-MX")}
+                    </p>
+                    <p
+                      className={`mt-1 text-xs ${
+                        purchaseType === "pieza"
+                          ? "text-white/75"
+                          : "text-slate-500"
+                      }`}
+                    >
+                      Precio base + 30%
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseType("mayoreo")}
+                    disabled={!allowsMayoreo}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      purchaseType === "mayoreo"
+                        ? "border-[#0b2d6b] bg-[#0b2d6b] text-white shadow-lg shadow-[#0b2d6b]/15"
+                        : "border-slate-200 bg-white text-slate-700"
+                    } ${!allowsMayoreo ? "cursor-not-allowed opacity-50" : ""}`}
+                  >
+                    <p className="text-[11px] font-extrabold uppercase tracking-[0.16em]">
+                      Compra por mayoreo
+                    </p>
+                    <p className="mt-2 text-lg font-black">
+                      $
+                      {(
+                        selectedWholesalePieces
+                          ? calculateMayoreoUnitTotal(priceBase, selectedWholesalePieces)
+                          : priceBase
+                      ).toLocaleString("es-MX")}
+                    </p>
+                    <p
+                      className={`mt-1 text-xs ${
+                        purchaseType === "mayoreo"
+                          ? "text-white/75"
+                          : "text-slate-500"
+                      }`}
+                    >
+                      {selectedWholesalePieces
+                        ? `Total por caja de ${selectedWholesalePieces} piezas`
+                        : "Total por volumen"}
+                    </p>
+                  </button>
                 </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                    Precio + IVA
-                  </span>
-                  <div className="mt-1 leading-none">
-                    <span className="text-[2rem] font-black tracking-tight text-[#0b4a92] min-[400px]:text-[2.2rem] min-[500px]:text-[2.55rem]">
-                      ${selected?.price.toLocaleString("es-MX")}
-                    </span>{" "}
-                    <span className="text-sm font-medium text-slate-500 min-[400px]:text-base">
-                      MXN
+
+                {product.purchaseWarning ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-700">
+                    {product.purchaseWarning}
+                  </div>
+                ) : null}
+
+                {purchaseType === "mayoreo" && specialWholesaleBoxes.length > 1 ? (
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+                      Caja de mayoreo
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {specialWholesaleBoxes.map((pieces) => {
+                        const isActive = selectedWholesalePieces === pieces;
+                        return (
+                          <button
+                            key={`${product.id}-${pieces}`}
+                            type="button"
+                            onClick={() => setSelectedWholesalePieces(pieces)}
+                            className={`rounded-full px-3.5 py-2 text-[11px] font-bold transition ${
+                              isActive
+                                ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-200"
+                                : "border border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            Caja de {pieces} piezas
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="grid gap-3">
+                  <div className="relative z-10">
+                    <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                      {purchaseType === "pieza"
+                        ? "Cantidad de piezas"
+                        : selectedWholesalePieces
+                          ? "Cantidad de cajas"
+                          : "Cantidad"}
+                    </p>
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          purchaseType === "pieza"
+                            ? setPieceQuantity((current) => clampQuantity(current - 1))
+                            : setWholesaleQuantity((current) => clampQuantity(current - 1))
+                        }
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="min-w-[3rem] text-center text-lg font-black text-[#0b2d6b]">
+                        {purchaseType === "pieza" ? pieceQuantity : wholesaleQuantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          purchaseType === "pieza"
+                            ? setPieceQuantity((current) => clampQuantity(current + 1))
+                            : setWholesaleQuantity((current) => clampQuantity(current + 1))
+                        }
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      {purchaseType === "pieza"
+                        ? `${pieceQuantity} ${pieceQuantity === 1 ? "pieza" : "piezas"}`
+                        : selectedWholesalePieces
+                          ? `${wholesaleQuantity} ${wholesaleQuantity === 1 ? "caja" : "cajas"} de ${selectedWholesalePieces} piezas`
+                          : `${wholesaleQuantity} volumen`}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0 px-1 text-left">
+                    <span className="block text-[9px] font-bold uppercase tracking-[0.12em] text-gray-400">
+                      {purchaseType === "pieza"
+                        ? "Subtotal por pieza"
+                        : selectedWholesalePieces
+                          ? "Total por caja / volumen"
+                          : "Total por volumen"}
                     </span>
+                    <div className="mt-1 flex flex-wrap items-end gap-x-1.5 gap-y-1 leading-[0.95]">
+                      <span className="break-all text-[1.45rem] font-bold tracking-tight text-[#0b4a92] min-[400px]:text-[1.6rem] min-[500px]:text-[1.8rem]">
+                        ${currentSubtotal.toLocaleString("es-MX")}
+                      </span>
+                      <span className="pb-0.5 text-[0.72rem] font-medium uppercase tracking-[0.08em] text-slate-400 min-[400px]:text-xs">
+                        MXN
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      {purchaseType === "pieza"
+                        ? `${piecePrice.toLocaleString("es-MX")} por pieza`
+                        : selectedWholesalePieces
+                          ? `${wholesaleUnitTotal.toLocaleString("es-MX")} por caja`
+                          : `${priceBase.toLocaleString("es-MX")} base por volumen`}
+                    </p>
                   </div>
                 </div>
               </div>

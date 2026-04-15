@@ -8,6 +8,11 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import {
+  calculateCartItemSubtotal,
+  formatCartItemPurchaseType,
+  formatCartItemQuantity,
+} from "@/lib/commerce";
 
 export type HistorialEntry = {
   estado: string;
@@ -46,6 +51,15 @@ type FirestoreOrder = {
   items?: Array<{
     productName?: string;
     price?: number;
+    unitPrice?: number;
+    subtotal?: number;
+    purchaseType?: "pieza" | "mayoreo";
+    priceBase?: number;
+    piecesPerBox?: number | null;
+    quantityBoxes?: number;
+    totalPieces?: number;
+    size?: string;
+    concentration?: string;
     hexCode?: string;
     quantity?: number;
     [key: string]: unknown; // permite campos adicionales
@@ -66,6 +80,14 @@ export type OrderProduct = {
   name: string;
   quantity: number;
   price: number;
+  subtotal?: number;
+  purchaseType?: "pieza" | "mayoreo";
+  piecesPerBox?: number | null;
+  quantityBoxes?: number;
+  totalPieces?: number;
+  description?: string;
+  priceBase?: number;
+  unitPrice?: number;
 };
 
 export type AdminOrder = {
@@ -143,16 +165,60 @@ export function useOrders() {
           const calculatedTotal = calcularTotal(data.items);
 
           // Mapear items al formato que espera el UI
-          const mappedItems: OrderProduct[] = (data.items || []).map(
-            (item) => ({
+          const mappedItems: OrderProduct[] = (data.items || []).map((item) => {
+            const purchaseType =
+              item.purchaseType === "pieza" || item.purchaseType === "mayoreo"
+                ? item.purchaseType
+                : undefined;
+            const quantity = item.quantity || 1;
+            const subtotal = calculateCartItemSubtotal(item);
+            const itemLabel =
+              purchaseType === "pieza"
+                ? `${formatCartItemPurchaseType("pieza")} · ${formatCartItemQuantity({
+                    cartKey: "",
+                    productId: "",
+                    productName: "",
+                    size: item.size || "",
+                    price: Number(item.price) || 0,
+                    quantity,
+                    hexCode: "",
+                    purchaseType: "pieza",
+                    priceBase:
+                      Number(item.priceBase) ||
+                      Number(item.unitPrice) ||
+                      Number(item.price) ||
+                      0,
+                    unitPrice: Number(item.unitPrice) || Number(item.price) || 0,
+                    subtotal,
+                  })}`
+                : purchaseType === "mayoreo"
+                  ? `${formatCartItemPurchaseType("mayoreo")} · ${
+                      item.piecesPerBox
+                        ? `${item.quantityBoxes || quantity} ${(item.quantityBoxes || quantity) === 1 ? "caja" : "cajas"} de ${item.piecesPerBox} piezas`
+                        : `${quantity} volumen`
+                    }`
+                  : item.size
+                    ? `Presentacion: ${item.size}`
+                    : undefined;
+
+            return {
               name:
                 item.productName ||
                 (item.name as string) ||
                 "Producto sin nombre",
-              quantity: item.quantity || 1,
-              price: item.price || 0,
-            }),
-          );
+              quantity,
+              price: Number(item.unitPrice) || Number(item.price) || 0,
+              subtotal,
+              purchaseType,
+              piecesPerBox:
+                typeof item.piecesPerBox === "number" ? item.piecesPerBox : null,
+              quantityBoxes: Number(item.quantityBoxes) || undefined,
+              totalPieces: Number(item.totalPieces) || undefined,
+              description: itemLabel,
+              priceBase: Number(item.priceBase) || undefined,
+              unitPrice: Number(item.unitPrice) || Number(item.price) || 0,
+            };
+          });
 
           // Transformar createdAt a string (con fallback a updatedAt)
           const createdAtString =
@@ -283,16 +349,14 @@ export function useOrders() {
  * Calcula el total del pedido a partir del array de items
  */
 function calcularTotal(
-  items?: Array<{ price?: number; quantity?: number }>,
+  items?: Array<{ price?: number; quantity?: number; subtotal?: number }>,
 ): number {
   if (!items || !Array.isArray(items) || items.length === 0) {
     return 0;
   }
 
   return items.reduce((total, item) => {
-    const price = item.price || 0;
-    const quantity = item.quantity || 1;
-    return total + price * quantity;
+    return total + calculateCartItemSubtotal(item);
   }, 0);
 }
 

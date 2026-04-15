@@ -7,16 +7,14 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import {
+  type CommerceCartItem,
+  buildCartItemKey,
+  calculateCartItemSubtotal,
+  normalizeCartItem,
+} from "@/lib/commerce";
 
-export type CartItem = {
-  productId: string;
-  productName: string;
-  size: string;
-  price: number;
-  quantity: number;
-  hexCode: string;
-  imageUrl?: string;
-};
+export type CartItem = CommerceCartItem;
 
 export type FlyingItem = {
   id: string;
@@ -30,8 +28,8 @@ export type FlyingItem = {
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: CartItem, imageUrl?: string) => void;
-  removeFromCart: (productId: string, size: string) => void;
-  updateQuantity: (productId: string, size: string, quantity: number) => void;
+  removeFromCart: (cartKey: string) => void;
+  updateQuantity: (cartKey: string, quantity: number) => void;
   clearCart: () => void;
   isCartOpen: boolean;
   setIsCartOpen: (isOpen: boolean) => void;
@@ -66,9 +64,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const parsedCart = JSON.parse(storedCart) as CartItem[];
+      const parsedCart = JSON.parse(storedCart) as unknown[];
       if (Array.isArray(parsedCart)) {
-        setItems(parsedCart);
+        setItems(
+          parsedCart
+            .map((item) => normalizeCartItem(item))
+            .filter((item): item is CartItem => Boolean(item)),
+        );
       }
     } catch (error) {
       console.error("[CartContext] No se pudo restaurar el carrito:", error);
@@ -89,22 +91,54 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   const addToCart = useCallback((newItem: CartItem) => {
+    const normalizedItem = normalizeCartItem({
+      ...newItem,
+      cartKey:
+        newItem.cartKey ||
+        buildCartItemKey({
+          productId: newItem.productId,
+          concentration: newItem.concentration,
+          size: newItem.size,
+          purchaseType: newItem.purchaseType,
+          piecesPerBox: newItem.piecesPerBox,
+        }),
+    });
+
+    if (!normalizedItem) {
+      return;
+    }
+
     setItems((currentItems) => {
       const existingItemIndex = currentItems.findIndex(
-        (item) =>
-          item.productId === newItem.productId && item.size === newItem.size,
+        (item) => item.cartKey === normalizedItem.cartKey,
       );
 
       if (existingItemIndex >= 0) {
         const updated = [...currentItems];
-        updated[existingItemIndex].quantity += newItem.quantity;
+        const existingItem = updated[existingItemIndex];
+        const nextQuantity = existingItem.quantity + normalizedItem.quantity;
+        const nextTotalPieces =
+          existingItem.purchaseType === "mayoreo"
+            ? (existingItem.piecesPerBox || 0) * nextQuantity
+            : nextQuantity;
+
+        updated[existingItemIndex] = {
+          ...existingItem,
+          quantity: nextQuantity,
+          quantityBoxes:
+            existingItem.purchaseType === "mayoreo" ? nextQuantity : undefined,
+          totalPieces: nextTotalPieces || nextQuantity,
+          subtotal: calculateCartItemSubtotal({
+            subtotal: existingItem.price * nextQuantity,
+          }),
+        };
         return updated;
       }
 
-      return [...currentItems, newItem];
+      return [...currentItems, normalizedItem];
     });
 
-    setRecentlyAddedItem(newItem);
+    setRecentlyAddedItem(normalizedItem);
     setRecentlyAddedToken((current) => current + 1);
   }, []);
 
@@ -123,25 +157,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setFlyingItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const removeFromCart = useCallback((productId: string, size: string) => {
+  const removeFromCart = useCallback((cartKey: string) => {
     setItems((current) =>
-      current.filter(
-        (item) => !(item.productId === productId && item.size === size),
-      ),
+      current.filter((item) => item.cartKey !== cartKey),
     );
   }, []);
 
   const updateQuantity = useCallback(
-    (productId: string, size: string, quantity: number) => {
+    (cartKey: string, quantity: number) => {
       if (quantity <= 0) {
-        removeFromCart(productId, size);
+        removeFromCart(cartKey);
         return;
       }
 
       setItems((current) =>
         current.map((item) =>
-          item.productId === productId && item.size === size
-            ? { ...item, quantity }
+          item.cartKey === cartKey
+            ? {
+                ...item,
+                quantity,
+                quantityBoxes:
+                  item.purchaseType === "mayoreo" ? quantity : undefined,
+                totalPieces:
+                  item.purchaseType === "mayoreo" && item.piecesPerBox
+                    ? item.piecesPerBox * quantity
+                    : quantity,
+                subtotal: calculateCartItemSubtotal({
+                  subtotal: item.price * quantity,
+                }),
+              }
             : item,
         ),
       );
@@ -156,7 +200,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const cartTotal = useMemo(
     () =>
-      items.reduce((total, item) => total + item.price * item.quantity, 0),
+      items.reduce((total, item) => total + calculateCartItemSubtotal(item), 0),
     [items],
   );
   const cartCount = useMemo(

@@ -51,6 +51,7 @@ async function enviarCorreoBrevoAPI(
   subject: string,
   htmlContent: string,
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const startedAt = Date.now();
   try {
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -87,18 +88,144 @@ async function enviarCorreoBrevoAPI(
       };
     }
 
-    console.log("[Brevo API] Correo enviado:", data.messageId);
+    console.log(
+      "[Brevo API] Correo enviado:",
+      data.messageId,
+      `(${Date.now() - startedAt}ms)`,
+    );
     return {
       success: true,
       messageId: data.messageId,
     };
   } catch (error) {
-    console.error("[Brevo API] Exception:", error);
+    console.error(
+      "[Brevo API] Exception:",
+      error,
+      `(${Date.now() - startedAt}ms)`,
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Error desconocido",
     };
   }
+}
+
+async function procesarCorreoEstado(
+  body: EmailEstadoData,
+  options?: {
+    logPrefix?: string;
+  },
+) {
+  const logPrefix = options?.logPrefix || "[Email Estado]";
+  const startedAt = Date.now();
+  const {
+    nombre,
+    email,
+    estado,
+    productos,
+    total,
+    direccion,
+    numeroExterior,
+    numeroInterior,
+    paqueteria,
+    tipoEnvio,
+    guia,
+    cancellationReason,
+    numeroPedido,
+  } = body;
+
+  if (!nombre || !email || !estado || !productos || !total || !direccion) {
+    return {
+      ok: false as const,
+      statusCode: 400,
+      payload: {
+        error: "Datos incompletos",
+        message: "Faltan datos requeridos del pedido",
+      },
+    };
+  }
+
+  const estadosValidos = [
+    "Pendiente",
+    "Pagado",
+    "Enviado",
+    "Entregado",
+    "Cancelado",
+  ];
+  if (!estadosValidos.includes(estado)) {
+    return {
+      ok: false as const,
+      statusCode: 400,
+      payload: {
+        error: "Estado inválido",
+        message:
+          "El estado debe ser: Pendiente, Pagado, Enviado, Entregado o Cancelado",
+      },
+    };
+  }
+
+  console.log(`${logPrefix} Generando HTML para estado:`, estado);
+  const templateStartedAt = Date.now();
+  const html = generarEmailEstadoPedido({
+    nombre,
+    email,
+    estado,
+    productos,
+    total,
+    direccion,
+    numeroExterior,
+    numeroInterior,
+    paqueteria,
+    tipoEnvio,
+    guia,
+    cancellationReason,
+    numeroPedido,
+  });
+  console.log(
+    `${logPrefix} HTML generado en ${Date.now() - templateStartedAt}ms`,
+  );
+
+  const asuntos: Record<string, string> = {
+    Pendiente: "Tu pedido está pendiente - Tropicolors",
+    Pagado: "Tu pago ha sido confirmado - Tropicolors",
+    Enviado: "Tu pedido ha sido enviado - Tropicolors",
+    Entregado: "Tu pedido ha sido entregado - Tropicolors",
+    Cancelado: "Tu pedido ha sido cancelado - Tropicolors",
+  };
+
+  console.log(`${logPrefix} Enviando correo a:`, email, "Estado:", estado);
+  const providerStartedAt = Date.now();
+  const result = await enviarCorreoBrevoAPI(email, nombre, asuntos[estado], html);
+  console.log(
+    `${logPrefix} Proveedor respondió en ${Date.now() - providerStartedAt}ms`,
+  );
+
+  if (!result.success) {
+    const brevoError = normalizeBrevoError(result.error);
+    return {
+      ok: false as const,
+      statusCode: brevoError.statusCode,
+      payload: {
+        error: "Error al enviar correo",
+        message: brevoError.publicMessage,
+        providerError: result.error,
+      },
+    };
+  }
+
+  console.log(
+    `${logPrefix} Correo enviado exitosamente en ${Date.now() - startedAt}ms`,
+  );
+  return {
+    ok: true as const,
+    statusCode: 200,
+    payload: {
+      success: true,
+      message: `Correo de estado "${estado}" enviado exitosamente`,
+      messageId: result.messageId,
+      timingMs: Date.now() - startedAt,
+    },
+  };
 }
 
 /**
@@ -266,100 +393,8 @@ router.post("/enviar-correo-estado", async (req, res) => {
   }
 
   try {
-    const {
-      nombre,
-      email,
-      estado,
-      productos,
-      total,
-      direccion,
-      numeroExterior,
-      numeroInterior,
-      paqueteria,
-      tipoEnvio,
-      guia,
-      cancellationReason,
-      numeroPedido,
-    } = req.body as EmailEstadoData;
-
-    if (!nombre || !email || !estado || !productos || !total || !direccion) {
-      console.error("[Email Estado] ERROR: Datos incompletos");
-      res.status(400).json({
-        error: "Datos incompletos",
-        message: "Faltan datos requeridos del pedido",
-      });
-      return;
-    }
-
-    const estadosValidos = [
-      "Pendiente",
-      "Pagado",
-      "Enviado",
-      "Entregado",
-      "Cancelado",
-    ];
-    if (!estadosValidos.includes(estado)) {
-      console.error("[Email Estado] ERROR: Estado inválido:", estado);
-      res.status(400).json({
-        error: "Estado inválido",
-        message:
-          "El estado debe ser: Pendiente, Pagado, Enviado, Entregado o Cancelado",
-      });
-      return;
-    }
-
-    console.log("[Email Estado] Generando HTML para estado:", estado);
-    const html = generarEmailEstadoPedido({
-      nombre,
-      email,
-      estado,
-      productos,
-      total,
-      direccion,
-      numeroExterior,
-      numeroInterior,
-      paqueteria,
-      tipoEnvio,
-      guia,
-      cancellationReason,
-      numeroPedido,
-    });
-
-    const asuntos: Record<string, string> = {
-      Pendiente: "Tu pedido está pendiente - Tropicolors",
-      Pagado: "Tu pago ha sido confirmado - Tropicolors",
-      Enviado: "Tu pedido ha sido enviado - Tropicolors",
-      Entregado: "Tu pedido ha sido entregado - Tropicolors",
-      Cancelado: "Tu pedido ha sido cancelado - Tropicolors",
-    };
-
-    console.log("[Email Estado] Enviando correo a:", email, "Estado:", estado);
-    const result = await enviarCorreoBrevoAPI(
-      email,
-      nombre,
-      asuntos[estado],
-      html,
-    );
-
-    if (!result.success) {
-      console.error("[Email Estado] ERROR al enviar correo:", result.error);
-      const brevoError = normalizeBrevoError(result.error);
-      res.status(brevoError.statusCode).json({
-        error: "Error al enviar correo",
-        message: brevoError.publicMessage,
-        providerError: result.error,
-      });
-      return;
-    }
-
-    console.log("[Email Estado] Correo enviado exitosamente!");
-    console.log("[Email Estado] Message ID:", result.messageId);
-
-    res.json({
-      success: true,
-      message: `Correo de estado "${estado}" enviado exitosamente`,
-      messageId: result.messageId,
-    });
+    const result = await procesarCorreoEstado(req.body as EmailEstadoData);
+    res.status(result.statusCode).json(result.payload);
   } catch (error) {
     console.error("[Email Estado] ERROR al enviar correo:", error);
     const errorMessage =
@@ -369,6 +404,45 @@ router.post("/enviar-correo-estado", async (req, res) => {
       message: errorMessage,
     });
   }
+});
+
+router.post("/enviar-correo-estado-async", async (req, res) => {
+  console.log("[Email Estado Async] Recibida solicitud de envío en segundo plano");
+  console.log("[Email Estado Async] Body:", JSON.stringify(req.body, null, 2));
+
+  if (!BREVO_API_KEY) {
+    res.status(500).json({
+      error: "Servicio de correo no configurado",
+      message: "La API Key de Brevo no está disponible",
+    });
+    return;
+  }
+
+  const payload = req.body as EmailEstadoData;
+  res.status(202).json({
+    success: true,
+    queued: true,
+    message: "Correo en proceso de envío",
+  });
+
+  setImmediate(async () => {
+    try {
+      const result = await procesarCorreoEstado(payload, {
+        logPrefix: "[Email Estado Async Worker]",
+      });
+      if (!result.ok) {
+        console.error(
+          "[Email Estado Async Worker] Falló el envío en segundo plano:",
+          result.payload,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[Email Estado Async Worker] Error inesperado al enviar correo:",
+        error,
+      );
+    }
+  });
 });
 
 /**

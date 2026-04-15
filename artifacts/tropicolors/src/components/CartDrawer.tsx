@@ -25,7 +25,13 @@ import { useToast } from "@/hooks/use-toast";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { createOrder } from "@/services/order-service";
 import { createNotification } from "@/services/notification-service";
-import { enviarCorreoEstadoPedido } from "@/lib/email-service";
+import { enviarCorreoEstadoPedidoEnSegundoPlano } from "@/lib/email-service";
+import {
+  calculateCartItemSubtotal,
+  formatCartItemPriceLabel,
+  formatCartItemPurchaseType,
+  formatCartItemQuantity,
+} from "@/lib/commerce";
 
 const WHATSAPP_NUMBER = "525551146856";
 const TRANSFER_ACCOUNT = {
@@ -735,7 +741,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
             onClick={onClose}
             className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-md"
           />
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
+          <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -743,10 +749,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
               transition={{ duration: 0.22, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}
-              className="flex max-h-[94vh] w-full max-w-5xl overflow-hidden rounded-[24px] border border-white/20 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] sm:max-h-[88vh] sm:rounded-[28px]"
+              className="my-3 flex w-full max-w-5xl overflow-hidden rounded-[24px] border border-white/20 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] sm:rounded-[28px] lg:max-h-[88vh]"
             >
-              <div className="grid min-h-0 w-full grid-cols-1 overflow-hidden lg:grid-cols-[1.02fr_1.18fr]">
-                <div className="relative min-h-0 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-6 py-6 text-white sm:px-8">
+              <div className="grid min-h-0 w-full grid-cols-1 lg:grid-cols-[1.02fr_1.18fr] lg:overflow-hidden">
+                <div className="relative overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-5 py-5 text-white sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
                   <div className="pointer-events-none absolute inset-0 overflow-hidden">
                     <div className="absolute -right-16 top-16 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
                     <div className="absolute -left-10 bottom-20 h-48 w-48 rounded-full bg-sky-500/10 blur-3xl" />
@@ -826,7 +832,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                   <div className="relative space-y-3">
                     {items.map((item) => (
                       <div
-                        key={`${item.productId}-${item.size}`}
+                        key={item.cartKey}
                         className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/8 p-4 shadow-lg shadow-slate-950/10 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/20 hover:bg-white/10 hover:shadow-xl"
                       >
                         <div
@@ -838,15 +844,18 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             {item.productName}
                           </p>
                           <p className="mt-1 text-xs text-slate-300">
-                            {item.size}
+                            {formatCartItemPurchaseType(item.purchaseType)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {formatCartItemQuantity(item)}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold text-white">
-                            x{item.quantity}
+                            {formatCartItemPriceLabel(item)}
                           </p>
                           <p className="mt-1 text-sm text-cyan-300">
-                            ${item.price * item.quantity}
+                            ${calculateCartItemSubtotal(item).toLocaleString("es-MX")}
                           </p>
                         </div>
                       </div>
@@ -871,7 +880,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                   </div>
                 </div>
 
-                <div className="min-h-0 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-6 py-6 sm:px-8">
+                <div className="overflow-visible bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-5 py-5 sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
                   <div className="mb-6 flex items-start justify-between gap-4">
                     <div className="inline-flex items-center gap-3 rounded-2xl border border-sky-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-200">
@@ -1451,7 +1460,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                     </form>
                   ) : (
                     paymentResult ? (
-                    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-emerald-100 bg-white/80 p-8 text-center shadow-sm">
+                    <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-emerald-100 bg-white/80 p-6 text-center shadow-sm sm:min-h-[420px] sm:p-8">
                       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-lg shadow-emerald-100">
                         <ShieldCheck className="h-10 w-10" />
                       </div>
@@ -1459,8 +1468,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         Pedido registrado correctamente
                       </h4>
                       <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-                        Tu pedido quedo pendiente de validacion. Un administrador
-                        revisara la transferencia y despues enviara la confirmacion.
+                        Tu pedido quedó pendiente de validación. El correo de
+                        seguimiento está en proceso de envío mientras un
+                        administrador revisa la transferencia.
                       </p>
                       <div className="mt-5 w-full max-w-md rounded-2xl border border-sky-100 bg-sky-50/90 px-4 py-4 text-left text-sm text-sky-900">
                         <p className="font-semibold">Siguiente paso</p>
@@ -1549,7 +1559,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           equipo valide manualmente la transferencia desde el
                           panel administrativo.
                         </p>
-                        <div className="mt-4 rounded-[28px] border border-slate-200 bg-[linear-gradient(145deg,#0f172a_0%,#111827_52%,#082f49_100%)] p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+                        <div className="mt-4 overflow-hidden rounded-[28px] border border-slate-200 bg-[linear-gradient(145deg,#0f172a_0%,#111827_52%,#082f49_100%)] p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-200/75">
@@ -1702,9 +1712,38 @@ export function CartDrawer() {
       throw new Error("No hay productos en el carrito.");
     }
 
+    const invalidItem = items.find((item) => {
+      if (item.purchaseType === "pieza") {
+        return item.quantity <= 0 || item.unitPrice <= 0;
+      }
+
+      if (item.purchaseType === "mayoreo") {
+        if (item.quantity <= 0 || item.priceBase <= 0) {
+          return true;
+        }
+
+        if (item.piecesPerBox && item.piecesPerBox <= 1) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    if (invalidItem) {
+      toast({
+        title: "Carrito inválido",
+        description:
+          "Hay productos con una configuración de compra inválida. Revisa el carrito antes de continuar.",
+        variant: "destructive",
+      });
+      throw new Error("Carrito inválido");
+    }
+
     setIsProcessing(true);
 
     try {
+      const submitStartedAt = performance.now();
       const currentTransferReference = buildTransferReference(
         data.customerName,
         data.customerPhone,
@@ -1733,11 +1772,23 @@ export function CartDrawer() {
           size: item.size,
           price: item.price,
           quantity: item.quantity,
+          purchaseType: item.purchaseType,
+          priceBase: item.priceBase,
+          unitPrice: item.unitPrice,
+          subtotal: calculateCartItemSubtotal(item),
+          piecesPerBox: item.piecesPerBox,
+          quantityBoxes: item.quantityBoxes,
+          totalPieces: item.totalPieces,
+          concentration: item.concentration,
           hexCode: item.hexCode,
           imageUrl: item.imageUrl,
         })),
         paymentDetails: null,
       });
+      console.log(
+        "[CartDrawer] Pedido guardado en Firebase en",
+        `${Math.round(performance.now() - submitStartedAt)}ms`,
+      );
 
       // Crear notificación para el admin
       try {
@@ -1754,12 +1805,15 @@ export function CartDrawer() {
 
       try {
         const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
-        const emailResult = await enviarCorreoEstadoPedido({
+        const emailResult = await enviarCorreoEstadoPedidoEnSegundoPlano({
           nombre: data.customerName,
           email: data.customerEmail,
           estado: "Pendiente",
           productos: items.map((item) => ({
-            nombre: item.productName,
+            nombre:
+              item.purchaseType === "pieza"
+                ? `${item.productName} (${formatCartItemQuantity(item)})`
+                : `${item.productName} (${formatCartItemQuantity(item)})`,
             cantidad: item.quantity,
             precio: item.price,
           })),
@@ -1772,14 +1826,14 @@ export function CartDrawer() {
 
         if (!emailResult.success) {
           console.error(
-            "[CartDrawer] No se pudo enviar el correo de pedido pendiente:",
+            "[CartDrawer] No se pudo encolar el correo de pedido pendiente:",
             emailResult.error,
           );
           toast({
             title: "Pedido registrado sin correo",
             description:
               emailResult.error ||
-              "El pedido se registro, pero no se pudo enviar el correo de seguimiento.",
+              "El pedido se registró, pero no se pudo iniciar el envío del correo.",
             variant: "destructive",
           });
         }
@@ -1820,7 +1874,8 @@ export function CartDrawer() {
     setIsCartOpen(false);
     toast({
       title: "Pedido registrado",
-      description: "Tu pedido quedo pendiente de validacion por transferencia.",
+      description:
+        "Pedido registrado correctamente, correo en proceso de envio y validacion por transferencia.",
     });
   }, [clearCart, setIsCartOpen, toast]);
   const handleCloseCheckoutModal = useCallback(() => {
@@ -1843,7 +1898,7 @@ export function CartDrawer() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed right-0 top-0 z-50 flex h-full w-[380px] flex-col rounded-l-2xl bg-white shadow-2xl"
+            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[380px] flex-col rounded-l-2xl bg-white shadow-2xl"
             onWheel={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between rounded-tl-2xl border-b bg-gray-50 p-4">
@@ -1884,7 +1939,7 @@ export function CartDrawer() {
               ) : (
                 items.map((item, index) => (
                   <motion.div
-                    key={`${item.productId}-${item.size}`}
+                    key={item.cartKey}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
@@ -1898,17 +1953,16 @@ export function CartDrawer() {
                       <h4 className="truncate text-sm font-semibold text-gray-800">
                         {item.productName}
                       </h4>
-                      <p className="text-xs text-gray-500">{item.size}</p>
+                      <p className="text-xs text-gray-500">
+                        {formatCartItemPurchaseType(item.purchaseType)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {formatCartItemQuantity(item)}
+                      </p>
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
                           <button
-                            onClick={() =>
-                              updateQuantity(
-                                item.productId,
-                                item.size,
-                                item.quantity - 1,
-                              )
-                            }
+                            onClick={() => updateQuantity(item.cartKey, item.quantity - 1)}
                             className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
                           >
                             <Minus className="h-3 w-3 text-gray-600" />
@@ -1917,13 +1971,7 @@ export function CartDrawer() {
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() =>
-                              updateQuantity(
-                                item.productId,
-                                item.size,
-                                item.quantity + 1,
-                              )
-                            }
+                            onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
                             className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
                           >
                             <Plus className="h-3 w-3 text-gray-600" />
@@ -1931,12 +1979,10 @@ export function CartDrawer() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-gray-800">
-                            ${item.price * item.quantity}
+                            ${calculateCartItemSubtotal(item).toLocaleString("es-MX")}
                           </span>
                           <button
-                            onClick={() =>
-                              removeFromCart(item.productId, item.size)
-                            }
+                            onClick={() => removeFromCart(item.cartKey)}
                             className="rounded-lg p-1.5 text-red-500 opacity-0 transition-all hover:bg-red-50 group-hover:opacity-100"
                           >
                             <Trash2 className="h-4 w-4" />
