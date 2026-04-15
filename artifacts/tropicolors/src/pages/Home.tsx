@@ -60,6 +60,7 @@ type Product = {
   industrial?: boolean;
   note?: string;
   purchaseWarning?: string;
+  onlyWholesale?: boolean;
   presentationOverrides?: Partial<
     Record<Concentration, Array<{ label: string; price: number }>>
   >;
@@ -157,7 +158,8 @@ const PRODUCTS: Product[] = [
     prices: { 250: [169, 0, 0, 0, 0] },
     note: "Solo disponible en 250 gramos",
     purchaseWarning:
-      "Este producto normalmente se vende por caja de 18 o 32 piezas",
+      "Este producto solamente se vende por caja de 18 o 32 piezas",
+    onlyWholesale: true,
     presentationOverrides: {
       250: [{ label: "250 gramos", price: 169 }],
     },
@@ -480,6 +482,7 @@ export default function Home() {
               industrial: data.industrial || false,
               note: data.note || undefined,
               purchaseWarning: data.purchaseWarning || undefined,
+              onlyWholesale: Boolean(data.onlyWholesale),
               presentationOverrides: data.presentationOverrides || undefined,
               specialWholesaleBoxes: data.specialWholesaleBoxes || undefined,
             };
@@ -1488,6 +1491,7 @@ const ProductCard = React.memo(function ProductCard({
 
   const priceBase = selected?.price ?? 0;
   const piecePriceBase = pieceReferencePresentation?.price ?? 0;
+  const isOnlyWholesale = Boolean(product.onlyWholesale);
   const isPieceEligiblePresentation =
     Boolean(pieceReferencePresentation) &&
     (Boolean(
@@ -1497,10 +1501,16 @@ const ProductCard = React.memo(function ProductCard({
     ) ||
       /gram/i.test(pieceReferencePresentation?.label || "") ||
       specialWholesaleBoxes.length > 0);
-  const allowsPiece = piecePriceBase > 0 && isPieceEligiblePresentation;
+  const allowsPiece =
+    !isOnlyWholesale && piecePriceBase > 0 && isPieceEligiblePresentation;
   const allowsMayoreo = priceBase > 0;
 
   useEffect(() => {
+    if (isOnlyWholesale && purchaseType !== "mayoreo") {
+      setPurchaseType("mayoreo");
+      return;
+    }
+
     if (purchaseType === "pieza" && !allowsPiece) {
       setPurchaseType("mayoreo");
       return;
@@ -1509,7 +1519,7 @@ const ProductCard = React.memo(function ProductCard({
     if (purchaseType === "mayoreo" && !allowsMayoreo) {
       setPurchaseType("pieza");
     }
-  }, [allowsMayoreo, allowsPiece, purchaseType]);
+  }, [allowsMayoreo, allowsPiece, isOnlyWholesale, purchaseType]);
 
   const notAvailable = useMemo(
     () => availablePresentations.length === 0,
@@ -1738,7 +1748,9 @@ const ProductCard = React.memo(function ProductCard({
               <div className="mt-4 border-t border-slate-200/80 pt-4 min-[400px]:mt-5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
-                    Elige presentación
+                    {isOnlyWholesale && wholesalePiecesOptions.length > 1
+                      ? "Elige caja"
+                      : "Elige presentación"}
                   </p>
                   <span className="rounded-full bg-[#0b2d6b]/6 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#0b2d6b]">
                     C-{selectedConcentration}
@@ -1746,53 +1758,76 @@ const ProductCard = React.memo(function ProductCard({
                 </div>
               </div>
 
-              <div className="relative mt-3 min-[400px]:mt-4">
-                <select
-                  className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 pr-8 text-xs font-semibold text-gray-700 shadow-sm transition-all focus:border-[#003F91]/30 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15 min-[400px]:py-3 min-[400px]:text-sm"
-                  value={selectedIdx}
-                  onChange={(e) => setSelectedIdx(Number(e.target.value))}
-                >
-                  {availablePresentations.map((p, i) => (
-                    <option key={i} value={i}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-              </div>
+              {isOnlyWholesale && wholesalePiecesOptions.length > 1 ? (
+                <div className="mt-3 flex flex-wrap gap-2 min-[400px]:mt-4">
+                  {wholesalePiecesOptions.map((pieces) => {
+                    const isActive = selectedWholesalePieces === pieces;
+                    return (
+                      <button
+                        key={`${product.id}-box-${pieces}`}
+                        type="button"
+                        onClick={() => setSelectedWholesalePieces(pieces)}
+                        className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                          isActive
+                            ? "bg-[#0b2d6b] text-white shadow-lg shadow-[#0b2d6b]/20"
+                            : "border border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        Caja de {pieces} piezas
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="relative mt-3 min-[400px]:mt-4">
+                  <select
+                    className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 pr-8 text-xs font-semibold text-gray-700 shadow-sm transition-all focus:border-[#003F91]/30 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15 min-[400px]:py-3 min-[400px]:text-sm"
+                    value={selectedIdx}
+                    onChange={(e) => setSelectedIdx(Number(e.target.value))}
+                  >
+                    {availablePresentations.map((p, i) => (
+                      <option key={i} value={i}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                </div>
+              )}
 
               <div className="mt-4 space-y-4 min-[400px]:mt-5">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setPurchaseType("pieza")}
-                    disabled={!allowsPiece}
-                    className={`rounded-2xl border px-4 py-3 text-left transition ${
-                      purchaseType === "pieza"
-                        ? "border-[#0b2d6b] bg-[#0b2d6b] text-white shadow-lg shadow-[#0b2d6b]/15"
-                        : "border-slate-200 bg-white text-slate-700"
-                    } ${!allowsPiece ? "cursor-not-allowed opacity-50" : ""}`}
-                  >
-                    <p className="text-[11px] font-extrabold uppercase tracking-[0.16em]">
-                      Precio por pieza
-                    </p>
-                    <p className="mt-2 text-lg font-black">
-                      ${piecePrice.toLocaleString("es-MX")}
-                    </p>
-                    <p
-                      className={`mt-1 text-xs ${
+                <div className={`grid gap-2 ${allowsPiece ? "sm:grid-cols-2" : "grid-cols-1"}`}>
+                  {allowsPiece ? (
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseType("pieza")}
+                      disabled={!allowsPiece}
+                      className={`rounded-2xl border px-4 py-3 text-left transition ${
                         purchaseType === "pieza"
-                          ? "text-white/75"
-                          : "text-slate-500"
-                      }`}
+                          ? "border-[#0b2d6b] bg-[#0b2d6b] text-white shadow-lg shadow-[#0b2d6b]/15"
+                          : "border-slate-200 bg-white text-slate-700"
+                      } ${!allowsPiece ? "cursor-not-allowed opacity-50" : ""}`}
                     >
-                      Precio base + 30%
-                    </p>
-                  </button>
-
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.16em]">
+                        Precio por pieza
+                      </p>
+                      <p className="mt-2 text-lg font-black">
+                        ${piecePrice.toLocaleString("es-MX")}
+                      </p>
+                      <p
+                        className={`mt-1 text-xs ${
+                          purchaseType === "pieza"
+                            ? "text-white/75"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Precio base + 30%
+                      </p>
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setPurchaseType("mayoreo")}
@@ -1834,7 +1869,9 @@ const ProductCard = React.memo(function ProductCard({
                   </div>
                 ) : null}
 
-                {purchaseType === "mayoreo" && specialWholesaleBoxes.length > 1 ? (
+                {purchaseType === "mayoreo" &&
+                specialWholesaleBoxes.length > 1 &&
+                !isOnlyWholesale ? (
                   <div>
                     <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
                       Caja de mayoreo
