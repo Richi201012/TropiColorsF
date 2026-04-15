@@ -5,6 +5,7 @@ import {
   InvoiceItem,
   buildInvoiceNumber,
 } from "../types/invoice";
+import { calculateCartItemSubtotal } from "@/lib/commerce";
 
 /**
  * Hook para obtener facturas generadas automaticamente desde la coleccion
@@ -16,9 +17,7 @@ export function useFacturasFromOrders() {
   const mapOrderToInvoice = (order: AdminOrder, index: number): InvoiceData => {
     const calculatedTotal = order.items.reduce(
       (sum: number, item: OrderProduct) => {
-        const price = item.price || 0;
-        const quantity = item.quantity || 1;
-        return sum + price * quantity;
+        return sum + calculateCartItemSubtotal(item);
       },
       0,
     );
@@ -28,7 +27,8 @@ export function useFacturasFromOrders() {
       name: item.name,
       quantity: item.quantity,
       unitPrice: item.price,
-      subtotal: (item.price || 0) * (item.quantity || 1),
+      subtotal: calculateCartItemSubtotal(item),
+      description: item.description,
     }));
 
     const invoiceNumber = buildInvoiceNumber(index + 1, order.createdAt);
@@ -129,7 +129,7 @@ export function crearFacturaDesdePedido(order: AdminOrder): InvoiceData {
 class InvoiceMapper {
   mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
     const total = order.items.reduce((sum, item) => {
-      return sum + (item.price || 0) * (item.quantity || 1);
+      return sum + calculateCartItemSubtotal(item);
     }, 0);
 
     const items: InvoiceItem[] = order.items.map((item, itemIndex) => ({
@@ -137,7 +137,8 @@ class InvoiceMapper {
       name: item.name,
       quantity: item.quantity || 1,
       unitPrice: item.price || 0,
-      subtotal: (item.price || 0) * (item.quantity || 1),
+      subtotal: calculateCartItemSubtotal(item),
+      description: item.description,
     }));
 
     const invoiceNumber = buildInvoiceNumber(index + 1, order.createdAt);

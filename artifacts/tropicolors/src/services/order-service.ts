@@ -14,6 +14,14 @@ type OrderItemInput = {
   size: string;
   price: number;
   quantity: number;
+  purchaseType: "pieza" | "mayoreo";
+  priceBase: number;
+  unitPrice: number;
+  subtotal: number;
+  piecesPerBox?: number | null;
+  quantityBoxes?: number;
+  totalPieces?: number;
+  concentration?: string;
   hexCode?: string;
   imageUrl?: string;
 };

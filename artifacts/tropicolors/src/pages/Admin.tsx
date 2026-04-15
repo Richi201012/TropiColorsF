@@ -82,6 +82,7 @@ import {
   deleteDoc,
   collection,
   getDocs,
+  onSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -2086,15 +2087,17 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
   }, [userProfile]);
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settingsSnapshot = await getDoc(settingsRef);
+    const unsubscribe = onSnapshot(
+      settingsRef,
+      (settingsSnapshot) => {
         if (settingsSnapshot.exists()) {
           setGelVisible(Boolean(settingsSnapshot.data()?.gelVisible));
-        } else {
-          setGelVisible(false);
+          return;
         }
-      } catch (error) {
+
+        setGelVisible(false);
+      },
+      (error) => {
         console.error("[SettingsView] Error loading settings:", error);
         toast({
           title: "No se pudo cargar la configuración",
@@ -2102,10 +2105,10 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
           variant: "destructive",
         });
         setGelVisible(false);
-      }
-    };
+      },
+    );
 
-    void loadSettings();
+    return () => unsubscribe();
   }, []);
 
   const handleSaveProfile = async () => {
@@ -2172,11 +2175,10 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
   };
 
   const handleGelVisibilityChange = async (newValue: boolean) => {
+    setGelVisible(newValue);
     setIsSavingProducts(true);
     try {
       await setDoc(settingsRef, { gelVisible: newValue }, { merge: true });
-      await updateDoc(settingsRef, { gelVisible: newValue });
-      setGelVisible(newValue);
       toast({
         title: "Configuración actualizada",
         description: newValue
@@ -2185,6 +2187,15 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
       });
     } catch (error) {
       console.error("[SettingsView] Error updating gelVisible:", error);
+      try {
+        const latestSnapshot = await getDoc(settingsRef);
+        setGelVisible(Boolean(latestSnapshot.data()?.gelVisible));
+      } catch (snapshotError) {
+        console.error(
+          "[SettingsView] Error restoring gelVisible after failure:",
+          snapshotError,
+        );
+      }
       toast({
         title: "No se pudo actualizar la configuración",
         description: "Intenta nuevamente en unos momentos.",

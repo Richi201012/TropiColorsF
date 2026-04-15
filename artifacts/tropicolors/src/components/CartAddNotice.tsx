@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, ShoppingBag, ArrowRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import {
+  formatCartItemPurchaseType,
+  formatCartItemQuantity,
+} from "@/lib/commerce";
 
 export function CartAddNotice() {
   const {
@@ -59,8 +63,8 @@ export function CartAddNotice() {
                   {recentlyAddedItem.productName}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Presentación {recentlyAddedItem.size} · Cantidad{" "}
-                  {recentlyAddedItem.quantity}
+                  {formatCartItemPurchaseType(recentlyAddedItem.purchaseType)} ·{" "}
+                  {formatCartItemQuantity(recentlyAddedItem)}
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
