@@ -83,7 +83,10 @@ const PRODUCTS: Product[] = [
     hex2: "#FFC400",
     textColor: "#1a1a1a",
     category: "Amarillos",
-    prices: { 125: [23, 47, 140, 760, 2500], 250: [33, 68, 235, 1300, 4200] },
+    prices: {
+      125: [21.6, 44, 131.9, 720, 2400],
+      250: [31.5, 65.2, 224, 1179, 4200],
+    },
   },
   {
     id: "amarillo-huevo",
@@ -92,7 +95,10 @@ const PRODUCTS: Product[] = [
     hex2: "#FF8C00",
     textColor: "#1a1a1a",
     category: "Amarillos",
-    prices: { 125: [23, 47, 140, 760, 2500], 250: [33, 68, 235, 1300, 4200] },
+    prices: {
+      125: [21.6, 44, 131.9, 720, 2400],
+      250: [31.5, 65.2, 224, 1179, 4200],
+    },
   },
   {
     id: "amarillo-limon",
@@ -101,7 +107,10 @@ const PRODUCTS: Product[] = [
     hex2: "#CCCC00",
     textColor: "#1a1a1a",
     category: "Amarillos",
-    prices: { 125: [23, 47, 140, 760, 2500], 250: [33, 68, 235, 1300, 2500] },
+    prices: {
+      125: [21.6, 44, 131.9, 720, 2400],
+      250: [31.5, 65.2, 224, 1179, 4200],
+    },
   },
   {
     id: "amarillo-naranja",
@@ -110,7 +119,10 @@ const PRODUCTS: Product[] = [
     hex2: "#FF6600",
     textColor: "#fff",
     category: "Amarillos",
-    prices: { 125: [27, 50, 165, 900, 3000], 250: [42, 80, 280, 1560, 5000] },
+    prices: {
+      125: [25.7, 47.4, 154.8, 858, 2850],
+      250: [40.3, 76, 267, 1420, 5000],
+    },
   },
   {
     id: "azul",
@@ -119,7 +131,10 @@ const PRODUCTS: Product[] = [
     hex2: "#003F91",
     textColor: "#fff",
     category: "Azul",
-    prices: { 125: [35, 72, 260, 1500, 5000], 250: [64, 150, 450, 2640, 8100] },
+    prices: {
+      125: [34.6, 68, 251.5, 1440, 4800],
+      250: [63.4, 145, 514.8, 3025, 10080],
+    },
   },
   {
     id: "cafe-caramelo",
@@ -128,7 +143,10 @@ const PRODUCTS: Product[] = [
     hex2: "#C68642",
     textColor: "#fff",
     category: "Cafés",
-    prices: { 125: [26, 55, 180, 1000, 3300], 250: [37, 87, 306, 1774, 5800] },
+    prices: {
+      125: [24.5, 51.9, 169.9, 950, 3150],
+      250: [35.5, 82.9, 292, 1690, 5800],
+    },
   },
   {
     id: "cafe-chocolate",
@@ -137,7 +155,10 @@ const PRODUCTS: Product[] = [
     hex2: "#5C3317",
     textColor: "#fff",
     category: "Cafés",
-    prices: { 125: [31, 63, 220, 1250, 4100], 250: [43, 111, 400, 2340, 7200] },
+    prices: {
+      125: [29, 59, 208, 1180, 3900],
+      250: [41, 106, 390, 2114, 7200],
+    },
   },
   {
     id: "naranja-pastor",
@@ -146,7 +167,10 @@ const PRODUCTS: Product[] = [
     hex2: "#FF5500",
     textColor: "#fff",
     category: "Naranja",
-    prices: { 125: [27, 50, 165, 900, 3000], 250: [33, 63, 234, 1260, 4000] },
+    prices: {
+      125: [24.3, 51.8, 147.8, 817, 2700],
+      250: [31.5, 60.3, 223.5, 1200, 4000],
+    },
   },
   {
     id: "naranja-850",
@@ -155,13 +179,13 @@ const PRODUCTS: Product[] = [
     hex2: "#FF4500",
     textColor: "#fff",
     category: "Naranja",
-    prices: { 250: [169, 0, 0, 0, 0] },
+    prices: { 250: [160, 0, 0, 0, 0] },
     note: "Solo disponible en 250 gramos",
     purchaseWarning:
       "Este producto solamente se vende por caja de 18 o 32 piezas",
     onlyWholesale: true,
     presentationOverrides: {
-      250: [{ label: "250 gramos", price: 169 }],
+      250: [{ label: "250 gramos", price: 160 }],
     },
     specialWholesaleBoxes: {
       250: [18, 32],
@@ -175,8 +199,7 @@ const PRODUCTS: Product[] = [
     textColor: "#fff",
     category: "Negro",
     prices: {
-      125: [74, 175, 680, 4000, 12500],
-      250: [74, 175, 680, 4000, 12500],
+      250: [69.6, 176, 640, 3780, 12500],
     },
   },
   {
@@ -186,7 +209,10 @@ const PRODUCTS: Product[] = [
     hex2: "#C01030",
     textColor: "#fff",
     category: "Rojos",
-    prices: { 125: [38, 76, 265, 1530, 4800], 250: [60, 130, 480, 2646, 8400] },
+    prices: {
+      125: [36, 71.7, 252, 1440, 4800],
+      250: [57.1, 125, 464, 2520, 8390],
+    },
   },
   {
     id: "rojo-fresa",
@@ -195,7 +221,10 @@ const PRODUCTS: Product[] = [
     hex2: "#E01050",
     textColor: "#fff",
     category: "Rojos",
-    prices: { 125: [33, 76, 217, 1240, 3950], 250: [57, 125, 370, 2150, 6500] },
+    prices: {
+      125: [31, 62.2, 205, 1160, 3850],
+      250: [51.8, 122.5, 465, 2700, 9094],
+    },
   },
   {
     id: "rojo-grosella",
@@ -204,7 +233,10 @@ const PRODUCTS: Product[] = [
     hex2: "#A01070",
     textColor: "#fff",
     category: "Rojos",
-    prices: { 125: [38, 76, 265, 1530, 4800], 250: [60, 130, 450, 2640, 8100] },
+    prices: {
+      125: [36, 71.7, 252, 1440, 4800],
+      250: [57.1, 125, 464, 2520, 8390],
+    },
   },
   {
     id: "rojo-purpura",
@@ -213,7 +245,10 @@ const PRODUCTS: Product[] = [
     hex2: "#6B1025",
     textColor: "#fff",
     category: "Rojos",
-    prices: { 125: [33, 76, 217, 1240, 3950], 250: [57, 125, 370, 2150, 6500] },
+    prices: {
+      125: [31, 62.2, 205, 1160, 3850],
+      250: [54.6, 114, 417, 2440, 8130],
+    },
   },
   {
     id: "rojo-uva",
@@ -222,7 +257,10 @@ const PRODUCTS: Product[] = [
     hex2: "#5E1F2A",
     textColor: "#fff",
     category: "Rojos",
-    prices: { 125: [38, 76, 265, 1530, 4800], 250: [60, 130, 450, 2640, 8100] },
+    prices: {
+      125: [36, 71.7, 252, 1440, 4800],
+      250: [54.6, 114, 417, 2440, 8130],
+    },
   },
   {
     id: "verde-esmeralda",
@@ -231,7 +269,10 @@ const PRODUCTS: Product[] = [
     hex2: "#166832",
     textColor: "#fff",
     category: "Verdes",
-    prices: { 125: [32, 63, 200, 1130, 3700], 250: [56, 111, 354, 2060, 6370] },
+    prices: {
+      125: [29.7, 54.9, 188.2, 1060, 3500],
+      250: [53.4, 106, 353.2, 2055, 6850],
+    },
   },
   {
     id: "verde-limon",
@@ -240,7 +281,10 @@ const PRODUCTS: Product[] = [
     hex2: "#72A000",
     textColor: "#fff",
     category: "Verdes",
-    prices: { 125: [24.5, 49, 152, 830, 2700], 250: [33, 63, 234, 1340, 4000] },
+    prices: {
+      125: [22.9, 46.5, 143, 789, 2600],
+      250: [31.5, 60.4, 223, 1200, 4000],
+    },
   },
   {
     id: "violeta-alimentos",
@@ -249,7 +293,7 @@ const PRODUCTS: Product[] = [
     hex2: "#5800A8",
     textColor: "#fff",
     category: "Especiales",
-    prices: { 125: [78, 0, 575, 0, 0] },
+    prices: { 125: [73.4, 144.7, 540, 0, 0] },
     note: "Uso alimentario",
   },
   {
@@ -270,7 +314,7 @@ const PRODUCTS: Product[] = [
     textColor: "#fff",
     category: "Industriales",
     industrial: true,
-    prices: { 125: [78, 154, 575, 3350, 10500] },
+    prices: { 125: [74.3, 144.7, 540, 3170, 10500] },
   },
   {
     id: "rosa-brillante",
@@ -280,7 +324,10 @@ const PRODUCTS: Product[] = [
     textColor: "#fff",
     category: "Industriales",
     industrial: true,
-    prices: { 125: [36, 72, 260, 1480, 4700], 250: [64, 147, 440, 2580, 7920] },
+    prices: {
+      125: [34.2, 66.7, 242.6, 1388, 4600],
+      250: [61, 140, 521.8, 3066, 10220],
+    },
   },
 ];
 
@@ -539,7 +586,11 @@ export default function Home() {
   );
   const products = useMemo(() => {
     const sourceProducts = firebaseProducts || PRODUCTS;
-    const hasNaranja850 = sourceProducts.some((product) => product.id === "naranja-850");
+    const hasNaranja850 = sourceProducts.some(
+      (product) =>
+        product.id === "naranja-850" ||
+        product.name.trim().toLowerCase() === "naranja 850",
+    );
     const normalizedProducts = hasNaranja850
       ? sourceProducts
       : [...sourceProducts, PRODUCTS.find((product) => product.id === "naranja-850")!];
@@ -1824,7 +1875,7 @@ const ProductCard = React.memo(function ProductCard({
                             : "text-slate-500"
                         }`}
                       >
-                        Precio base + 30%
+                        
                       </p>
                     </button>
                   ) : null}
