@@ -236,15 +236,9 @@ function buildShippingAddress(data: {
     .join(", ");
 }
 
-function buildTransferReference(name: string, phone: string): string {
-  const normalizedName = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^A-Za-z0-9]/g, "")
-    .toUpperCase()
-    .slice(0, 8);
+function buildTransferReference(phone: string): string {
   const lastDigits = phone.replace(/\D/g, "").slice(-4) || "0000";
-  return `TC-${normalizedName || "CLIENTE"}-${lastDigits}`;
+  return `TC-TROPIC-${lastDigits}`;
 }
 
 function buildWhatsAppUrl(params: {
@@ -468,8 +462,8 @@ const CheckoutModal = React.memo(function CheckoutModal({
     [items],
   );
   const transferReference = useMemo(
-    () => buildTransferReference(formValues.customerName, formValues.customerPhone),
-    [formValues.customerName, formValues.customerPhone],
+    () => buildTransferReference(formValues.customerPhone),
+    [formValues.customerPhone],
   );
   const fieldValidity = useMemo(() => {
     const nextValidity: Partial<Record<CheckoutFieldName, boolean>> = {};
@@ -1465,12 +1459,11 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         <ShieldCheck className="h-10 w-10" />
                       </div>
                       <h4 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">
-                        Pedido registrado correctamente
+                        Pedido recibido
                       </h4>
                       <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-                        Tu pedido quedó pendiente de validación. El correo de
-                        seguimiento está en proceso de envío mientras un
-                        administrador revisa la transferencia.
+                        Tu pedido ya quedó registrado. Comparte tu comprobante
+                        por WhatsApp para continuar con la validación.
                       </p>
                       <div className="mt-5 w-full max-w-md rounded-2xl border border-sky-100 bg-sky-50/90 px-4 py-4 text-left text-sm text-sky-900">
                         <p className="font-semibold">Siguiente paso</p>
@@ -1745,7 +1738,6 @@ export function CartDrawer() {
     try {
       const submitStartedAt = performance.now();
       const currentTransferReference = buildTransferReference(
-        data.customerName,
         data.customerPhone,
       );
       const orderDocumentId = await createOrder({
@@ -1873,9 +1865,8 @@ export function CartDrawer() {
     setIsCheckoutModalOpen(false);
     setIsCartOpen(false);
     toast({
-      title: "Pedido registrado",
-      description:
-        "Pedido registrado correctamente, correo en proceso de envio y validacion por transferencia.",
+      title: "Pedido recibido",
+      description: "Tu pedido fue registrado correctamente.",
     });
   }, [clearCart, setIsCartOpen, toast]);
   const handleCloseCheckoutModal = useCallback(() => {
