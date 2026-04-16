@@ -714,12 +714,17 @@ export default function Home() {
               </span>
               <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#00A8B5]" />
-                Cajas completas
+                Venta Menudeo y Mayoreo
               </span>
               <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#FFCD00]" />
                 Envío por cuenta del cliente
               </span>
+              <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#12DE44]" />
+                Pago solo por transferencia electronica
+              </span>
+
             </div>
             <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
               {STORE_HIGHLIGHTS.map((item) => (

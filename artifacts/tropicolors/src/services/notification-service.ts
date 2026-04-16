@@ -60,3 +60,15 @@ export async function deleteNotification(notificationId: string) {
   const notifRef = doc(db, "notifications", notificationId);
   await deleteDoc(notifRef);
 }
+
+export async function deleteAllNotifications() {
+  const snapshot = await getDocs(query(collection(db, "notifications")));
+
+  if (snapshot.empty) return;
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((docSnap) => {
+    batch.delete(docSnap.ref);
+  });
+  await batch.commit();
+}

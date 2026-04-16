@@ -105,6 +105,7 @@ import {
 import {
   createNotification,
   markAllNotificationsAsRead,
+  deleteAllNotifications,
   deleteNotification,
 } from "@/services/notification-service";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -4135,6 +4136,8 @@ function NotificationsView({
     customerName: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const handleMarkAll = async () => {
     setIsMarkingAll(true);
@@ -4179,6 +4182,29 @@ function NotificationsView({
     }
   };
 
+  const handleConfirmDeleteAll = async () => {
+    if (isDeletingAll || notifications.length === 0) return;
+    setIsDeletingAll(true);
+    try {
+      await deleteAllNotifications();
+      toast({
+        title: "Notificaciones eliminadas",
+        description: "Se eliminaron todas las notificaciones correctamente.",
+      });
+    } catch (error) {
+      console.error("[NotificationsView] Error al eliminar todas:", error);
+      toast({
+        title: "Error al eliminar",
+        description:
+          "No se pudieron eliminar todas las notificaciones. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setShowDeleteAllConfirm(false);
+      setIsDeletingAll(false);
+    }
+  };
+
   const unreadCount = notifications.filter(
     (n) => n.estado === "no_leida",
   ).length;
@@ -4193,20 +4219,37 @@ function NotificationsView({
       title="Notificaciones"
       subtitle="Mantente al tanto de cada nuevo pedido que llega a tu tienda."
       action={
-        unreadCount > 0 ? (
-          <button
-            type="button"
-            onClick={handleMarkAll}
-            disabled={isMarkingAll}
-            className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
-          >
-            {isMarkingAll ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <CheckCircle size={16} />
-            )}
-            Marcar todas como leídas
-          </button>
+        notifications.length > 0 ? (
+          <div className="flex flex-wrap justify-end gap-2">
+            {unreadCount > 0 ? (
+              <button
+                type="button"
+                onClick={handleMarkAll}
+                disabled={isMarkingAll || isDeletingAll}
+                className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
+              >
+                {isMarkingAll ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle size={16} />
+                )}
+                Marcar todas como leídas
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setShowDeleteAllConfirm(true)}
+              disabled={isDeletingAll || isMarkingAll}
+              className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-50"
+            >
+              {isDeletingAll ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Trash2 size={16} />
+              )}
+              Eliminar todas
+            </button>
+          </div>
         ) : undefined
       }
     >
@@ -4240,7 +4283,7 @@ function NotificationsView({
         <EmptyState
           icon={Bell}
           title="Sin notificaciones"
-          description="Cuando lleguen nuevos pedidos, aparecerán aquí como notificaciones en tiempo real."
+          description=""
           features={["Tiempo real", "Filtrado", "Historial"]}
           color="text-primary"
           bgColor="bg-primary/10"
@@ -4336,6 +4379,74 @@ function NotificationsView({
           </div>,
           document.body,
         )}
+
+      {showDeleteAllConfirm &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+              onClick={() => !isDeletingAll && setShowDeleteAllConfirm(false)}
+            />
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20 animate-fade-in-scale">
+              <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
+                <div>
+                  <h3 className="text-xl font-display font-bold text-slate-950">
+                    Eliminar todas las notificaciones
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Esta acción no se puede deshacer
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !isDeletingAll && setShowDeleteAllConfirm(false)}
+                  disabled={isDeletingAll}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950 disabled:opacity-50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="px-6 py-5 space-y-5">
+                <div className="flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                    <AlertCircle size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-red-900">
+                      ¿Deseas eliminar todas las notificaciones?
+                    </p>
+                    <p className="mt-1 text-xs text-red-700">
+                      Se eliminarán permanentemente {notifications.length} notificaciones.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteAllConfirm(false)}
+                    disabled={isDeletingAll}
+                    className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDeleteAll}
+                    disabled={isDeletingAll}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {isDeletingAll && (
+                      <Loader2 size={16} className="animate-spin" />
+                    )}
+                    {isDeletingAll ? "Eliminando..." : "Eliminar todas"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </DashboardSection>
   );
 }
@@ -4366,6 +4477,100 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [remainingSeconds, setRemainingSeconds] = useState(60);
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const notificationAudioContextRef = useRef<AudioContext | null>(null);
+  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const notificationAudioUnlockedRef = useRef(false);
+  const notificationAudioDataUriRef = useRef(
+    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6djXdoYWNxg5acnJOGdGFbXnOFmZ6cloh1YVpdcoOYnZyVh3RgWl1ygpidnJWHdGBaXXKDl52blYh0YFpdcYKXnZuViHRgWl1xgpedm5WIdGBaXXGCl52blYh0YFpdcYKXnZuViA==",
+  );
+
+  const ensureNotificationAudio = useCallback(() => {
+    if (!notificationAudioRef.current) {
+      const audio = new Audio(notificationAudioDataUriRef.current);
+      audio.preload = "auto";
+      audio.volume = 0.4;
+      notificationAudioRef.current = audio;
+    }
+
+    if (!notificationAudioContextRef.current && typeof window !== "undefined") {
+      const AudioContextCtor =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+
+      if (AudioContextCtor) {
+        notificationAudioContextRef.current = new AudioContextCtor();
+      }
+    }
+  }, []);
+
+  const unlockNotificationAudio = useCallback(async () => {
+    ensureNotificationAudio();
+
+    const audioContext = notificationAudioContextRef.current;
+    if (!audioContext) {
+      notificationAudioUnlockedRef.current = true;
+      return;
+    }
+
+    if (audioContext.state !== "running") {
+      await audioContext.resume();
+    }
+
+    notificationAudioUnlockedRef.current = true;
+  }, [ensureNotificationAudio]);
+
+  const playNotificationSound = useCallback(async () => {
+    ensureNotificationAudio();
+
+    const audioContext = notificationAudioContextRef.current;
+
+    try {
+      if (audioContext) {
+        if (audioContext.state !== "running") {
+          await audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(1046, now);
+        oscillator.frequency.exponentialRampToValueAtTime(784, now + 0.18);
+
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.11, now + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.25);
+        return;
+      }
+    } catch (error) {
+      console.warn("[Admin] No se pudo reproducir el beep de notificación:", error);
+    }
+
+    try {
+      const audio = notificationAudioRef.current;
+      if (!audio) return;
+
+      audio.pause();
+      audio.currentTime = 0;
+      await audio.play();
+    } catch (error) {
+      console.warn(
+        "[Admin] No se pudo reproducir el audio de notificación:",
+        error,
+      );
+    }
+  }, [ensureNotificationAudio]);
 
   const clearInactivityTimers = useCallback(() => {
     if (inactivityTimerRef.current) {
@@ -4425,6 +4630,28 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     };
   }, [resetInactivityTimer, clearInactivityTimers, showInactivityWarning]);
 
+  useEffect(() => {
+    const unlockEvents = ["pointerdown", "keydown", "touchstart"];
+
+    const handleUnlock = () => {
+      if (notificationAudioUnlockedRef.current) {
+        return;
+      }
+
+      void unlockNotificationAudio();
+    };
+
+    unlockEvents.forEach((eventName) =>
+      window.addEventListener(eventName, handleUnlock, { passive: true }),
+    );
+
+    return () => {
+      unlockEvents.forEach((eventName) =>
+        window.removeEventListener(eventName, handleUnlock),
+      );
+    };
+  }, [unlockNotificationAudio]);
+
   // Hook para obtener pedidos desde Firestore en tiempo real (colección: orders)
   const {
     orders,
@@ -4476,16 +4703,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         : `${newNotification.customerName} realizó un pedido de $${newNotification.total.toLocaleString("es-MX")}`,
     });
 
-    try {
-      const audio = new Audio(
-        "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6djXdoYWNxg5acnJOGdGFbXnOFmZ6cloh1YVpdcoOYnZyVh3RgWl1ygpidnJWHdGBaXXKDl52blYh0YFpdcYKXnZuViHRgWl1xgpedm5WIdGBaXXGCl52blYh0YFpdcYKXnZuViA==",
-      );
-      audio.volume = 0.3;
-      audio.play().catch(() => {});
-    } catch {}
+    void playNotificationSound();
 
     clearNewNotification();
-  }, [newNotification, clearNewNotification]);
+  }, [newNotification, clearNewNotification, playNotificationSound]);
 
   // Hook para obtener facturas generadas automáticamente desde pedidos
   const { facturas: facturasData, isLoading: loadingFacturas } =
@@ -4668,6 +4889,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   };
 
   const openOrderDetail = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setModalActivo("detallePedido");
+  };
+
+  const openFullOrderFromNotification = (orderId: string) => {
+    setNotificationOrderId(null);
+    setVistaActiva("pedidos");
     setSelectedOrderId(orderId);
     setModalActivo("detallePedido");
   };
@@ -6275,6 +6503,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         <OrderDetailModal
           orderId={notificationOrderId}
           onClose={() => setNotificationOrderId(null)}
+          onViewFullOrder={openFullOrderFromNotification}
         />
       )}
     </div>

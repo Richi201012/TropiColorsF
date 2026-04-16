@@ -179,9 +179,11 @@ function buildAddress(data: FirestoreOrderData): string {
 export function OrderDetailModal({
   orderId,
   onClose,
+  onViewFullOrder,
 }: {
   orderId: string;
   onClose: () => void;
+  onViewFullOrder?: (orderId: string) => void;
 }) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -294,6 +296,15 @@ export function OrderDetailModal({
   const handleClose = () => {
     setIsVisible(false);
     setTimeout(onClose, 200);
+  };
+
+  const handleViewFullOrder = () => {
+    if (!onViewFullOrder) {
+      return;
+    }
+
+    setIsVisible(false);
+    setTimeout(() => onViewFullOrder(orderId), 200);
   };
 
   return (
@@ -567,6 +578,7 @@ export function OrderDetailModal({
           <div className="flex items-center justify-between border-t border-border/50 bg-muted/20 px-6 py-4">
             <button
               type="button"
+              onClick={handleViewFullOrder}
               className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
             >
               <Printer size={15} />

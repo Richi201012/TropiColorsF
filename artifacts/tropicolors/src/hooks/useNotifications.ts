@@ -24,6 +24,11 @@ type FirestoreNotification = {
   [key: string]: unknown;
 };
 
+type SnapshotNotificationDoc = {
+  id: string;
+  data: () => FirestoreNotification;
+};
+
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +37,6 @@ export function useNotifications() {
     null,
   );
   const isFirstLoad = useRef(true);
-  const prevCount = useRef(0);
 
   useEffect(() => {
     // Query SIN orderBy para evitar fallos si algún documento no tiene createdAt
@@ -41,7 +45,9 @@ export function useNotifications() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const items: Notification[] = snapshot.docs.map((docSnap) => {
+        const mapNotificationDoc = (
+          docSnap: SnapshotNotificationDoc,
+        ): Notification => {
           const data = docSnap.data() as FirestoreNotification;
           let fecha = "";
 
@@ -79,7 +85,9 @@ export function useNotifications() {
             estado: data.estado === "leida" ? "leida" : "no_leida",
             createdAt: fecha,
           };
-        });
+        };
+
+        const items: Notification[] = snapshot.docs.map(mapNotificationDoc);
 
         // Ordenar localmente por fecha (más recientes primero)
         items.sort((a, b) => {
@@ -91,14 +99,25 @@ export function useNotifications() {
           );
         });
 
-        if (!isFirstLoad.current && items.length > prevCount.current) {
-          const newest = items[0];
-          if (newest && newest.estado === "no_leida") {
-            setNewNotification(newest);
+        if (!isFirstLoad.current) {
+          const addedUnread = snapshot.docChanges()
+            .filter((change) => change.type === "added")
+            .map((change) => mapNotificationDoc(change.doc))
+            .filter((notification) => notification.estado === "no_leida")
+            .sort((a, b) => {
+              if (!a.createdAt && !b.createdAt) return 0;
+              if (!a.createdAt) return 1;
+              if (!b.createdAt) return -1;
+              return (
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+            });
+
+          if (addedUnread[0]) {
+            setNewNotification(addedUnread[0]);
           }
         }
 
-        prevCount.current = items.length;
         isFirstLoad.current = false;
         setNotifications(items);
         setIsLoading(false);
