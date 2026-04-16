@@ -13,6 +13,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { isInventoryUserEmail } from "@/lib/auth-access";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileBlock } from "@/components/MobileBlock";
 import { ScannerCam } from "@/components/ScannerCam";
@@ -90,9 +91,13 @@ export default function Inventario() {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) {
-        sessionStorage.setItem("fromInventario", "true");
+      if (currentUser && !isInventoryUserEmail(currentUser.email)) {
+        setLocation("/login");
+        setUser(null);
+        setLoading(false);
+        return;
       }
+
       setUser(currentUser);
       setLoading(false);
     });
