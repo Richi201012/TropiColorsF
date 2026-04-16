@@ -7,6 +7,7 @@
   useCallback,
 } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "wouter";
 import {
   Lock,
   TrendingUp,
@@ -67,6 +68,8 @@ import { useInvoicePDF } from "@/hooks/useInvoicePDF";
 import type { User as FirebaseUser } from "firebase/auth";
 import {
   onAuthStateChanged,
+  browserSessionPersistence,
+  setPersistence,
   signInWithEmailAndPassword,
   signOut,
   updateEmail,
@@ -114,6 +117,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { OrderDetailModal } from "@/components/OrderDetailModal";
 import { ReferencesView } from "@/components/ReferencesView";
 import { toast } from "@/hooks/use-toast";
+import { isInventoryUserEmail, normalizeAuthEmail } from "@/lib/auth-access";
 
 // Auth Context for session management
 interface AuthContextType {
@@ -148,6 +152,110 @@ const useAuth = () => {
 };
 
 const settingsRef = doc(db, "settings", "home");
+const adminPanelSessionRef = doc(db, "runtime", "admin-panel-session");
+const ADMIN_SESSION_STORAGE_KEY = "tropicolors-admin-session-id";
+const ADMIN_SESSION_HEARTBEAT_MS = 15000;
+const ADMIN_SESSION_TTL_MS = 45000;
+const ADMIN_SESSION_BLOCKED_MESSAGE =
+  "Ya hay una sesión activa del panel administrativo. Cierra esa sesión antes de iniciar otra.";
+
+function getStoredAdminSessionId(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY) || "";
+}
+
+function setStoredAdminSessionId(sessionId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  sessionStorage.setItem(ADMIN_SESSION_STORAGE_KEY, sessionId);
+}
+
+function clearStoredAdminSessionId() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+}
+
+function createAdminSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `admin-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function isActiveAdminSession(updatedAt: unknown): boolean {
+  if (typeof updatedAt !== "string") {
+    return false;
+  }
+
+  const timestamp = Date.parse(updatedAt);
+  if (!Number.isFinite(timestamp)) {
+    return false;
+  }
+
+  return Date.now() - timestamp < ADMIN_SESSION_TTL_MS;
+}
+
+async function assertAdminSessionAvailable(sessionId: string) {
+  const snapshot = await getDoc(adminPanelSessionRef);
+  if (!snapshot.exists()) {
+    return;
+  }
+
+  const data = snapshot.data();
+  if (!isActiveAdminSession(data.updatedAt)) {
+    return;
+  }
+
+  if (String(data.sessionId || "") === sessionId) {
+    return;
+  }
+
+  throw new Error(ADMIN_SESSION_BLOCKED_MESSAGE);
+}
+
+async function claimAdminSession(user: FirebaseUser, sessionId: string) {
+  await setDoc(
+    adminPanelSessionRef,
+    {
+      uid: user.uid,
+      email: normalizeAuthEmail(user.email),
+      sessionId,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+}
+
+async function releaseAdminSession(sessionId: string, uid?: string | null) {
+  if (!sessionId && !uid) {
+    return;
+  }
+
+  const snapshot = await getDoc(adminPanelSessionRef);
+  if (!snapshot.exists()) {
+    return;
+  }
+
+  const data = snapshot.data();
+  const isOwner =
+    (sessionId && String(data.sessionId || "") === sessionId) ||
+    (uid && String(data.uid || "") === uid);
+
+  if (!isOwner) {
+    return;
+  }
+
+  await deleteDoc(adminPanelSessionRef);
+}
 
 const useAuthProvider = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -156,18 +264,30 @@ const useAuthProvider = () => {
     email: "",
     phone: "",
   });
+  const adminSessionIdRef = useRef(getStoredAdminSessionId());
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
+    void setPersistence(auth, browserSessionPersistence).catch((error) => {
+      console.error("[Admin Auth] No se pudo establecer session persistence:", error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
       setUser(nextUser);
 
       if (!nextUser) {
+        adminSessionIdRef.current = "";
+        clearStoredAdminSessionId();
         setUserProfile({ name: "", email: "", phone: "" });
         setAuthReady(true);
         return;
+      }
+
+      if (isInventoryUserEmail(nextUser.email)) {
+        adminSessionIdRef.current = "";
+        clearStoredAdminSessionId();
       }
 
       const userRef = doc(db, "users", nextUser.uid);
@@ -185,13 +305,73 @@ const useAuthProvider = () => {
     return () => unsubscribe();
   }, []);
 
+  const refreshAdminSession = useCallback(async (currentUser: FirebaseUser) => {
+    if (isInventoryUserEmail(currentUser.email)) {
+      return;
+    }
+
+    const nextSessionId = adminSessionIdRef.current || createAdminSessionId();
+    adminSessionIdRef.current = nextSessionId;
+    setStoredAdminSessionId(nextSessionId);
+    await claimAdminSession(currentUser, nextSessionId);
+  }, []);
+
+  useEffect(() => {
+    if (!user || isInventoryUserEmail(user.email)) {
+      return;
+    }
+
+    void refreshAdminSession(user);
+
+    const heartbeatId = window.setInterval(() => {
+      void refreshAdminSession(user);
+    }, ADMIN_SESSION_HEARTBEAT_MS);
+
+    return () => window.clearInterval(heartbeatId);
+  }, [refreshAdminSession, user]);
+
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
 
     try {
+      const normalizedEmail = normalizeAuthEmail(email);
+      const isInventoryLogin = isInventoryUserEmail(normalizedEmail);
+      const nextSessionId = isInventoryLogin ? "" : createAdminSessionId();
+
+      await setPersistence(auth, browserSessionPersistence);
+      if (!isInventoryLogin) {
+        await assertAdminSessionAvailable(nextSessionId);
+      }
+
       await signInWithEmailAndPassword(auth, email, password);
+
+      if (!isInventoryLogin) {
+        if (!auth.currentUser) {
+          throw new Error("No se pudo establecer la sesión del panel.");
+        }
+
+        try {
+          adminSessionIdRef.current = nextSessionId;
+          setStoredAdminSessionId(nextSessionId);
+          await claimAdminSession(auth.currentUser, nextSessionId);
+        } catch (sessionError) {
+          adminSessionIdRef.current = "";
+          clearStoredAdminSessionId();
+          await signOut(auth);
+          throw sessionError;
+        }
+      } else {
+        adminSessionIdRef.current = "";
+        clearStoredAdminSessionId();
+      }
     } catch (error) {
       const authError = error as { code?: string };
+      if (
+        error instanceof Error &&
+        error.message === ADMIN_SESSION_BLOCKED_MESSAGE
+      ) {
+        throw error;
+      }
       if (
         authError.code === "auth/user-not-found" ||
         authError.code === "auth/invalid-credential"
@@ -214,6 +394,19 @@ const useAuthProvider = () => {
     setIsLoggingOut(true);
 
     try {
+      const currentUid = auth.currentUser?.uid || user?.uid || null;
+      const currentEmail = auth.currentUser?.email || user?.email || null;
+
+      if (!isInventoryUserEmail(currentEmail)) {
+        try {
+          await releaseAdminSession(adminSessionIdRef.current, currentUid);
+        } catch (sessionError) {
+          console.error("[Admin Auth] No se pudo liberar la sesión activa:", sessionError);
+        }
+      }
+
+      adminSessionIdRef.current = "";
+      clearStoredAdminSessionId();
       await signOut(auth);
     } finally {
       setIsLoggingOut(false);
@@ -461,6 +654,7 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [, setLocation] = useLocation();
 
   const { login } = useAuth();
 
@@ -495,6 +689,12 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
     setIsLoading(true);
     try {
       await login(email.trim(), password);
+
+      if (isInventoryUserEmail(email.trim())) {
+        setLocation("/inventario");
+        return;
+      }
+
       onLoginSuccess();
     } catch (loginError) {
       setError(
@@ -4458,7 +4658,13 @@ function NotificationsView({
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 const INACTIVITY_WARNING = 14 * 60 * 1000; // Show warning at 14 minutes
 
-function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
+function Dashboard({
+  onLogout,
+  onViewSite,
+}: {
+  onLogout: () => Promise<void>;
+  onViewSite: () => Promise<void>;
+}) {
   const [vistaActiva, setVistaActiva] = useState<DashboardView>("resumen");
   const [modalActivo, setModalActivo] = useState<ModalActivo>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -5344,6 +5550,17 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     }
   };
 
+  const handleViewSite = async () => {
+    setIsLoggingOut(true);
+    try {
+      await onViewSite();
+    } catch (error) {
+      console.error("View site error:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       setIsHeaderElevated(window.scrollY > 10);
@@ -5446,12 +5663,14 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 count={unreadCount}
                 onClick={() => handleViewChange("notificaciones")}
               />
-              <a
-                href="/"
+              <button
+                type="button"
+                onClick={handleViewSite}
+                disabled={isLoggingOut}
                 className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-white/85 px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
               >
                 Ver sitio
-              </a>
+              </button>
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
@@ -6511,13 +6730,25 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
 
 // Main Admin Component with Auth
 export default function Admin() {
+  const [, setLocation] = useLocation();
   const authState = useAuthProvider();
-  const { isAuthenticated, login, logout, isLoading, isLoggingOut, authReady } =
-    authState;
+  const { isAuthenticated, user, logout, authReady } = authState;
   const [showDashboard, setShowDashboard] = useState(false);
+  const [isLeavingAdmin, setIsLeavingAdmin] = useState(false);
+  const isInventoryUser = isInventoryUserEmail(user?.email);
+
+  const handleViewSite = useCallback(async () => {
+    setIsLeavingAdmin(true);
+
+    try {
+      await logout();
+    } finally {
+      setLocation("/");
+    }
+  }, [logout, setLocation]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isInventoryUser) {
       // Delay for smooth transition
       const timer = setTimeout(() => setShowDashboard(true), 100);
       return () => clearTimeout(timer);
@@ -6525,15 +6756,34 @@ export default function Admin() {
       setShowDashboard(false);
     }
     return undefined;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isInventoryUser]);
 
-  if (!authReady || (isAuthenticated && !showDashboard)) {
+  useEffect(() => {
+    if (!authReady || !isAuthenticated || !isInventoryUser) {
+      return;
+    }
+
+    setShowDashboard(false);
+    setLocation("/inventario");
+  }, [authReady, isAuthenticated, isInventoryUser, setLocation]);
+
+  if (
+    !authReady ||
+    isLeavingAdmin ||
+    (isAuthenticated && (isInventoryUser || !showDashboard))
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 size={32} className="text-primary animate-spin" />
           <p className="text-muted-foreground text-sm">
-            {authReady ? "Cargando dashboard..." : "Verificando sesión..."}
+            {!authReady
+              ? "Verificando sesión..."
+              : isLeavingAdmin
+                ? "Saliendo del panel..."
+                : isInventoryUser
+                  ? "Redirigiendo a inventario..."
+                  : "Cargando dashboard..."}
           </p>
         </div>
       </div>
@@ -6556,7 +6806,7 @@ export default function Admin() {
         ${showDashboard ? "opacity-100" : "opacity-0"}
       `}
       >
-        <Dashboard onLogout={logout} />
+        <Dashboard onLogout={logout} onViewSite={handleViewSite} />
       </div>
     </AuthContext.Provider>
   );
