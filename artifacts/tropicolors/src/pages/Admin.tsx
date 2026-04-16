@@ -4992,52 +4992,25 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       ),
     );
 
-    let emailNotificationQueued = false;
-    let emailNotificationError = "";
-
-    // Enviar correo de estado
-    try {
-      const customerName = order.customer;
-      const customerEmail = order.email;
-
-      const emailResult = await enviarCorreoEstadoPedidoEnSegundoPlano({
-        nombre: customerName,
-        email: customerEmail,
-        estado: estadoMap[newStatus],
-        productos: order.items.map((item) => ({
-          nombre: item.name,
-          cantidad: item.quantity,
-          precio: item.price,
-        })),
-        total: order.total,
-        direccion: direccionCompleta,
-        numeroExterior: order.exteriorNumber,
-        numeroInterior: order.interiorNumber,
-        paqueteria: shippingData?.paqueteria,
-        tipoEnvio: shippingData?.tipoEnvio,
-        guia: shippingData?.guia,
-        cancellationReason: shippingData?.cancellationReason,
-        numeroPedido: order.id,
-      });
-
-      if (emailResult.success) {
-        emailNotificationQueued = true;
-        console.log("[Admin] Correo de estado encolado:", newStatus);
-      } else {
-        emailNotificationError =
-          emailResult.error || "No se pudo iniciar el correo al cliente.";
-        console.error(
-          "[Admin] El estado se actualizo, pero el correo no se pudo encolar:",
-          emailNotificationError,
-        );
-      }
-    } catch (emailError) {
-      emailNotificationError =
-        emailError instanceof Error
-          ? emailError.message
-          : "No se pudo iniciar el correo al cliente.";
-      console.error("[Admin] Error al enviar correo de estado:", emailError);
-    }
+    const emailPayload = {
+      nombre: order.customer,
+      email: order.email,
+      estado: estadoMap[newStatus],
+      productos: order.items.map((item) => ({
+        nombre: item.name,
+        cantidad: item.quantity,
+        precio: item.price,
+      })),
+      total: order.total,
+      direccion: direccionCompleta,
+      numeroExterior: order.exteriorNumber,
+      numeroInterior: order.interiorNumber,
+      paqueteria: shippingData?.paqueteria,
+      tipoEnvio: shippingData?.tipoEnvio,
+      guia: shippingData?.guia,
+      cancellationReason: shippingData?.cancellationReason,
+      numeroPedido: order.id,
+    };
 
     toast({
       title: "Estado actualizado",
@@ -5057,22 +5030,44 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setModalActivo(null);
     setIsUpdatingStatus(false);
 
-    if (emailNotificationQueued) {
-      showFeedbackModal("success", {
-        badge: "Correo en proceso",
-        title: "Estado actualizado",
-        subtitle: `El pedido quedó como ${estadoMap[newStatus].toLowerCase()}.`,
-        message: `Se inicio el envio del correo para ${order.customer} en ${order.email}. El cambio ya quedo reflejado en el panel y la notificacion se esta procesando en segundo plano.`,
-      });
-      return;
-    }
-
-    showFeedbackModal("error", {
-      badge: "Correo pendiente",
-      title: "Estado actualizado, pero falta notificar",
-      subtitle: "El pedido sí cambió de estado en el sistema.",
-      message: `No se pudo iniciar el correo a ${order.email}. Revisa la configuracion del proveedor de email y vuelve a intentarlo. Detalle: ${emailNotificationError}`,
+    showFeedbackModal("success", {
+      badge: "Correo en proceso",
+      title: "Estado actualizado",
+      subtitle: `El pedido quedó como ${estadoMap[newStatus].toLowerCase()}.`,
+      message: `Se inicio el envio del correo para ${order.customer} en ${order.email}. El cambio ya quedo reflejado en el panel y la notificacion se esta procesando en segundo plano.`,
     });
+
+    void enviarCorreoEstadoPedidoEnSegundoPlano(emailPayload)
+      .then((emailResult) => {
+        if (!emailResult.success) {
+          const emailNotificationError =
+            emailResult.error || "No se pudo iniciar el correo al cliente.";
+          console.error(
+            "[Admin] El estado se actualizo, pero el correo no se pudo encolar:",
+            emailNotificationError,
+          );
+          toast({
+            title: "Estado actualizado, pero falta notificar",
+            description: emailNotificationError,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log("[Admin] Correo de estado encolado:", newStatus);
+      })
+      .catch((emailError) => {
+        const emailNotificationError =
+          emailError instanceof Error
+            ? emailError.message
+            : "No se pudo iniciar el correo al cliente.";
+        console.error("[Admin] Error al enviar correo de estado:", emailError);
+        toast({
+          title: "Estado actualizado, pero falta notificar",
+          description: emailNotificationError,
+          variant: "destructive",
+        });
+      });
   };
 
   const cancelStatusUpdate = () => {

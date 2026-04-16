@@ -1795,46 +1795,39 @@ export function CartDrawer() {
         console.error("[CartDrawer] Error al crear notificación:", notifError);
       }
 
-      try {
-        const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
-        const emailResult = await enviarCorreoEstadoPedidoEnSegundoPlano({
-          nombre: data.customerName,
-          email: data.customerEmail,
-          estado: "Pendiente",
-          productos: items.map((item) => ({
-            nombre:
-              item.purchaseType === "pieza"
-                ? `${item.productName} (${formatCartItemQuantity(item)})`
-                : `${item.productName} (${formatCartItemQuantity(item)})`,
-            cantidad: item.quantity,
-            precio: item.price,
-          })),
-          total: cartTotal,
-          direccion: buildShippingAddress(data),
-          numeroExterior: data.shippingExteriorNumber.trim(),
-          numeroInterior: data.shippingInteriorNumber.trim(),
-          numeroPedido,
-        });
-
-        if (!emailResult.success) {
+      const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
+      void enviarCorreoEstadoPedidoEnSegundoPlano({
+        nombre: data.customerName,
+        email: data.customerEmail,
+        estado: "Pendiente",
+        productos: items.map((item) => ({
+          nombre:
+            item.purchaseType === "pieza"
+              ? `${item.productName} (${formatCartItemQuantity(item)})`
+              : `${item.productName} (${formatCartItemQuantity(item)})`,
+          cantidad: item.quantity,
+          precio: item.price,
+        })),
+        total: cartTotal,
+        direccion: buildShippingAddress(data),
+        numeroExterior: data.shippingExteriorNumber.trim(),
+        numeroInterior: data.shippingInteriorNumber.trim(),
+        numeroPedido,
+      })
+        .then((emailResult) => {
+          if (!emailResult.success) {
+            console.error(
+              "[CartDrawer] No se pudo encolar el correo de pedido pendiente:",
+              emailResult.error,
+            );
+          }
+        })
+        .catch((emailError) => {
           console.error(
-            "[CartDrawer] No se pudo encolar el correo de pedido pendiente:",
-            emailResult.error,
+            "[CartDrawer] Error al enviar correo de pedido pendiente:",
+            emailError,
           );
-          toast({
-            title: "Pedido registrado sin correo",
-            description:
-              emailResult.error ||
-              "El pedido se registró, pero no se pudo iniciar el envío del correo.",
-            variant: "destructive",
-          });
-        }
-      } catch (emailError) {
-        console.error(
-          "[CartDrawer] Error al enviar correo de pedido pendiente:",
-          emailError,
-        );
-      }
+        });
 
       return {
         success: true,
