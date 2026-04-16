@@ -4893,6 +4893,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setModalActivo("detallePedido");
   };
 
+  const openFullOrderFromNotification = (orderId: string) => {
+    setNotificationOrderId(null);
+    setVistaActiva("pedidos");
+    setSelectedOrderId(orderId);
+    setModalActivo("detallePedido");
+  };
+
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     // Si el nuevo estado es "enviado", mostrar formulario de envío
     if (newStatus === "enviado") {
@@ -6496,6 +6503,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         <OrderDetailModal
           orderId={notificationOrderId}
           onClose={() => setNotificationOrderId(null)}
+          onViewFullOrder={openFullOrderFromNotification}
         />
       )}
     </div>
