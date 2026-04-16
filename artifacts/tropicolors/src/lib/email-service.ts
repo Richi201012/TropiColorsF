@@ -283,6 +283,72 @@ export async function enviarCorreoEstadoPedidoEnSegundoPlano(
   }
 }
 
+export async function enviarCorreoConfirmacionEnSegundoPlano(
+  datosPedido: DatosPedidoCorreo,
+): Promise<AsyncCorreoRespuesta> {
+  try {
+    const startedAt = performance.now();
+    console.log(
+      "[Email Confirmacion Async] Encolando correo de confirmacion...",
+      datosPedido,
+    );
+
+    if (!datosPedido.email || !datosPedido.nombre) {
+      return {
+        success: false,
+        error: "El email y nombre son requeridos",
+      };
+    }
+
+    const response = await fetch(apiUrl("/api/enviar-correo-pedido-async"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosPedido),
+    });
+
+    const text = await response.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      return {
+        success: false,
+        error: `Error del servidor (${response.status}): respuesta inesperada`,
+      };
+    }
+
+    console.log(
+      "[Email Confirmacion Async] Respuesta en",
+      `${Math.round(performance.now() - startedAt)}ms`,
+      data,
+    );
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error:
+          (data.message as string) ||
+          (data.error as string) ||
+          `Error ${response.status} al encolar el correo`,
+      };
+    }
+
+    return {
+      success: true,
+      queued: true,
+      message:
+        (data.message as string) || "Correo en proceso de envio en segundo plano",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error desconocido",
+    };
+  }
+}
+
 /**
  * Envía la factura al cliente por correo
  */

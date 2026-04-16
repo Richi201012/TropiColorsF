@@ -99,7 +99,7 @@ import {
 import { useFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
 import { updateOrderStatus as updateOrderStatusDB } from "@/services/order-service";
 import {
-  enviarCorreoEstadoPedido,
+  enviarCorreoEstadoPedidoEnSegundoPlano,
   enviarFacturaCorreo,
 } from "@/lib/email-service";
 import {
@@ -4762,7 +4762,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       ),
     );
 
-    let emailNotificationSent = false;
+    let emailNotificationQueued = false;
     let emailNotificationError = "";
 
     // Enviar correo de estado
@@ -4770,7 +4770,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       const customerName = order.customer;
       const customerEmail = order.email;
 
-      const emailResult = await enviarCorreoEstadoPedido({
+      const emailResult = await enviarCorreoEstadoPedidoEnSegundoPlano({
         nombre: customerName,
         email: customerEmail,
         estado: estadoMap[newStatus],
@@ -4791,13 +4791,13 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       });
 
       if (emailResult.success) {
-        emailNotificationSent = true;
-        console.log("[Admin] Correo de estado enviado:", newStatus);
+        emailNotificationQueued = true;
+        console.log("[Admin] Correo de estado encolado:", newStatus);
       } else {
         emailNotificationError =
-          emailResult.error || "No se pudo enviar el correo al cliente.";
+          emailResult.error || "No se pudo iniciar el correo al cliente.";
         console.error(
-          "[Admin] El estado se actualizó, pero el correo no se pudo enviar:",
+          "[Admin] El estado se actualizo, pero el correo no se pudo encolar:",
           emailNotificationError,
         );
       }
@@ -4805,7 +4805,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       emailNotificationError =
         emailError instanceof Error
           ? emailError.message
-          : "No se pudo enviar el correo al cliente.";
+          : "No se pudo iniciar el correo al cliente.";
       console.error("[Admin] Error al enviar correo de estado:", emailError);
     }
 
@@ -4827,12 +4827,12 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     setModalActivo(null);
     setIsUpdatingStatus(false);
 
-    if (emailNotificationSent) {
+    if (emailNotificationQueued) {
       showFeedbackModal("success", {
-        badge: "Cliente notificado",
-        title: "Estado actualizado y correo enviado",
+        badge: "Correo en proceso",
+        title: "Estado actualizado",
         subtitle: `El pedido quedó como ${estadoMap[newStatus].toLowerCase()}.`,
-        message: `Se notificó a ${order.customer} en ${order.email} con la actualización del pedido. El cambio ya quedó reflejado en el panel y el cliente recibió el correo correspondiente.`,
+        message: `Se inicio el envio del correo para ${order.customer} en ${order.email}. El cambio ya quedo reflejado en el panel y la notificacion se esta procesando en segundo plano.`,
       });
       return;
     }
@@ -4841,7 +4841,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       badge: "Correo pendiente",
       title: "Estado actualizado, pero falta notificar",
       subtitle: "El pedido sí cambió de estado en el sistema.",
-      message: `No se pudo enviar el correo a ${order.email}. Revisa la configuración del proveedor de email y vuelve a intentarlo. Detalle: ${emailNotificationError}`,
+      message: `No se pudo iniciar el correo a ${order.email}. Revisa la configuracion del proveedor de email y vuelve a intentarlo. Detalle: ${emailNotificationError}`,
     });
   };
 
@@ -6158,7 +6158,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               )}
               {isUpdatingStatus
                 ? "Actualizando..."
-                : "Confirmar y enviar correo"}
+                : "Confirmar y notificar"}
             </button>
           </div>
         </div>
