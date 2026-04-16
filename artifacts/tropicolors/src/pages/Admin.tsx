@@ -112,6 +112,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationItem } from "@/components/NotificationItem";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OrderDetailModal } from "@/components/OrderDetailModal";
+import { ReferencesView } from "@/components/ReferencesView";
 import { toast } from "@/hooks/use-toast";
 
 // Auth Context for session management
@@ -867,6 +868,7 @@ type DashboardView =
   | "estadisticas"
   | "configuracion"
   | "productos"
+  | "referencias"
   | "notificaciones";
 type ModalActivo =
   | null
@@ -5505,6 +5507,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
                 { key: "pedidos", label: "Pedidos", icon: Package },
                 { key: "facturas", label: "Facturas", icon: FileText },
                 { key: "productos", label: "Productos", icon: ShoppingBag },
+                { key: "referencias", label: "Referencias", icon: Star },
                 { key: "notificaciones", label: "Notificaciones", icon: Bell },
                 {
                   key: "configuracion",
@@ -5609,6 +5612,7 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
               <SettingsView onLogout={handleLogout} />
             )}
             {vistaActiva === "productos" && <ProductsView />}
+            {vistaActiva === "referencias" && <ReferencesView />}
           </div>
         </div>
 
