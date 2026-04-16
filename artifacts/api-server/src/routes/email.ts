@@ -110,6 +110,154 @@ async function enviarCorreoBrevoAPI(
   }
 }
 
+function ejecutarEnSegundoPlano(task: () => Promise<void>) {
+  setImmediate(() => {
+    void task().catch((error) => {
+      console.error("[Email Background Worker] Error:", error);
+    });
+  });
+}
+
+async function enviarNotificacionAdminNuevoPedido(
+  body: EmailPedidoData,
+  logPrefix: string,
+) {
+  console.log(`${logPrefix} Enviando notificacion al administrador...`);
+  const adminHtml = generarEmailAdminNuevoPedido(body);
+  const adminResult = await enviarCorreoBrevoAPI(
+    ADMIN_EMAIL,
+    "Administrador Tropicolors",
+    "Nuevo pedido recibido - Tropicolors",
+    adminHtml,
+  );
+
+  if (adminResult.success) {
+    console.log(
+      `${logPrefix} Notificacion admin enviada:`,
+      adminResult.messageId,
+    );
+    return;
+  }
+
+  console.warn(
+    `${logPrefix} Error al enviar notificacion admin (no critico):`,
+    adminResult.error,
+  );
+}
+
+async function procesarCorreoPedido(
+  body: EmailPedidoData,
+  options?: {
+    logPrefix?: string;
+    adminInBackground?: boolean;
+  },
+) {
+  const logPrefix = options?.logPrefix || "[Email]";
+  const startedAt = Date.now();
+  const {
+    nombre,
+    email,
+    telefono,
+    direccion,
+    numeroExterior,
+    numeroInterior,
+    total,
+    productos,
+    numeroPedido,
+  } = body;
+
+  if (
+    !nombre ||
+    !email ||
+    !direccion ||
+    !total ||
+    !productos ||
+    !Array.isArray(productos)
+  ) {
+    return {
+      ok: false as const,
+      statusCode: 400,
+      payload: {
+        error: "Datos incompletos",
+        message: "Faltan datos requeridos del pedido",
+      },
+    };
+  }
+
+  for (const producto of productos) {
+    if (!producto.nombre || !producto.cantidad || !producto.precio) {
+      return {
+        ok: false as const,
+        statusCode: 400,
+        payload: {
+          error: "Producto inválido",
+          message: "Cada producto debe tener nombre, cantidad y precio",
+        },
+      };
+    }
+  }
+
+  console.log(`${logPrefix} Generando HTML del correo...`);
+  const html = generarEmailConfirmacion({
+    nombre,
+    email,
+    telefono,
+    direccion,
+    numeroExterior,
+    numeroInterior,
+    productos,
+    total,
+    numeroPedido,
+  });
+
+  console.log(
+    `${logPrefix} Remitente:`,
+    `"${BREVO_SENDER_NAME}" <${BREVO_SENDER_EMAIL}>`,
+  );
+  console.log(`${logPrefix} Enviando correo a:`, email);
+  const customerResult = await enviarCorreoBrevoAPI(
+    email,
+    nombre,
+    "Pedido Confirmado - Tropicolors",
+    html,
+  );
+
+  if (!customerResult.success) {
+    const brevoError = normalizeBrevoError(customerResult.error);
+    return {
+      ok: false as const,
+      statusCode: brevoError.statusCode,
+      payload: {
+        error: "Error al enviar correo",
+        message: brevoError.publicMessage,
+        providerError: customerResult.error,
+      },
+    };
+  }
+
+  console.log(`${logPrefix} Correo enviado exitosamente al cliente!`);
+  console.log(`${logPrefix} Message ID:`, customerResult.messageId);
+
+  if (options?.adminInBackground ?? true) {
+    ejecutarEnSegundoPlano(async () => {
+      await enviarNotificacionAdminNuevoPedido(body, `${logPrefix} Admin`);
+    });
+  } else {
+    await enviarNotificacionAdminNuevoPedido(body, `${logPrefix} Admin`);
+  }
+
+  return {
+    ok: true as const,
+    statusCode: 200,
+    payload: {
+      success: true,
+      message: "Correo de confirmacion enviado exitosamente",
+      messageId: customerResult.messageId,
+      timingMs: Date.now() - startedAt,
+    },
+  };
+}
+
 async function procesarCorreoEstado(
   body: EmailEstadoData,
   options?: {
@@ -247,122 +395,8 @@ router.post("/enviar-correo-pedido", async (req, res) => {
   }
 
   try {
-    const {
-      nombre,
-      email,
-      telefono,
-      direccion,
-      numeroExterior,
-      numeroInterior,
-      total,
-      productos,
-      numeroPedido,
-    } = req.body as EmailPedidoData;
-
-    if (
-      !nombre ||
-      !email ||
-      !direccion ||
-      !total ||
-      !productos ||
-      !Array.isArray(productos)
-    ) {
-      console.error("[Email] ERROR: Datos del pedido incompletos");
-      res.status(400).json({
-        error: "Datos incompletos",
-        message: "Faltan datos requeridos del pedido",
-      });
-      return;
-    }
-
-    for (const producto of productos) {
-      if (!producto.nombre || !producto.cantidad || !producto.precio) {
-        console.error("[Email] ERROR: Producto inválido:", producto);
-        res.status(400).json({
-          error: "Producto inválido",
-          message: "Cada producto debe tener nombre, cantidad y precio",
-        });
-        return;
-      }
-    }
-
-    console.log("[Email] Generando HTML del correo...");
-    const html = generarEmailConfirmacion({
-      nombre,
-      email,
-      telefono,
-      direccion,
-      numeroExterior,
-      numeroInterior,
-      productos,
-      total,
-      numeroPedido,
-    });
-
-    console.log(
-      "[Email] Remitente:",
-      `"${BREVO_SENDER_NAME}" <${BREVO_SENDER_EMAIL}>`,
-    );
-
-    console.log("[Email] Enviando correo a:", email);
-    const customerResult = await enviarCorreoBrevoAPI(
-      email,
-      nombre,
-      "Pedido Confirmado - Tropicolors",
-      html,
-    );
-
-    if (!customerResult.success) {
-      console.error(
-        "[Email] ERROR al enviar correo al cliente:",
-        customerResult.error,
-      );
-      const brevoError = normalizeBrevoError(customerResult.error);
-      res.status(brevoError.statusCode).json({
-        error: "Error al enviar correo",
-        message: brevoError.publicMessage,
-        providerError: customerResult.error,
-      });
-      return;
-    }
-
-    console.log("[Email] Correo enviado exitosamente al cliente!");
-    console.log("[Email] Message ID:", customerResult.messageId);
-
-    console.log("[Email] Enviando notificación al administrador...");
-    const adminHtml = generarEmailAdminNuevoPedido({
-      nombre,
-      email,
-      telefono,
-      direccion,
-      numeroExterior,
-      numeroInterior,
-      productos,
-      total,
-      numeroPedido,
-    });
-
-    const adminResult = await enviarCorreoBrevoAPI(
-      ADMIN_EMAIL,
-      "Administrador Tropicolors",
-      "Nuevo pedido recibido - Tropicolors",
-      adminHtml,
-    );
-
-    if (adminResult.success) {
-      console.log("[Email] Notificación admin enviada:", adminResult.messageId);
-    } else {
-      console.warn(
-        "[Email] Error al enviar notificación admin (no crítico):",
-        adminResult.error,
-      );
-    }
-
-    res.json({
-      success: true,
-      message: "Correo de confirmación enviado exitosamente",
-      messageId: customerResult.messageId,
-    });
+    const result = await procesarCorreoPedido(req.body as EmailPedidoData);
+    res.status(result.statusCode).json(result.payload);
   } catch (error) {
     console.error("[Email] ERROR al enviar correo:", error);
     const errorMessage =
@@ -406,6 +440,47 @@ router.post("/enviar-correo-estado", async (req, res) => {
   }
 });
 
+router.post("/enviar-correo-pedido-async", async (req, res) => {
+  console.log(
+    "[Email Async] Recibida solicitud de envio de confirmacion en segundo plano",
+  );
+  console.log("[Email Async] Body:", JSON.stringify(req.body, null, 2));
+
+  if (!BREVO_API_KEY) {
+    res.status(500).json({
+      error: "Servicio de correo no configurado",
+      message: "La API Key de Brevo no está disponible",
+    });
+    return;
+  }
+
+  const payload = req.body as EmailPedidoData;
+  res.status(202).json({
+    success: true,
+    queued: true,
+    message: "Correo de confirmacion en proceso de envio",
+  });
+
+  ejecutarEnSegundoPlano(async () => {
+    try {
+      const result = await procesarCorreoPedido(payload, {
+        logPrefix: "[Email Async Worker]",
+      });
+      if (!result.ok) {
+        console.error(
+          "[Email Async Worker] Fallo el envio en segundo plano:",
+          result.payload,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[Email Async Worker] Error inesperado al enviar correo:",
+        error,
+      );
+    }
+  });
+});
+
 router.post("/enviar-correo-estado-async", async (req, res) => {
   console.log("[Email Estado Async] Recibida solicitud de envío en segundo plano");
   console.log("[Email Estado Async] Body:", JSON.stringify(req.body, null, 2));
@@ -425,7 +500,7 @@ router.post("/enviar-correo-estado-async", async (req, res) => {
     message: "Correo en proceso de envío",
   });
 
-  setImmediate(async () => {
+  ejecutarEnSegundoPlano(async () => {
     try {
       const result = await procesarCorreoEstado(payload, {
         logPrefix: "[Email Estado Async Worker]",

@@ -75,6 +75,9 @@ const PRESENTATIONS = [
   "Cubeta 20 KG",
 ];
 
+const NARANJA_850_NOTE = 
+  "Color intenso y uniforme para aplicaciones exigentes.";
+
 const PRODUCTS: Product[] = [
   {
     id: "amarillo-canario",
@@ -180,9 +183,9 @@ const PRODUCTS: Product[] = [
     textColor: "#fff",
     category: "Naranja",
     prices: { 250: [160, 0, 0, 0, 0] },
-    note: "Solo disponible en 250 gramos",
+    note: NARANJA_850_NOTE,
     purchaseWarning:
-      "Este producto solamente se vende por caja de 18 o 32 piezas",
+      "Este producto solamente se vende por caja de 18 o 32 pieza",
     onlyWholesale: true,
     presentationOverrides: {
       250: [{ label: "250 gramos", price: 160 }],
@@ -587,17 +590,22 @@ export default function Home() {
   const products = useMemo(() => {
     const sourceProducts = firebaseProducts || PRODUCTS;
     const hasNaranja850 = sourceProducts.some(
-      (product) =>
-        product.id === "naranja-850" ||
-        product.name.trim().toLowerCase() === "naranja 850",
+      (product) => isNaranja850Product(product),
     );
     const normalizedProducts = hasNaranja850
       ? sourceProducts
       : [...sourceProducts, PRODUCTS.find((product) => product.id === "naranja-850")!];
 
-    return normalizedProducts.filter(
-      (product) => gelVisible || product.category !== "Gel",
-    );
+    return normalizedProducts
+      .map((product) =>
+        isNaranja850Product(product)
+          ? {
+              ...product,
+              note: NARANJA_850_NOTE,
+            }
+          : product,
+      )
+      .filter((product) => gelVisible || product.category !== "Gel");
   }, [firebaseProducts, gelVisible]);
 
   const filteredProducts = useMemo(
@@ -1433,13 +1441,48 @@ function clampQuantity(value: number): number {
   return Math.max(1, Math.floor(value));
 }
 
+function isNaranja850Product(product: Pick<Product, "id" | "name">): boolean {
+  return (
+    product.id === "naranja-850" ||
+    product.name.trim().toLowerCase() === "naranja 850"
+  );
+}
+
+function getProductNote(product: Pick<Product, "id" | "name" | "note">): string {
+  if (isNaranja850Product(product)) {
+    return NARANJA_850_NOTE;
+  }
+
+  return product.note?.trim() || "";
+}
+
+function getProductBadgeNote(
+  product: Pick<Product, "id" | "name" | "note">,
+): string {
+  if (isNaranja850Product(product)) {
+    return "";
+  }
+
+  return product.note?.trim() || "";
+}
+
+function formatProductNote(note: string): string {
+  const trimmed = note.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return /[.!?…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 function getProductDescription(product: Product): string {
   if (product.industrial) {
     return "Pigmento de alto rendimiento para procesos exigentes.";
   }
 
-  if (product.note) {
-    return `${product.note}. Formula consistente y de alto impacto visual.`;
+  const productNote = getProductNote(product);
+  if (productNote) {
+    return formatProductNote(productNote);
   }
 
   return "Color intenso y uniforme para aplicaciones exigentes.";
@@ -1450,7 +1493,7 @@ function getProductHighlights(product: Product): string[] {
     return ["Alta intensidad", "Uso profesional", "Aplicacion industrial"];
   }
 
-  if (product.note) {
+  if (getProductNote(product)) {
     return ["Uso alimentario", "Alta intensidad", "Color estable"];
   }
 
@@ -1578,6 +1621,10 @@ const ProductCard = React.memo(function ProductCard({
   );
   const productDescription = useMemo(
     () => getProductDescription(product),
+    [product],
+  );
+  const productNoteLabel = useMemo(
+    () => getProductBadgeNote(product),
     [product],
   );
   const productHighlights = useMemo(
@@ -1708,9 +1755,9 @@ const ProductCard = React.memo(function ProductCard({
           <span className="inline-flex rounded-full border border-slate-200/80 bg-white/90 px-3 py-1.5 text-[8px] font-extrabold uppercase tracking-[0.18em] text-slate-500 shadow-sm min-[400px]:px-4 min-[400px]:py-2 min-[400px]:text-[9px]">
             {product.category}
           </span>
-          {(product.industrial || product.note) && (
+          {(product.industrial || productNoteLabel) && (
             <span className="inline-flex rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[8px] font-bold uppercase tracking-[0.12em] text-slate-500 shadow-sm min-[400px]:px-3 min-[400px]:py-1.5 min-[400px]:text-[9px]">
-              {product.industrial ? "Industrial" : product.note}
+              {product.industrial ? "Industrial" : productNoteLabel}
             </span>
           )}
         </div>
