@@ -4477,6 +4477,100 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const [remainingSeconds, setRemainingSeconds] = useState(60);
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const notificationAudioContextRef = useRef<AudioContext | null>(null);
+  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const notificationAudioUnlockedRef = useRef(false);
+  const notificationAudioDataUriRef = useRef(
+    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6djXdoYWNxg5acnJOGdGFbXnOFmZ6cloh1YVpdcoOYnZyVh3RgWl1ygpidnJWHdGBaXXKDl52blYh0YFpdcYKXnZuViHRgWl1xgpedm5WIdGBaXXGCl52blYh0YFpdcYKXnZuViA==",
+  );
+
+  const ensureNotificationAudio = useCallback(() => {
+    if (!notificationAudioRef.current) {
+      const audio = new Audio(notificationAudioDataUriRef.current);
+      audio.preload = "auto";
+      audio.volume = 0.4;
+      notificationAudioRef.current = audio;
+    }
+
+    if (!notificationAudioContextRef.current && typeof window !== "undefined") {
+      const AudioContextCtor =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+
+      if (AudioContextCtor) {
+        notificationAudioContextRef.current = new AudioContextCtor();
+      }
+    }
+  }, []);
+
+  const unlockNotificationAudio = useCallback(async () => {
+    ensureNotificationAudio();
+
+    const audioContext = notificationAudioContextRef.current;
+    if (!audioContext) {
+      notificationAudioUnlockedRef.current = true;
+      return;
+    }
+
+    if (audioContext.state !== "running") {
+      await audioContext.resume();
+    }
+
+    notificationAudioUnlockedRef.current = true;
+  }, [ensureNotificationAudio]);
+
+  const playNotificationSound = useCallback(async () => {
+    ensureNotificationAudio();
+
+    const audioContext = notificationAudioContextRef.current;
+
+    try {
+      if (audioContext) {
+        if (audioContext.state !== "running") {
+          await audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(1046, now);
+        oscillator.frequency.exponentialRampToValueAtTime(784, now + 0.18);
+
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.11, now + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.25);
+        return;
+      }
+    } catch (error) {
+      console.warn("[Admin] No se pudo reproducir el beep de notificación:", error);
+    }
+
+    try {
+      const audio = notificationAudioRef.current;
+      if (!audio) return;
+
+      audio.pause();
+      audio.currentTime = 0;
+      await audio.play();
+    } catch (error) {
+      console.warn(
+        "[Admin] No se pudo reproducir el audio de notificación:",
+        error,
+      );
+    }
+  }, [ensureNotificationAudio]);
 
   const clearInactivityTimers = useCallback(() => {
     if (inactivityTimerRef.current) {
@@ -4536,6 +4630,28 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
     };
   }, [resetInactivityTimer, clearInactivityTimers, showInactivityWarning]);
 
+  useEffect(() => {
+    const unlockEvents = ["pointerdown", "keydown", "touchstart"];
+
+    const handleUnlock = () => {
+      if (notificationAudioUnlockedRef.current) {
+        return;
+      }
+
+      void unlockNotificationAudio();
+    };
+
+    unlockEvents.forEach((eventName) =>
+      window.addEventListener(eventName, handleUnlock, { passive: true }),
+    );
+
+    return () => {
+      unlockEvents.forEach((eventName) =>
+        window.removeEventListener(eventName, handleUnlock),
+      );
+    };
+  }, [unlockNotificationAudio]);
+
   // Hook para obtener pedidos desde Firestore en tiempo real (colección: orders)
   const {
     orders,
@@ -4587,16 +4703,10 @@ function Dashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         : `${newNotification.customerName} realizó un pedido de $${newNotification.total.toLocaleString("es-MX")}`,
     });
 
-    try {
-      const audio = new Audio(
-        "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6djXdoYWNxg5acnJOGdGFbXnOFmZ6cloh1YVpdcoOYnZyVh3RgWl1ygpidnJWHdGBaXXKDl52blYh0YFpdcYKXnZuViHRgWl1xgpedm5WIdGBaXXGCl52blYh0YFpdcYKXnZuViA==",
-      );
-      audio.volume = 0.3;
-      audio.play().catch(() => {});
-    } catch {}
+    void playNotificationSound();
 
     clearNewNotification();
-  }, [newNotification, clearNewNotification]);
+  }, [newNotification, clearNewNotification, playNotificationSound]);
 
   // Hook para obtener facturas generadas automáticamente desde pedidos
   const { facturas: facturasData, isLoading: loadingFacturas } =
