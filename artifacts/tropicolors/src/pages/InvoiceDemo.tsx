@@ -1,5 +1,6 @@
 import { Invoice } from '../components/Invoice';
 import { buildInvoiceNumber, type InvoiceData } from '../types/invoice';
+import { TROPICOLORS_COMPANY_INFO } from '@/lib/company-info';
 
 // Datos de ejemplo para la factura
 const sampleInvoiceData: InvoiceData = {
@@ -9,14 +10,7 @@ const sampleInvoiceData: InvoiceData = {
   dueDate: '2026-04-23',
   paymentMethod: 'transferencia',
   status: 'pending',
-  company: {
-    name: 'Tropic Colors',
-    address: 'Av. Principal 123, Col. Centro, México City, CDMX, CP 06000',
-    phone: '+52 55 1234 5678',
-    email: 'contacto@tropiccolors.com',
-    rfc: 'TCO20240315ABC',
-    website: 'www.tropiccolors.com',
-  },
+  company: TROPICOLORS_COMPANY_INFO,
   customer: {
     name: 'Juan Pérez García',
     email: 'juan.perez@email.com',
@@ -145,11 +139,11 @@ const invoiceData: InvoiceData = {
   paymentMethod: 'transferencia',
   status: 'pending',
   company: {
-    name: 'Tropic Colors',
-    address: 'Av. Principal 123...',
-    phone: '+52 55 1234 5678',
-    email: 'contacto@tropiccolors.com',
-    rfc: 'TCO20240315ABC',
+    name: 'Tropicolors',
+    address: 'Calle Abedules Mz. 1 Lt. 36, Col. Ejercito del Trabajo II...',
+    phone: '55 5114 6856',
+    email: 'm_tropicolors1@hotmail.com',
+    rfc: 'VAVE840727NKA',
   },
   customer: {
     name: 'Juan Pérez García',

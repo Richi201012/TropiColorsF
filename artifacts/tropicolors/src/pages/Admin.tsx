@@ -118,6 +118,7 @@ import { OrderDetailModal } from "@/components/OrderDetailModal";
 import { ReferencesView } from "@/components/ReferencesView";
 import { toast } from "@/hooks/use-toast";
 import { isInventoryUserEmail, normalizeAuthEmail } from "@/lib/auth-access";
+import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 
 // Auth Context for session management
 interface AuthContextType {
@@ -5426,11 +5427,11 @@ function Dashboard({
 
   // Datos de la empresa centralizados
   const empresa = {
-    nombre: "Tropicolors",
-    direccion: "Ecatepec, Edo. Mex.",
-    telefono: "+52 55 5114 6856",
-    email: "m_tropicolors1@hotmail.com",
-    rfc: "TCO20240315ABC",
+    nombre: TROPICOLORS_COMPANY_INFO.name,
+    direccion: TROPICOLORS_COMPANY_INFO.address,
+    telefono: TROPICOLORS_COMPANY_INFO.phone,
+    email: TROPICOLORS_COMPANY_INFO.email,
+    rfc: TROPICOLORS_COMPANY_INFO.rfc || "",
   };
 
   const createOrderFromModal = async () => {
@@ -6208,9 +6209,7 @@ function Dashboard({
                 nombre: selectedInvoice.customer.name || "Cliente",
                 email: selectedInvoice.customer.email || "",
                 numeroFactura: selectedInvoice.invoiceNumber,
-                numeroPedido: selectedInvoice.orderId
-                  ?.slice(0, 8)
-                  .toUpperCase(),
+                numeroPedido: selectedInvoice.orderId,
                 fecha: selectedInvoice.issueDate,
                 productos: selectedInvoice.items.map((item) => ({
                   nombre: item.name,

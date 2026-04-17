@@ -6,6 +6,7 @@ import {
   buildInvoiceNumber,
 } from "../types/invoice";
 import { calculateCartItemSubtotal } from "@/lib/commerce";
+import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 
 /**
  * Hook para obtener facturas generadas automaticamente desde la coleccion
@@ -44,13 +45,7 @@ export function useFacturasFromOrders() {
       issueDate,
       paymentMethod,
       status,
-      company: {
-        name: "Tropicolors",
-        address: "Av. Principal 123, Ciudad de Mexico",
-        phone: "+52 55 1234 5678",
-        email: "contacto@tropicolors.com",
-        rfc: "TRO123456ABC",
-      },
+      company: TROPICOLORS_COMPANY_INFO,
       customer: {
         name: order.customer || "Cliente sin nombre",
         email: order.email || "sin-email@ejemplo.com",
@@ -153,13 +148,7 @@ class InvoiceMapper {
       issueDate: order.createdAt || new Date().toISOString(),
       paymentMethod,
       status,
-      company: {
-        name: "Tropicolors",
-        address: "Av. Principal 123, Ciudad de Mexico",
-        phone: "+52 55 1234 5678",
-        email: "contacto@tropicolors.com",
-        rfc: "TRO123456ABC",
-      },
+      company: TROPICOLORS_COMPANY_INFO,
       customer: {
         name: order.customer || "Cliente sin nombre",
         email: order.email || "sin-email@ejemplo.com",

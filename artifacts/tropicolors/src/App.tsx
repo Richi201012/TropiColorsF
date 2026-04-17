@@ -7,18 +7,34 @@ import { CartProvider } from "@/context/CartContext";
 
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { CartDrawer } from "@/components/CartDrawer";
-import { CartAddNotice } from "@/components/CartAddNotice";
-import { FloatingWhatsApp } from "@/components/FloatingWhatsApp";
-import { FlyToCart } from "@/components/FlyToCart";
-import HeroLanding from "@/components/HeroLanding";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
-import Inventario from "@/pages/Inventario";
 
 const Admin = lazy(() => import("@/pages/Admin"));
+const Inventario = lazy(() => import("@/pages/Inventario"));
+const HeroLanding = lazy(() => import("@/components/HeroLanding"));
+const CartDrawer = lazy(() =>
+  import("@/components/CartDrawer").then((module) => ({
+    default: module.CartDrawer,
+  })),
+);
+const CartAddNotice = lazy(() =>
+  import("@/components/CartAddNotice").then((module) => ({
+    default: module.CartAddNotice,
+  })),
+);
+const FloatingWhatsApp = lazy(() =>
+  import("@/components/FloatingWhatsApp").then((module) => ({
+    default: module.FloatingWhatsApp,
+  })),
+);
+const FlyToCart = lazy(() =>
+  import("@/components/FlyToCart").then((module) => ({
+    default: module.FlyToCart,
+  })),
+);
 
 const queryClient = new QueryClient();
 
@@ -27,6 +43,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isAdminPage = location === "/login" || location === "/inventario";
   const [showHero, setShowHero] = useState(true);
   const [heroKey, setHeroKey] = useState(0);
+  const [deferredUiReady, setDeferredUiReady] = useState(false);
   const isMobile = useIsMobile();
 
   const isHomePage = location === "/";
@@ -37,6 +54,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       setHeroKey((prev) => prev + 1);
     }
   }, [location, isHomePage, isMobile]);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDeferredUiReady(true);
+    }, 350);
+
+    return () => window.clearTimeout(timerId);
+  }, []);
 
   const handleHeroComplete = () => {
     // Hero se maneja internamente ahora - puede reaparecer al hacer scroll hacia arriba
@@ -53,14 +78,20 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     >
       <Navbar />
       {isHomePage && showHero && !isMobile && (
-        <HeroLanding key={heroKey} onComplete={handleHeroComplete} />
+        <Suspense fallback={null}>
+          <HeroLanding key={heroKey} onComplete={handleHeroComplete} />
+        </Suspense>
       )}
       <main>{children}</main>
       <Footer />
-      <CartDrawer />
-      <CartAddNotice />
-      <FloatingWhatsApp />
-      <FlyToCart />
+      {deferredUiReady ? (
+        <Suspense fallback={null}>
+          <CartDrawer />
+          <CartAddNotice />
+          <FloatingWhatsApp />
+          <FlyToCart />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
