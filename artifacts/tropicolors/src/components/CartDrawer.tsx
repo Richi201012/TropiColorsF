@@ -719,7 +719,6 @@ const CheckoutModal = React.memo(function CheckoutModal({
         transferReference: response.transferReference,
         whatsappUrl: response.whatsappUrl,
       });
-      window.open(response.whatsappUrl, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -1462,14 +1461,16 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         Pedido recibido
                       </h4>
                       <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-                        Tu pedido ya quedó registrado. Comparte tu comprobante
-                        por WhatsApp para continuar con la validación.
+                        Tu pedido ya quedo registrado y el correo de confirmacion
+                        ya se esta enviando. Cuando tengas tu comprobante,
+                        puedes abrir WhatsApp desde aqui para compartirlo.
                       </p>
                       <div className="mt-5 w-full max-w-md rounded-2xl border border-sky-100 bg-sky-50/90 px-4 py-4 text-left text-sm text-sky-900">
                         <p className="font-semibold">Siguiente paso</p>
                         <p className="mt-2">
-                          Envia tu comprobante por WhatsApp usando el boton de abajo
-                          para que el equipo valide tu pago mas rapido.
+                          Si ya realizaste la transferencia, abre WhatsApp con
+                          el boton de abajo y manda tu comprobante para que el
+                          equipo valide tu pago mas rapido.
                         </p>
                       </div>
                       <p className="mt-4 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold tracking-[0.18em] text-slate-600">
@@ -1486,7 +1487,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         }
                         className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
                       >
-                        Enviar comprobante por WhatsApp
+                        Abrir WhatsApp para enviar comprobante
                       </button>
                       <button
                         type="button"
@@ -1641,7 +1642,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           )}
                           {isProcessing
                             ? "Registrando pedido..."
-                            : "Registrar pedido y enviar comprobante"}
+                            : "Registrar pedido"}
                         </button>
                       </div>
                     </div>
