@@ -29,6 +29,41 @@ export interface DatosContacto {
   mensaje: string;
 }
 
+const TROPICOLORS_COMPANY_INFO = {
+  name: "Tropicolors",
+  address:
+    "Calle Abedules Mz. 1 Lt. 36, Col. Ejercito del Trabajo II, 55238 Ecatepec de Morelos, Estado de Mexico",
+  phone: "55 5114 6856",
+  email: "m_tropicolors1@hotmail.com",
+  rfc: "VAVE840727NKA",
+} as const;
+
+function formatInvoiceDate(value: string): string {
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return value;
+  }
+
+  const dateOnlyMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const parsedDate = dateOnlyMatch
+    ? new Date(
+        Number(dateOnlyMatch[1]),
+        Number(dateOnlyMatch[2]) - 1,
+        Number(dateOnlyMatch[3]),
+      )
+    : new Date(normalizedValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-MX", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(parsedDate);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // CORREO DE CONFIRMACIÓN DE COMPRA
 // ═══════════════════════════════════════════════════════════════════════════
@@ -802,6 +837,7 @@ export function generarEmailContacto(data: DatosContacto): string {
 
 export function generarEmailFactura(data: DatosFactura): string {
   const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
+  const fechaFactura = formatInvoiceDate(data.fecha);
   const getPaymentMethodLabel = (
     method?: DatosFactura["metodoPago"],
   ): string => {
@@ -871,10 +907,10 @@ export function generarEmailFactura(data: DatosFactura): string {
                                 <img src="${logoUrl}" alt="Tropicolors" width="56" style="display: block; margin: 5px auto;">
                               </td>
                               <td style="padding-left: 16px;">
-                                <p style="margin: 0 0 6px; color: #ffffff; font-size: 20px; font-weight: 800;">Tropicolors</p>
-                                <p style="margin: 0 0 4px; color: rgba(255,255,255,0.76); font-size: 12px;">Av. Principal 123, Ciudad de México</p>
-                                <p style="margin: 0 0 4px; color: rgba(255,255,255,0.76); font-size: 12px;">+52 55 1234 5678 &nbsp;·&nbsp; contacto@tropicolors.com</p>
-                                <p style="margin: 0; color: rgba(255,255,255,0.76); font-size: 12px;">RFC: TRO123456ABC</p>
+                                <p style="margin: 0 0 6px; color: #ffffff; font-size: 20px; font-weight: 800;">${TROPICOLORS_COMPANY_INFO.name}</p>
+                                <p style="margin: 0 0 4px; color: rgba(255,255,255,0.76); font-size: 12px;">${TROPICOLORS_COMPANY_INFO.address}</p>
+                                <p style="margin: 0 0 4px; color: rgba(255,255,255,0.76); font-size: 12px;">${TROPICOLORS_COMPANY_INFO.phone} &nbsp;·&nbsp; ${TROPICOLORS_COMPANY_INFO.email}</p>
+                                <p style="margin: 0; color: rgba(255,255,255,0.76); font-size: 12px;">RFC: ${TROPICOLORS_COMPANY_INFO.rfc}</p>
                               </td>
                             </tr>
                           </table>
@@ -884,7 +920,7 @@ export function generarEmailFactura(data: DatosFactura): string {
                             <span style="color: #f97316; font-size: 24px; font-weight: 800; letter-spacing: 1px;">${data.numeroFactura}</span>
                           </div>
                           <div style="display: inline-block; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 14px;">
-                            <span style="color: rgba(255,255,255,0.88); font-size: 13px;">${data.fecha}</span>
+                            <span style="color: rgba(255,255,255,0.88); font-size: 13px;">${fechaFactura}</span>
                           </div>
                         </td>
                       </tr>
@@ -995,7 +1031,7 @@ export function generarEmailFactura(data: DatosFactura): string {
                   <td style="padding: 8px 30px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                     <img src="${logoUrl}" alt="Tropicolors" width="72" style="display:inline-block; margin: 18px 0 10px; opacity: 0.18;">
                     <p style="margin: 0 0 6px; color: #1a237e; font-size: 18px; font-weight: 800;">Gracias por su compra</p>
-                    <p style="margin: 0; color: #64748b; font-size: 13px;">Para cualquier duda o aclaración contáctenos en contacto@tropicolors.com</p>
+                    <p style="margin: 0; color: #64748b; font-size: 13px;">Para cualquier duda o aclaración contáctenos en ${TROPICOLORS_COMPANY_INFO.email}</p>
                   </td>
                 </tr>
               </table>
