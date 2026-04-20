@@ -41,19 +41,10 @@ const queryClient = new QueryClient();
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isAdminPage = location === "/login" || location === "/inventario";
-  const [showHero, setShowHero] = useState(true);
-  const [heroKey, setHeroKey] = useState(0);
   const [deferredUiReady, setDeferredUiReady] = useState(false);
   const isMobile = useIsMobile();
 
   const isHomePage = location === "/";
-
-  useEffect(() => {
-    if (isHomePage) {
-      setShowHero(!isMobile);
-      setHeroKey((prev) => prev + 1);
-    }
-  }, [location, isHomePage, isMobile]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -62,11 +53,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
     return () => window.clearTimeout(timerId);
   }, []);
-
-  const handleHeroComplete = () => {
-    // Hero se maneja internamente ahora - puede reaparecer al hacer scroll hacia arriba
-  };
-
   if (isAdminPage) {
     return <>{children}</>;
   }
@@ -77,9 +63,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       style={{ scrollSnapType: isMobile ? "none" : "y proximity" }}
     >
       <Navbar />
-      {isHomePage && showHero && !isMobile && (
+      {isHomePage && (
         <Suspense fallback={null}>
-          <HeroLanding key={heroKey} onComplete={handleHeroComplete} />
+          <HeroLanding />
         </Suspense>
       )}
       <main>{children}</main>
