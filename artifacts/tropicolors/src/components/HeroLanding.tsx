@@ -1,6 +1,12 @@
-import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface HeroLandingProps {
@@ -8,174 +14,135 @@ interface HeroLandingProps {
 }
 
 export default function HeroLanding({ onComplete }: HeroLandingProps) {
-  const [isVisible, setIsVisible] = useState(true);
-  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const containerRef = useRef<HTMLElement | null>(null);
   const isMobile = useIsMobile();
-  const hasDismissed = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowScrollIndicator(true);
-    }, 1500);
-
-    const handleScroll = () => {
-      if (frameRef.current !== null) {
-        return;
-      }
-
-      frameRef.current = window.requestAnimationFrame(() => {
-        frameRef.current = null;
-        const scrollPosition = window.scrollY;
-        const windowHeight = window.innerHeight;
-        const progress = Math.min(scrollPosition / (windowHeight * 1.2), 1);
-        setScrollProgress(progress);
-
-        if (!hasDismissed.current && scrollPosition > windowHeight * 0.5) {
-          hasDismissed.current = true;
-
-          window.setTimeout(() => {
-            setIsVisible(false);
-            setShowScrollIndicator(false);
-            onComplete?.();
-          }, 300);
-        }
-      });
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      clearTimeout(timer);
-      if (frameRef.current !== null) {
-        window.cancelAnimationFrame(frameRef.current);
-      }
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [onComplete]);
-
-  const opacity = Math.max(0, 1 - scrollProgress * 1.2);
-  const y = scrollProgress * (isMobile ? -16 : -30);
-  const scale = 1 + scrollProgress * (isMobile ? 0.02 : 0.05);
-  const blur = isMobile ? 0 : scrollProgress * 4;
+  const prefersReducedMotion = useReducedMotion();
   const heroImageSrc = `${import.meta.env.BASE_URL}${isMobile ? "hero-banner.png" : "hero-landing.png"}`;
 
-  if (!isVisible) return null;
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  });
+
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 26,
+    mass: 0.24,
+  });
+
+  const imageY = useTransform(
+    smoothProgress,
+    [0, 1],
+    [0, isMobile ? 14 : 36],
+  );
+  const contentY = useTransform(
+    smoothProgress,
+    [0, 1],
+    [0, isMobile ? -18 : -42],
+  );
+  const contentOpacity = useTransform(
+    smoothProgress,
+    [0, 0.78, 1],
+    [1, 0.94, 0.8],
+  );
+  const overlayOpacity = useTransform(
+    smoothProgress,
+    [0, 1],
+    [0.88, isMobile ? 0.96 : 0.94],
+  );
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      onComplete?.();
+    }, 500);
+
+    return () => window.clearTimeout(timerId);
+  }, [onComplete]);
+
+  const handleViewProducts = useCallback(() => {
+    const productsSection = document.getElementById("productos");
+
+    if (!productsSection) {
+      return;
+    }
+
+    const top = productsSection.getBoundingClientRect().top + window.scrollY - 88;
+
+    window.scrollTo({
+      top: Math.max(top, 0),
+      behavior: "smooth",
+    });
+  }, []);
 
   return (
-    <motion.div
+    <section
       ref={containerRef}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ 
-        opacity: 0,
-        transition: { duration: 0.4, ease: "easeInOut" }
-      }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      style={{ 
-        height: "100vh",
-        scrollSnapAlign: 'start',
-        flexShrink: 0,
-        position: 'relative',
-        zIndex: 50,
-      }}
+      aria-label="Presentacion TropiColors"
+      className="relative overflow-hidden"
+      style={{ scrollSnapAlign: "start" }}
     >
+      <motion.img
+        src={heroImageSrc}
+        alt="TropiColors - Colorantes Alimentarios"
+        fetchPriority="high"
+        decoding="async"
+        className="block h-auto w-full"
+        style={prefersReducedMotion ? undefined : { y: imageY }}
+      />
+
       <motion.div
-        animate={{ 
-          y: y, 
-          scale: scale,
-          opacity: opacity,
-          filter: blur ? `blur(${blur}px)` : "none",
-        }}
-        transition={{ ease: "easeOut", duration: 0.1 }}
-        className="absolute inset-0 will-change-transform"
-        style={{ willChange: isMobile ? "transform, opacity" : "transform, opacity, filter" }}
+        className="absolute inset-0 z-[2] bg-[radial-gradient(circle_at_50%_42%,rgba(15,23,42,0.08)_0%,rgba(15,23,42,0.34)_42%,rgba(2,6,23,0.72)_100%),linear-gradient(180deg,rgba(2,6,23,0.72)_0%,rgba(2,6,23,0.42)_34%,rgba(2,6,23,0.74)_100%)]"
+        style={prefersReducedMotion ? { opacity: 0.92 } : { opacity: overlayOpacity }}
+      />
+
+      <motion.div
+        className="absolute inset-0 z-10 flex items-center justify-center px-5 py-20 text-center sm:px-8 lg:px-10"
+        style={
+          prefersReducedMotion
+            ? undefined
+            : {
+                y: contentY,
+                opacity: contentOpacity,
+              }
+        }
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/60" />
-        <img
-          src={heroImageSrc}
-          alt="TropiColors - Colorantes Alimentarios"
-          fetchPriority="high"
-          decoding="async"
-          className="h-full w-full object-cover object-center"
-        />
-      </motion.div>
-          
-          {/* Content with entrance animation */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
-            className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4"
+        <motion.div
+          initial={{ opacity: 0, y: 26 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="mx-auto flex max-w-4xl flex-col items-center"
+        >
+          <p className="rounded-full border border-white/16 bg-white/8 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-white/76 shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-sm sm:text-[11px]">
+            Colorantes alimentarios premium
+          </p>
+
+          <h1
+            className="mt-6 text-5xl font-black tracking-[-0.065em] text-white drop-shadow-[0_10px_36px_rgba(0,0,0,0.45)] sm:text-6xl md:mt-7 md:text-7xl lg:text-[6.1rem]"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-              className="text-5xl md:text-7xl font-bold text-white mb-4 drop-shadow-lg"
-              style={{ 
-                textShadow: "0 4px 20px rgba(0,0,0,0.5)",
-                fontFamily: "'Playfair Display', Georgia, serif"
-              }}
-            >
-              TropiColors
-            </motion.h1>
-            
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7, duration: 0.6 }}
-              className="text-xl md:text-2xl text-white/90 max-w-2xl drop-shadow-md"
-            >
-              Colorantes Alimentarios de Calidad Premium 
-            </motion.p>
-            
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 0.6 }}
-              className="mt-4 text-lg text-white/80"
-            >
-              Dale vida y color a tus creaciones culinarias
-            </motion.p>
-          </motion.div>
-          
-          {/* Scroll indicator */}
-          <AnimatePresence>
-            {showScrollIndicator && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ delay: 1.5 }}
-                className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20"
-              >
-                <motion.div
-                  animate={{ 
-                    y: [0, 10, 0],
-                    opacity: [0.5, 1, 0.5]
-                  }}
-                  transition={{ 
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                  className="flex flex-col items-center text-white/80 cursor-pointer"
-                  onClick={() => {
-                    window.scrollTo({ 
-                      top: window.innerHeight * 0.5, 
-                      behavior: 'smooth' 
-                    });
-                  }}
-                >
-                  <span className="text-sm mb-2 font-medium">Descubre más</span>
-                  <ChevronDown className="w-8 h-8" strokeWidth={2.5} />
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-    </motion.div>
+            TropiColors
+          </h1>
+
+          <p className="mt-5 max-w-3xl text-lg font-medium leading-[1.35] text-white/92 drop-shadow-[0_4px_16px_rgba(0,0,0,0.28)] sm:text-xl md:mt-6 md:text-[1.7rem]">
+            Colorantes alimentarios premium que transforman cada creacion
+          </p>
+
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/74 sm:text-base md:mt-5 md:text-lg">
+            Color que se nota. Calidad que se siente.
+          </p>
+
+          <motion.button
+            type="button"
+            onClick={handleViewProducts}
+            whileHover={{ y: -2, scale: 1.01 }}
+            whileTap={{ scale: 0.985 }}
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_45px_rgba(15,23,42,0.28)] transition-colors hover:bg-slate-100 sm:mt-10 sm:px-7 sm:py-3.5 sm:text-base"
+          >
+            <span>Ver productos</span>
+            <ArrowRight className="h-4 w-4" strokeWidth={2.2} />
+          </motion.button>
+        </motion.div>
+      </motion.div>
+    </section>
   );
 }
