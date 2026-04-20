@@ -38,6 +38,29 @@ const FlyToCart = lazy(() =>
 
 const queryClient = new QueryClient();
 
+function scheduleDeferredUi(callback: () => void) {
+  const browserWindow = window as Window & {
+    requestIdleCallback?: (
+      handler: () => void,
+      options?: { timeout: number },
+    ) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
+
+  if (typeof browserWindow.requestIdleCallback === "function") {
+    const idleHandle = browserWindow.requestIdleCallback(callback, {
+      timeout: 1200,
+    });
+
+    return () => {
+      browserWindow.cancelIdleCallback?.(idleHandle);
+    };
+  }
+
+  const timeoutId = window.setTimeout(callback, 350);
+  return () => window.clearTimeout(timeoutId);
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isAdminPage = location === "/login" || location === "/inventario";
@@ -47,11 +70,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isHomePage = location === "/";
 
   useEffect(() => {
-    const timerId = window.setTimeout(() => {
+    const cancelDeferredUi = scheduleDeferredUi(() => {
       setDeferredUiReady(true);
-    }, 350);
+    });
 
-    return () => window.clearTimeout(timerId);
+    return cancelDeferredUi;
   }, []);
   if (isAdminPage) {
     return <>{children}</>;

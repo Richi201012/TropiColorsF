@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FlaskConical, MessageCircle } from "lucide-react";
 import {
@@ -16,7 +17,7 @@ type GelSectionProps = {
   addFlyingItem: AddFlyingItemFn;
 };
 
-export default function GelSection({
+const GelSection = memo(function GelSection({
   gelVisible,
   addToCart,
   addFlyingItem,
@@ -295,4 +296,6 @@ export default function GelSection({
       </div>
     </motion.section>
   );
-}
+});
+
+export default GelSection;

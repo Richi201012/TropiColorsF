@@ -9,31 +9,66 @@ export function Navbar() {
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeLink, setActiveLink] = useState("inicio");
-  const { setIsCartOpen, cartCount, triggerCartBounce, items } = useCart();
-  const [, setTick] = useState(0);
-  useEffect(() => { setTick(t => t + 1); }, [items.length, cartCount, triggerCartBounce]);
+  const { setIsCartOpen, cartCount, triggerCartBounce } = useCart();
 
   useEffect(() => {
-    const handleScroll = () => {
-      const isAtTop = window.scrollY <= 10;
-      setIsScrolled(window.scrollY > 30);
-      setIsNavbarVisible(isAtTop);
-      
-      // Update active link based on scroll position
-      const sections = ["inicio", "productos", "nosotros", "beneficios", "contacto"];
-      for (const section of sections.reverse()) {
-        const el = document.getElementById(section);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top <= 150) {
-            setActiveLink(section);
-            break;
-          }
+    const sectionIds = [
+      "inicio",
+      "productos",
+      "nosotros",
+      "beneficios",
+      "contacto",
+    ] as const;
+    let frameId: number | null = null;
+
+    const updateNavbarState = () => {
+      frameId = null;
+      const scrollY = window.scrollY;
+      const nextIsScrolled = scrollY > 30;
+      const nextIsNavbarVisible = scrollY <= 10;
+      let nextActiveLink = "inicio";
+
+      for (let index = sectionIds.length - 1; index >= 0; index -= 1) {
+        const sectionId = sectionIds[index];
+        const section = document.getElementById(sectionId);
+
+        if (section && section.getBoundingClientRect().top <= 150) {
+          nextActiveLink = sectionId;
+          break;
         }
       }
+
+      setIsScrolled((current) =>
+        current === nextIsScrolled ? current : nextIsScrolled,
+      );
+      setIsNavbarVisible((current) =>
+        current === nextIsNavbarVisible ? current : nextIsNavbarVisible,
+      );
+      setActiveLink((current) =>
+        current === nextActiveLink ? current : nextActiveLink,
+      );
     };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    const queueNavbarStateUpdate = () => {
+      if (frameId !== null) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(updateNavbarState);
+    };
+
+    queueNavbarStateUpdate();
+    window.addEventListener("scroll", queueNavbarStateUpdate, { passive: true });
+    window.addEventListener("resize", queueNavbarStateUpdate);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      window.removeEventListener("scroll", queueNavbarStateUpdate);
+      window.removeEventListener("resize", queueNavbarStateUpdate);
+    };
   }, []);
 
   const navLinks = [
@@ -92,6 +127,7 @@ export function Navbar() {
                   <img 
                     src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} 
                     alt="TropicColors" 
+                    decoding="async"
                     className="relative h-12 w-auto object-contain drop-shadow-[0_8px_18px_rgba(255,255,255,0.9)]"
                   />
                 </div>
@@ -207,6 +243,7 @@ export function Navbar() {
                 <img 
                   src={`${import.meta.env.BASE_URL}logo-tropicolors.png`} 
                   alt="TropicColors" 
+                  decoding="async"
                   className="h-12 w-auto object-contain drop-shadow-[0_8px_18px_rgba(255,255,255,0.9)]" 
                 />
               </div>

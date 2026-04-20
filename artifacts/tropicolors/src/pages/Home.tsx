@@ -1,19 +1,17 @@
 import {
+  Suspense,
   useCallback,
+  useDeferredValue,
   useEffect,
+  lazy,
   useMemo,
+  startTransition,
   useState,
   type FormEvent,
 } from "react";
 import { useCart } from "@/context/CartContext";
 import CatalogSection from "@/components/home/CatalogSection";
-import AboutSection from "@/components/home/AboutSection";
-import BenefitsSection from "@/components/home/BenefitsSection";
-import ContactSection from "@/components/home/ContactSection";
-import GelSection from "@/components/home/GelSection";
 import HomeBackground from "@/components/home/HomeBackground";
-import ReferencesSection from "@/components/home/ReferencesSection";
-import WhatsAppCtaSection from "@/components/home/WhatsAppCtaSection";
 import {
   DEFERRED_CATALOG_DELAY_MS,
   DEFERRED_FIREBASE_DELAY_MS,
@@ -39,6 +37,17 @@ import { useReferences } from "@/hooks/useReferences";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+const AboutSection = lazy(() => import("@/components/home/AboutSection"));
+const BenefitsSection = lazy(() => import("@/components/home/BenefitsSection"));
+const ContactSection = lazy(() => import("@/components/home/ContactSection"));
+const GelSection = lazy(() => import("@/components/home/GelSection"));
+const ReferencesSection = lazy(
+  () => import("@/components/home/ReferencesSection"),
+);
+const WhatsAppCtaSection = lazy(
+  () => import("@/components/home/WhatsAppCtaSection"),
+);
+
 export default function Home() {
   const { addToCart, addFlyingItem } = useCart();
   const { toast } = useToast();
@@ -63,10 +72,14 @@ export default function Home() {
 
   useEffect(() => {
     const catalogTimerId = window.setTimeout(() => {
-      setCatalogReady(true);
+      startTransition(() => {
+        setCatalogReady(true);
+      });
     }, DEFERRED_CATALOG_DELAY_MS);
     const sectionsTimerId = window.setTimeout(() => {
-      setSecondarySectionsReady(true);
+      startTransition(() => {
+        setSecondarySectionsReady(true);
+      });
     }, DEFERRED_SECTIONS_DELAY_MS);
 
     return () => {
@@ -278,15 +291,21 @@ export default function Home() {
                     specialWholesaleBoxes: data.specialWholesaleBoxes || undefined,
                   };
                 });
-                setFirebaseProducts(loaded);
+                startTransition(() => {
+                  setFirebaseProducts(loaded);
+                });
               } else {
-                setFirebaseProducts(null);
+                startTransition(() => {
+                  setFirebaseProducts(null);
+                });
               }
             }
           } catch (error) {
             if (!isCancelled) {
               console.error("[Home] Error loading products from Firebase:", error);
-              setFirebaseProducts(null);
+              startTransition(() => {
+                setFirebaseProducts(null);
+              });
             }
           }
 
@@ -303,11 +322,15 @@ export default function Home() {
               }
 
               if (settingsSnapshot.exists()) {
-                setGelVisible(Boolean(settingsSnapshot.data()?.gelVisible));
+                startTransition(() => {
+                  setGelVisible(Boolean(settingsSnapshot.data()?.gelVisible));
+                });
                 return;
               }
 
-              setGelVisible(false);
+              startTransition(() => {
+                setGelVisible(false);
+              });
             },
             (error) => {
               if (isCancelled) {
@@ -321,14 +344,18 @@ export default function Home() {
                   "La sección de gel permanecerá desactivada por seguridad.",
                 variant: "destructive",
               });
-              setGelVisible(false);
+              startTransition(() => {
+                setGelVisible(false);
+              });
             },
           );
         } catch (error) {
           if (!isCancelled) {
             console.error("[Home] No se pudo inicializar Firebase en Home:", error);
-            setFirebaseProducts(null);
-            setGelVisible(false);
+            startTransition(() => {
+              setFirebaseProducts(null);
+              setGelVisible(false);
+            });
           }
         }
       })();
@@ -341,9 +368,10 @@ export default function Home() {
     };
   }, [toast]);
 
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const normalizedSearch = useMemo(
-    () => searchQuery.trim().toLowerCase(),
-    [searchQuery],
+    () => deferredSearchQuery.trim().toLowerCase(),
+    [deferredSearchQuery],
   );
   const products = useMemo(() => {
     const sourceProducts = firebaseProducts || PRODUCTS;
@@ -397,9 +425,11 @@ export default function Home() {
   );
 
   const handleCategoryChange = useCallback((category: string) => {
-    setActiveCategory((currentCategory) =>
-      currentCategory === category ? currentCategory : category,
-    );
+    startTransition(() => {
+      setActiveCategory((currentCategory) =>
+        currentCategory === category ? currentCategory : category,
+      );
+    });
   }, []);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -425,7 +455,7 @@ export default function Home() {
       />
 
       {secondarySectionsReady ? (
-        <>
+        <Suspense fallback={null}>
           <GelSection
             gelVisible={gelVisible}
             addToCart={addToCart}
@@ -451,7 +481,7 @@ export default function Home() {
             onSubmit={onContactSubmit}
             onReset={() => setContactSent(false)}
           />
-        </>
+        </Suspense>
       ) : null}
     </div>
   );
