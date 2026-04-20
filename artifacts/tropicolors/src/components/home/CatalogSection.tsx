@@ -1,5 +1,11 @@
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
+import { useIsMobile } from "@/hooks/use-mobile";
 import ProductCard from "./ProductCard";
 import { CATEGORY_COLORS, CATEGORY_ORDER, STORE_HIGHLIGHTS } from "./data";
 import type { AddFlyingItemFn, AddToCartFn, Product } from "./types";
@@ -26,6 +32,7 @@ export default function CatalogSection({
   addFlyingItem,
 }: CatalogSectionProps) {
   const activeCategoryConfig = CATEGORY_COLORS[activeCategory];
+  const isMobile = useIsMobile();
 
   return (
     <section
@@ -204,17 +211,54 @@ export default function CatalogSection({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 min-[480px]:gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-3">
-          {visibleProducts.map((product) => (
-            <div key={product.id} className="mx-auto h-full w-full max-w-[440px]">
-              <ProductCard
-                product={product}
-                addToCart={addToCart}
-                addFlyingItem={addFlyingItem}
-              />
+        {filteredProductsCount > 0 ? (
+          isMobile ? (
+            <div className="space-y-4">
+              <Carousel
+                opts={{ align: "start", loop: visibleProducts.length > 1 }}
+                className="w-full"
+              >
+                <CarouselContent className="-ml-3">
+                  {visibleProducts.map((product) => (
+                    <CarouselItem
+                      key={product.id}
+                      className="basis-[86%] pl-3 min-[480px]:basis-[72%]"
+                    >
+                      <div className="mx-auto h-full w-full max-w-[440px]">
+                        <ProductCard
+                          product={product}
+                          addToCart={addToCart}
+                          addFlyingItem={addFlyingItem}
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+
+              {visibleProducts.length > 1 ? (
+                <p className="text-center text-xs font-medium tracking-[0.14em] text-slate-400 uppercase">
+                  Desliza para ver más productos
+                </p>
+              ) : null}
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 min-[480px]:gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-3">
+              {visibleProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="mx-auto h-full w-full max-w-[440px]"
+                >
+                  <ProductCard
+                    product={product}
+                    addToCart={addToCart}
+                    addFlyingItem={addFlyingItem}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        ) : null}
 
         {filteredProductsCount === 0 ? (
           <div className="text-center py-20 text-muted-foreground">
