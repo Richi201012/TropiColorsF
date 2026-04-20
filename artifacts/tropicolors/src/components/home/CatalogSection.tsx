@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import {
@@ -21,7 +22,7 @@ type CatalogSectionProps = {
   addFlyingItem: AddFlyingItemFn;
 };
 
-export default function CatalogSection({
+const CatalogSection = memo(function CatalogSection({
   activeCategory,
   filteredProductsCount,
   searchQuery,
@@ -268,4 +269,6 @@ export default function CatalogSection({
       </div>
     </section>
   );
-}
+});
+
+export default CatalogSection;
