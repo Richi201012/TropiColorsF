@@ -1,5 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { FlaskConical, MessageCircle } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { GEL_COLORS, GEL_PRODUCTS } from "./data";
 import ProductCard from "./ProductCard";
 import type { AddFlyingItemFn, AddToCartFn } from "./types";
@@ -15,6 +21,8 @@ export default function GelSection({
   addToCart,
   addFlyingItem,
 }: GelSectionProps) {
+  const isMobile = useIsMobile();
+
   return (
     <motion.section
       id="gel"
@@ -47,34 +55,75 @@ export default function GelSection({
               </p>
             </div>
 
-            <motion.div
-              layout
-              className="grid grid-cols-1 gap-6 min-[480px]:gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-3"
-            >
-              <AnimatePresence>
-                {GEL_PRODUCTS.map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    layout
-                    className="mx-auto h-full w-full max-w-[440px]"
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                    transition={{
-                      duration: 0.4,
-                      ease: [0.25, 0.46, 0.45, 0.94],
-                      delay: index * 0.05,
-                    }}
-                  >
-                    <ProductCard
-                      product={product}
-                      addToCart={addToCart}
-                      addFlyingItem={addFlyingItem}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
+            {isMobile ? (
+              <div className="space-y-4">
+                <Carousel
+                  opts={{ align: "start", loop: GEL_PRODUCTS.length > 1 }}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-3">
+                    {GEL_PRODUCTS.map((product, index) => (
+                      <CarouselItem
+                        key={product.id}
+                        className="basis-[86%] pl-3 min-[480px]:basis-[72%]"
+                      >
+                        <motion.div
+                          className="mx-auto h-full w-full max-w-[440px]"
+                          initial={{ opacity: 0, scale: 0.96, y: 18 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          transition={{
+                            duration: 0.35,
+                            ease: [0.25, 0.46, 0.45, 0.94],
+                            delay: index * 0.04,
+                          }}
+                        >
+                          <ProductCard
+                            product={product}
+                            addToCart={addToCart}
+                            addFlyingItem={addFlyingItem}
+                          />
+                        </motion.div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                </Carousel>
+
+                {GEL_PRODUCTS.length > 1 ? (
+                  <p className="text-center text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+                    Desliza para ver más gels
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <motion.div
+                layout
+                className="grid grid-cols-1 gap-6 min-[480px]:gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-3"
+              >
+                <AnimatePresence>
+                  {GEL_PRODUCTS.map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      layout
+                      className="mx-auto h-full w-full max-w-[440px]"
+                      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                      transition={{
+                        duration: 0.4,
+                        ease: [0.25, 0.46, 0.45, 0.94],
+                        delay: index * 0.05,
+                      }}
+                    >
+                      <ProductCard
+                        product={product}
+                        addToCart={addToCart}
+                        addFlyingItem={addFlyingItem}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )}
 
             <div className="mt-12 text-center">
               <a
@@ -114,52 +163,118 @@ export default function GelSection({
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5 mb-14">
-              {GEL_COLORS.map((color, index) => (
-                <motion.div
-                  key={color.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.06 }}
-                  className="group relative rounded-2xl overflow-hidden cursor-default aspect-square shadow-xl"
-                  style={{
-                    background: `linear-gradient(145deg, ${color.hex}, ${color.hex2})`,
-                  }}
+            {isMobile ? (
+              <div className="mb-14 space-y-4">
+                <Carousel
+                  opts={{ align: "start", loop: GEL_COLORS.length > 1 }}
+                  className="w-full"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                  <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl" />
+                  <CarouselContent className="-ml-3">
+                    {GEL_COLORS.map((color, index) => (
+                      <CarouselItem
+                        key={color.name}
+                        className="basis-[58%] pl-3 min-[480px]:basis-[44%]"
+                      >
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true }}
+                          transition={{ delay: index * 0.05 }}
+                          className="group relative aspect-square cursor-default overflow-hidden rounded-2xl shadow-xl"
+                          style={{
+                            background: `linear-gradient(145deg, ${color.hex}, ${color.hex2})`,
+                          }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                          <div className="absolute left-0 right-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/20 to-transparent" />
 
-                  <div className="relative h-full flex flex-col items-center justify-center gap-2 p-4">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md"
-                      style={{
-                        background: "rgba(255,255,255,0.18)",
-                        border: "1px solid rgba(255,255,255,0.3)",
-                      }}
-                    >
-                      <FlaskConical size={24} color={color.textColor} />
+                          <div className="relative flex h-full flex-col items-center justify-center gap-2 p-4">
+                            <div
+                              className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md"
+                              style={{
+                                background: "rgba(255,255,255,0.18)",
+                                border: "1px solid rgba(255,255,255,0.3)",
+                              }}
+                            >
+                              <FlaskConical size={24} color={color.textColor} />
+                            </div>
+                            <span
+                              className="text-center text-sm font-extrabold leading-tight"
+                              style={{ color: color.textColor }}
+                            >
+                              {color.name}
+                            </span>
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest"
+                              style={{
+                                background: "rgba(255,255,255,0.2)",
+                                color: color.textColor,
+                                border: "1px solid rgba(255,255,255,0.25)",
+                              }}
+                            >
+                              En desarrollo
+                            </span>
+                          </div>
+                        </motion.div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                </Carousel>
+
+                {GEL_COLORS.length > 1 ? (
+                  <p className="text-center text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+                    Desliza para ver los tonos
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="mb-14 grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-5">
+                {GEL_COLORS.map((color, index) => (
+                  <motion.div
+                    key={color.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.06 }}
+                    className="group relative aspect-square cursor-default overflow-hidden rounded-2xl shadow-xl"
+                    style={{
+                      background: `linear-gradient(145deg, ${color.hex}, ${color.hex2})`,
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                    <div className="absolute top-0 left-0 right-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/20 to-transparent" />
+
+                    <div className="relative flex h-full flex-col items-center justify-center gap-2 p-4">
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md"
+                        style={{
+                          background: "rgba(255,255,255,0.18)",
+                          border: "1px solid rgba(255,255,255,0.3)",
+                        }}
+                      >
+                        <FlaskConical size={24} color={color.textColor} />
+                      </div>
+                      <span
+                        className="text-center text-sm font-extrabold leading-tight"
+                        style={{ color: color.textColor }}
+                      >
+                        {color.name}
+                      </span>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest"
+                        style={{
+                          background: "rgba(255,255,255,0.2)",
+                          color: color.textColor,
+                          border: "1px solid rgba(255,255,255,0.25)",
+                        }}
+                      >
+                        En desarrollo
+                      </span>
                     </div>
-                    <span
-                      className="text-sm font-extrabold text-center leading-tight"
-                      style={{ color: color.textColor }}
-                    >
-                      {color.name}
-                    </span>
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-                      style={{
-                        background: "rgba(255,255,255,0.2)",
-                        color: color.textColor,
-                        border: "1px solid rgba(255,255,255,0.25)",
-                      }}
-                    >
-                      En desarrollo
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
 
             <div className="text-center">
               <a
