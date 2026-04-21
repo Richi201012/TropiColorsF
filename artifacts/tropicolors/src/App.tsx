@@ -7,6 +7,7 @@ import { CartProvider } from "@/context/CartContext";
 
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import HeroLanding from "@/components/HeroLanding";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import Home from "@/pages/Home";
@@ -14,7 +15,6 @@ import NotFound from "@/pages/not-found";
 
 const Admin = lazy(() => import("@/pages/Admin"));
 const Inventario = lazy(() => import("@/pages/Inventario"));
-const HeroLanding = lazy(() => import("@/components/HeroLanding"));
 const CartDrawer = lazy(() =>
   import("@/components/CartDrawer").then((module) => ({
     default: module.CartDrawer,
@@ -86,11 +86,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       style={{ scrollSnapType: isMobile ? "none" : "y proximity" }}
     >
       <Navbar />
-      {isHomePage && (
-        <Suspense fallback={null}>
-          <HeroLanding />
-        </Suspense>
-      )}
+      {isHomePage ? <HeroLanding /> : null}
       <main>{children}</main>
       <Footer />
       {deferredUiReady ? (
