@@ -38,7 +38,7 @@ const CatalogSection = memo(function CatalogSection({
   return (
     <section
       id="productos"
-      className="page-snap-section relative overflow-hidden bg-gradient-to-b from-slate-50 to-white"
+      className="page-snap-section relative overflow-hidden bg-gradient-to-b from-slate-50 to-white !pt-3 sm:!pt-16"
     >
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-[#003F91]/5 to-transparent blur-3xl pointer-events-none" />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -50,7 +50,7 @@ const CatalogSection = memo(function CatalogSection({
         <div className="absolute inset-x-0 top-0 h-[48%] bg-[linear-gradient(180deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.72)_60%,rgba(255,255,255,0.98)_100%)]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-16 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
+      <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-4 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
         <div className="mx-auto mb-10 max-w-6xl rounded-[32px] border border-white/70 bg-white/75 px-6 py-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-12 sm:px-10 sm:py-10">
           <h2 className="mt-4 px-2 text-4xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-4xl">
             Color sin límites{" "}
