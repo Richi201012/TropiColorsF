@@ -36,6 +36,7 @@ import {
 import { useReferences } from "@/hooks/useReferences";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { isFirestorePermissionDenied } from "@/lib/firebase-errors";
 
 const AboutSection = lazy(() => import("@/components/home/AboutSection"));
 const BenefitsSection = lazy(() => import("@/components/home/BenefitsSection"));
@@ -337,13 +338,19 @@ export default function Home() {
                 return;
               }
 
-              console.error("[Home] No se pudo cargar settings/home:", error);
-              toast({
-                title: "No se pudo cargar la configuración del sitio",
-                description:
-                  "La sección de gel permanecerá desactivada por seguridad.",
-                variant: "destructive",
-              });
+              if (isFirestorePermissionDenied(error)) {
+                console.warn(
+                  "[Home] Firestore no permite leer settings/home. La sección de gel queda desactivada.",
+                );
+              } else {
+                console.error("[Home] No se pudo cargar settings/home:", error);
+                toast({
+                  title: "No se pudo cargar la configuración del sitio",
+                  description:
+                    "La sección de gel permanecerá desactivada por seguridad.",
+                  variant: "destructive",
+                });
+              }
               startTransition(() => {
                 setGelVisible(false);
               });

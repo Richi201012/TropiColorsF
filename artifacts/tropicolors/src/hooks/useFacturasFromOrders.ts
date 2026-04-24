@@ -8,6 +8,14 @@ import {
 import { calculateCartItemSubtotal } from "@/lib/commerce";
 import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 
+export function buildFacturasFromOrders(orders: AdminOrder[]): InvoiceData[] {
+  if (!orders || orders.length === 0) {
+    return [];
+  }
+
+  return orders.map((order, index) => mapOrderToInvoice(order, index));
+}
+
 /**
  * Hook para obtener facturas generadas automaticamente desde la coleccion
  * "orders" de Firestore.
@@ -15,70 +23,66 @@ import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 export function useFacturasFromOrders() {
   const { orders, isLoading, error } = useOrders();
 
-  const mapOrderToInvoice = (order: AdminOrder, index: number): InvoiceData => {
-    const calculatedTotal = order.items.reduce(
-      (sum: number, item: OrderProduct) => {
-        return sum + calculateCartItemSubtotal(item);
-      },
-      0,
-    );
-
-    const mappedItems: InvoiceItem[] = order.items.map((item, itemIndex) => ({
-      id: `item-${itemIndex}`,
-      name: item.name,
-      quantity: item.quantity,
-      unitPrice: item.price,
-      subtotal: calculateCartItemSubtotal(item),
-      description: item.description,
-    }));
-
-    const invoiceNumber = buildInvoiceNumber(index + 1, order.createdAt);
-    const paymentMethod = mapPaymentMethod(
-      order.paymentMethod || order.metodoPago || "efectivo",
-    );
-    const status = mapInvoiceStatus(order.status);
-    const issueDate = order.createdAt || new Date().toISOString();
-
-    return {
-      invoiceNumber,
-      invoiceNumberFormatted: invoiceNumber,
-      issueDate,
-      paymentMethod,
-      status,
-      company: TROPICOLORS_COMPANY_INFO,
-      customer: {
-        name: order.customer || "Cliente sin nombre",
-        email: order.email || "sin-email@ejemplo.com",
-        phone: order.phone || "",
-        address: order.address || "Sin direccion",
-        exteriorNumber: order.exteriorNumber || "",
-        interiorNumber: order.interiorNumber || "",
-        city: order.municipality || "",
-        state: order.state || "",
-        postalCode: order.postalCode || "",
-        rfc: order.requiresInvoice ? order.customerRfc || "" : "",
-      },
-      items: mappedItems,
-      subtotal: calculatedTotal,
-      taxRate: 0,
-      taxAmount: 0,
-      total: calculatedTotal,
-      orderId: order.id,
-    };
-  };
-
   const facturas = useMemo(() => {
-    if (!orders || orders.length === 0) {
-      return [];
-    }
-
-    return orders.map((order, index) => mapOrderToInvoice(order, index));
+    return buildFacturasFromOrders(orders);
   }, [orders]);
 
   return {
     facturas,
     isLoading,
     error,
+  };
+}
+
+function mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
+  const calculatedTotal = order.items.reduce(
+    (sum: number, item: OrderProduct) => {
+      return sum + calculateCartItemSubtotal(item);
+    },
+    0,
+  );
+
+  const mappedItems: InvoiceItem[] = order.items.map((item, itemIndex) => ({
+    id: `item-${itemIndex}`,
+    name: item.name,
+    quantity: item.quantity,
+    unitPrice: item.price,
+    subtotal: calculateCartItemSubtotal(item),
+    description: item.description,
+  }));
+
+  const invoiceNumber = buildInvoiceNumber(index + 1, order.createdAt);
+  const paymentMethod = mapPaymentMethod(
+    order.paymentMethod || order.metodoPago || "efectivo",
+  );
+  const status = mapInvoiceStatus(order.status);
+  const issueDate = order.createdAt || new Date().toISOString();
+
+  return {
+    invoiceNumber,
+    invoiceNumberFormatted: invoiceNumber,
+    issueDate,
+    paymentMethod,
+    status,
+    company: TROPICOLORS_COMPANY_INFO,
+    customer: {
+      name: order.customer || "Cliente sin nombre",
+      email: order.email || "sin-email@ejemplo.com",
+      phone: order.phone || "",
+      address: order.address || "Sin direccion",
+      exteriorNumber: order.exteriorNumber || "",
+      interiorNumber: order.interiorNumber || "",
+      city: order.municipality || "",
+      state: order.state || "",
+      postalCode: order.postalCode || "",
+      rfc: order.requiresInvoice ? order.customerRfc || "" : "",
+    },
+    items: mappedItems,
+    subtotal: calculatedTotal,
+    taxRate: 0,
+    taxAmount: 0,
+    total: calculatedTotal,
+    orderId: order.id,
   };
 }
 

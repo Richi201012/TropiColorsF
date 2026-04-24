@@ -5,6 +5,7 @@
   useContext,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
@@ -96,10 +97,10 @@ import {
   type AdminOrder,
 } from "@/hooks/useOrders";
 import {
-  useClientesFromOrders,
+  buildClientesFromOrders,
   filtrarClientes,
 } from "@/hooks/useClientesFromOrders";
-import { useFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
+import { buildFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
 import { updateOrderStatus as updateOrderStatusDB } from "@/services/order-service";
 import {
   enviarCorreoEstadoPedidoEnSegundoPlano,
@@ -117,7 +118,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { OrderDetailModal } from "@/components/OrderDetailModal";
 import { ReferencesView } from "@/components/ReferencesView";
 import { toast } from "@/hooks/use-toast";
-import { isInventoryUserEmail, normalizeAuthEmail } from "@/lib/auth-access";
+import { isInventoryUserEmail } from "@/lib/auth-access";
 import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 
 // Auth Context for session management
@@ -153,110 +154,6 @@ const useAuth = () => {
 };
 
 const settingsRef = doc(db, "settings", "home");
-const adminPanelSessionRef = doc(db, "runtime", "admin-panel-session");
-const ADMIN_SESSION_STORAGE_KEY = "tropicolors-admin-session-id";
-const ADMIN_SESSION_HEARTBEAT_MS = 15000;
-const ADMIN_SESSION_TTL_MS = 45000;
-const ADMIN_SESSION_BLOCKED_MESSAGE =
-  "Ya hay una sesión activa del panel administrativo. Cierra esa sesión antes de iniciar otra.";
-
-function getStoredAdminSessionId(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY) || "";
-}
-
-function setStoredAdminSessionId(sessionId: string) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  sessionStorage.setItem(ADMIN_SESSION_STORAGE_KEY, sessionId);
-}
-
-function clearStoredAdminSessionId() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
-}
-
-function createAdminSessionId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-
-  return `admin-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function isActiveAdminSession(updatedAt: unknown): boolean {
-  if (typeof updatedAt !== "string") {
-    return false;
-  }
-
-  const timestamp = Date.parse(updatedAt);
-  if (!Number.isFinite(timestamp)) {
-    return false;
-  }
-
-  return Date.now() - timestamp < ADMIN_SESSION_TTL_MS;
-}
-
-async function assertAdminSessionAvailable(sessionId: string) {
-  const snapshot = await getDoc(adminPanelSessionRef);
-  if (!snapshot.exists()) {
-    return;
-  }
-
-  const data = snapshot.data();
-  if (!isActiveAdminSession(data.updatedAt)) {
-    return;
-  }
-
-  if (String(data.sessionId || "") === sessionId) {
-    return;
-  }
-
-  throw new Error(ADMIN_SESSION_BLOCKED_MESSAGE);
-}
-
-async function claimAdminSession(user: FirebaseUser, sessionId: string) {
-  await setDoc(
-    adminPanelSessionRef,
-    {
-      uid: user.uid,
-      email: normalizeAuthEmail(user.email),
-      sessionId,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
-}
-
-async function releaseAdminSession(sessionId: string, uid?: string | null) {
-  if (!sessionId && !uid) {
-    return;
-  }
-
-  const snapshot = await getDoc(adminPanelSessionRef);
-  if (!snapshot.exists()) {
-    return;
-  }
-
-  const data = snapshot.data();
-  const isOwner =
-    (sessionId && String(data.sessionId || "") === sessionId) ||
-    (uid && String(data.uid || "") === uid);
-
-  if (!isOwner) {
-    return;
-  }
-
-  await deleteDoc(adminPanelSessionRef);
-}
 
 const useAuthProvider = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -265,7 +162,6 @@ const useAuthProvider = () => {
     email: "",
     phone: "",
   });
-  const adminSessionIdRef = useRef(getStoredAdminSessionId());
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [authReady, setAuthReady] = useState(false);
@@ -279,113 +175,83 @@ const useAuthProvider = () => {
       setUser(nextUser);
 
       if (!nextUser) {
-        adminSessionIdRef.current = "";
-        clearStoredAdminSessionId();
         setUserProfile({ name: "", email: "", phone: "" });
         setAuthReady(true);
         return;
       }
 
-      if (isInventoryUserEmail(nextUser.email)) {
-        adminSessionIdRef.current = "";
-        clearStoredAdminSessionId();
+      try {
+        const userRef = doc(db, "users", nextUser.uid);
+        const userSnapshot = await getDoc(userRef);
+        const firestoreData = userSnapshot.exists() ? userSnapshot.data() : {};
+
+        setUserProfile({
+          name: String(firestoreData?.name || nextUser.displayName || ""),
+          email: String(firestoreData?.email || nextUser.email || ""),
+          phone: String(firestoreData?.phone || ""),
+        });
+      } catch (profileError) {
+        console.error("[Admin Auth] No se pudo cargar el perfil del usuario:", profileError);
+        setUserProfile({
+          name: String(nextUser.displayName || ""),
+          email: String(nextUser.email || ""),
+          phone: "",
+        });
+      } finally {
+        setAuthReady(true);
       }
-
-      const userRef = doc(db, "users", nextUser.uid);
-      const userSnapshot = await getDoc(userRef);
-      const firestoreData = userSnapshot.exists() ? userSnapshot.data() : {};
-
-      setUserProfile({
-        name: String(firestoreData?.name || nextUser.displayName || ""),
-        email: String(firestoreData?.email || nextUser.email || ""),
-        phone: String(firestoreData?.phone || ""),
-      });
-      setAuthReady(true);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const refreshAdminSession = useCallback(async (currentUser: FirebaseUser) => {
-    if (isInventoryUserEmail(currentUser.email)) {
-      return;
+  const normalizeAdminLoginError = useCallback((error: unknown): Error => {
+    const authError = error as { code?: string };
+    console.error("[Admin Auth] Login error:", error);
+
+    if (authError.code === "auth/operation-not-allowed") {
+      return new Error(
+        "El acceso con correo y contraseña no está habilitado en Firebase.",
+      );
+    }
+    if (authError.code === "auth/user-disabled") {
+      return new Error("Este usuario fue deshabilitado en Firebase.");
+    }
+    if (
+      authError.code === "auth/user-not-found" ||
+      authError.code === "auth/invalid-credential" ||
+      authError.code === "auth/invalid-login-credentials"
+    ) {
+      return new Error("Correo o contraseña incorrectos.");
+    }
+    if (authError.code === "auth/wrong-password") {
+      return new Error("Contraseña incorrecta.");
+    }
+    if (authError.code === "auth/invalid-email") {
+      return new Error("Correo electrónico inválido.");
+    }
+    if (authError.code === "auth/network-request-failed") {
+      return new Error(
+        "No se pudo conectar con Firebase. Revisa tu navegador o extensiones.",
+      );
+    }
+    if (authError.code === "auth/too-many-requests") {
+      return new Error(
+        "Firebase bloqueó temporalmente el acceso por demasiados intentos. Espera unos minutos.",
+      );
     }
 
-    const nextSessionId = adminSessionIdRef.current || createAdminSessionId();
-    adminSessionIdRef.current = nextSessionId;
-    setStoredAdminSessionId(nextSessionId);
-    await claimAdminSession(currentUser, nextSessionId);
+    return new Error("No se pudo iniciar sesión. Intenta nuevamente.");
   }, []);
-
-  useEffect(() => {
-    if (!user || isInventoryUserEmail(user.email)) {
-      return;
-    }
-
-    void refreshAdminSession(user);
-
-    const heartbeatId = window.setInterval(() => {
-      void refreshAdminSession(user);
-    }, ADMIN_SESSION_HEARTBEAT_MS);
-
-    return () => window.clearInterval(heartbeatId);
-  }, [refreshAdminSession, user]);
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
 
     try {
-      const normalizedEmail = normalizeAuthEmail(email);
-      const isInventoryLogin = isInventoryUserEmail(normalizedEmail);
-      const nextSessionId = isInventoryLogin ? "" : createAdminSessionId();
-
       await setPersistence(auth, browserSessionPersistence);
-      if (!isInventoryLogin) {
-        await assertAdminSessionAvailable(nextSessionId);
-      }
-
       await signInWithEmailAndPassword(auth, email, password);
-
-      if (!isInventoryLogin) {
-        if (!auth.currentUser) {
-          throw new Error("No se pudo establecer la sesión del panel.");
-        }
-
-        try {
-          adminSessionIdRef.current = nextSessionId;
-          setStoredAdminSessionId(nextSessionId);
-          await claimAdminSession(auth.currentUser, nextSessionId);
-        } catch (sessionError) {
-          adminSessionIdRef.current = "";
-          clearStoredAdminSessionId();
-          await signOut(auth);
-          throw sessionError;
-        }
-      } else {
-        adminSessionIdRef.current = "";
-        clearStoredAdminSessionId();
-      }
     } catch (error) {
-      const authError = error as { code?: string };
-      if (
-        error instanceof Error &&
-        error.message === ADMIN_SESSION_BLOCKED_MESSAGE
-      ) {
-        throw error;
-      }
-      if (
-        authError.code === "auth/user-not-found" ||
-        authError.code === "auth/invalid-credential"
-      ) {
-        throw new Error("Usuario no encontrado.");
-      }
-      if (authError.code === "auth/wrong-password") {
-        throw new Error("Contraseña incorrecta.");
-      }
-      if (authError.code === "auth/invalid-email") {
-        throw new Error("Correo electrónico inválido.");
-      }
-      throw new Error("No se pudo iniciar sesión. Intenta nuevamente.");
+      throw normalizeAdminLoginError(error);
     } finally {
       setIsLoading(false);
     }
@@ -395,19 +261,6 @@ const useAuthProvider = () => {
     setIsLoggingOut(true);
 
     try {
-      const currentUid = auth.currentUser?.uid || user?.uid || null;
-      const currentEmail = auth.currentUser?.email || user?.email || null;
-
-      if (!isInventoryUserEmail(currentEmail)) {
-        try {
-          await releaseAdminSession(adminSessionIdRef.current, currentUid);
-        } catch (sessionError) {
-          console.error("[Admin Auth] No se pudo liberar la sesión activa:", sessionError);
-        }
-      }
-
-      adminSessionIdRef.current = "";
-      clearStoredAdminSessionId();
       await signOut(auth);
     } finally {
       setIsLoggingOut(false);
@@ -4917,20 +4770,14 @@ function Dashboard({
     clearNewNotification();
   }, [newNotification, clearNewNotification, playNotificationSound]);
 
-  // Hook para obtener facturas generadas automáticamente desde pedidos
-  const { facturas: facturasData, isLoading: loadingFacturas } =
-    useFacturasFromOrders();
+  const facturasData = useMemo(() => buildFacturasFromOrders(orders), [orders]);
   const [facturas, setFacturas] = useState<InvoiceData[]>(facturasData);
 
-  // Sincronizar cuando lleguen los datos del hook
   useEffect(() => {
-    if (!loadingFacturas && facturasData.length > 0) {
-      setFacturas(facturasData);
-    }
-  }, [facturasData, loadingFacturas]);
-  // Hook para obtener clientes dinámicamente desde Firestore (agrupados por email desde orders)
-  const { clientes: clientesRaw, isLoading: loadingClientes } =
-    useClientesFromOrders();
+    setFacturas(facturasData);
+  }, [facturasData]);
+
+  const clientesRaw = useMemo(() => buildClientesFromOrders(orders), [orders]);
 
   // Mapear ClienteAgrupado a AdminClient para compatibilidad con el componente
   const clientesDesdePedidos: AdminClient[] = clientesRaw.map((c) => ({
@@ -4942,19 +4789,16 @@ function Dashboard({
 
   const [clientes, setClientes] = useState<AdminClient[]>(clientesDesdePedidos);
 
-  // Sincronizar cuando lleguen los datos del hook
   useEffect(() => {
-    if (!loadingClientes && clientesRaw.length > 0) {
-      setClientes(
-        clientesRaw.map((c) => ({
-          id: c.id,
-          name: c.nombre,
-          email: c.email,
-          orders: c.pedidos,
-        })),
-      );
-    }
-  }, [clientesRaw, loadingClientes]);
+    setClientes(
+      clientesRaw.map((c) => ({
+        id: c.id,
+        name: c.nombre,
+        email: c.email,
+        orders: c.pedidos,
+      })),
+    );
+  }, [clientesRaw]);
   const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState("");
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{

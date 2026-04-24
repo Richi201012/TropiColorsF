@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/context/CartContext";
+import { toast } from "@/hooks/use-toast";
+import { isFirestorePermissionDenied } from "@/lib/firebase-errors";
 
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -121,6 +123,58 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    let permissionToastShown = false;
+
+    const showPermissionToast = () => {
+      if (permissionToastShown) {
+        return;
+      }
+
+      permissionToastShown = true;
+      toast({
+        title: "Algunas secciones no pudieron cargarse",
+        description:
+          "Firebase está rechazando parte de la información por permisos. El panel seguirá en modo seguro.",
+        variant: "destructive",
+      });
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (!isFirestorePermissionDenied(event.reason)) {
+        return;
+      }
+
+      console.warn(
+        "[App] Rechazo no controlado de Firestore por permisos insuficientes.",
+        event.reason,
+      );
+      event.preventDefault();
+      showPermissionToast();
+    };
+
+    const handleWindowError = (event: ErrorEvent) => {
+      if (!isFirestorePermissionDenied(event.error)) {
+        return;
+      }
+
+      console.warn(
+        "[App] Error global de Firestore por permisos insuficientes.",
+        event.error,
+      );
+      event.preventDefault();
+      showPermissionToast();
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    window.addEventListener("error", handleWindowError);
+
+    return () => {
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      window.removeEventListener("error", handleWindowError);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

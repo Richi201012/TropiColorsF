@@ -80,6 +80,7 @@ export default function Inventario() {
     message: "",
   });
   const [guardando, setGuardando] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const showToast = useCallback((type: ToastType, message: string) => {
     setToast({ show: true, type, message });
@@ -253,12 +254,15 @@ export default function Inventario() {
   );
 
   const handleLogout = useCallback(async () => {
+    setIsLoggingOut(true);
     try {
       const { signOut } = await import("firebase/auth");
       await signOut(auth);
       setLocation("/login");
     } catch (err) {
       console.error("Error logout:", err);
+    } finally {
+      setIsLoggingOut(false);
     }
   }, [setLocation]);
 
@@ -301,7 +305,7 @@ export default function Inventario() {
   }
 
   if (!isMobile) {
-    return <MobileBlock />;
+    return <MobileBlock onLogout={handleLogout} isLoggingOut={isLoggingOut} />;
   }
 
   return (
