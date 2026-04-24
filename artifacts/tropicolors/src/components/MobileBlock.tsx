@@ -1,10 +1,16 @@
-import { Smartphone, ShieldAlert } from "lucide-react";
+import { Loader2, LogOut, ShieldAlert, Smartphone } from "lucide-react";
 
 interface MobileBlockProps {
   message?: string;
+  onLogout?: () => void | Promise<void>;
+  isLoggingOut?: boolean;
 }
 
-export function MobileBlock({ message }: MobileBlockProps) {
+export function MobileBlock({
+  message,
+  onLogout,
+  isLoggingOut = false,
+}: MobileBlockProps) {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col items-center justify-center p-6">
       <div className="absolute inset-0 overflow-hidden">
@@ -30,6 +36,27 @@ export function MobileBlock({ message }: MobileBlockProps) {
           <ShieldAlert className="w-4 h-4" />
           <span>Usa tu celular o tablet</span>
         </div>
+
+        {onLogout && (
+          <button
+            type="button"
+            onClick={() => void onLogout()}
+            disabled={isLoggingOut}
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLoggingOut ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cerrando sesión...
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4" />
+                Cerrar sesión
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

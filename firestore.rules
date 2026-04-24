@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isInventoryUser() {
+      return signedIn() &&
+        request.auth.token.email == "m_tropicolorsinv@hotmail.com";
+    }
+
+    function isAdminUser() {
+      return signedIn() &&
+        request.auth.token.email != "m_tropicolorsinv@hotmail.com";
+    }
+
+    function isOwnUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdminUser();
+    }
+
+    match /references/{referenceId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdminUser();
+    }
+
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read, update, delete: if isAdminUser();
+    }
+
+    match /notifications/{notificationId} {
+      allow create: if true;
+      allow read, update, delete: if isAdminUser();
+    }
+
+    match /settings/home {
+      allow read: if true;
+      allow write: if isAdminUser();
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if isOwnUser(uid) || isAdminUser();
+    }
+
+    match /runtime/admin-panel-session {
+      allow read, write: if isAdminUser();
+    }
+
+    match /productos/{productId} {
+      allow read, write: if isInventoryUser() || isAdminUser();
+    }
+
+    match /movimientos/{movementId} {
+      allow read, write: if isInventoryUser() || isAdminUser();
+    }
+
+    match /activity_logs/{logId} {
+      allow create, read: if isAdminUser();
+    }
+
+    match /pedidos/{orderId} {
+      allow read, write: if isAdminUser();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
