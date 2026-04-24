@@ -6,7 +6,7 @@ import {
   useSpring,
   useTransform,
 } from "framer-motion";
-import desktopHeroImage from "@assets/fondo1.png";
+import desktopHeroImage from "@assets/fondochido.png";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface HeroLandingProps {

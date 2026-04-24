@@ -2,8 +2,8 @@ import { motion } from "framer-motion";
 import { CheckCircle } from "lucide-react";
 
 const ABOUT_ITEMS = [
-  "Grado Alimenticio Certificado",
-  "Alta Concentración de Pigmento",
+  "Uso alimentario e industrial",
+  "Dos concentraciones disponibles",
   "Envíos a todo México",
   "Atención a Mayoristas",
 ];
@@ -37,14 +37,19 @@ export default function AboutSection() {
             <p className="text-base text-muted-foreground mb-5 leading-relaxed">
               En <strong className="text-[#003F91]">TropicColors</strong> nos
               especializamos en colorantes artificiales para la industria
-              alimentaria en México. Sabemos que el color es el primer
-              atractivo de cualquier alimento, y garantizamos tonos brillantes,
-              vivos y consistentes.
+              alimentaria y también para aplicaciones industriales en México.
+              Además de alimentos, nuestros colorantes se utilizan en
+              formulaciones para productos de limpieza que requieren tonos
+              intensos, uniformes y consistentes.
             </p>
             <p className="text-base text-muted-foreground mb-10 leading-relaxed">
-              Nuestros productos son 100% solubles en agua, de grado
-              alimenticio y cumplen con todos los estándares de seguridad para
-              su uso en panadería, confitería, bebidas, lácteos y mucho más.
+              Contamos con dos tipos de concentración para adaptarnos mejor a
+              cada uso: opciones orientadas a aplicaciones de grado alimenticio
+              para panadería, confitería, bebidas y lácteos, de igual forma contamos con opciones para
+              uso industrial en productos de limpieza y otras preparaciones
+              técnicas. Todos nuestros productos son 100% solubles en agua y
+              están pensados para ofrecer rendimiento, estabilidad y color
+              uniforme en cada mezcla.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {ABOUT_ITEMS.map((item) => (
