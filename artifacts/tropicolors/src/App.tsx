@@ -88,9 +88,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       style={{ scrollSnapType: isMobile ? "none" : "y proximity" }}
     >
       <Navbar />
-      {isHomePage ? <HeroLanding /> : null}
-      <main>{children}</main>
-      <Footer />
+      <div>
+        {isHomePage ? <HeroLanding /> : null}
+        <main>{children}</main>
+        <Footer />
+      </div>
       {deferredUiReady ? (
         <Suspense fallback={null}>
           <CartDrawer />
