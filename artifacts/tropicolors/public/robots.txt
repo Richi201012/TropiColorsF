@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /inventario
+
+Sitemap: https://tropicolors.netlify.app/sitemap.xml

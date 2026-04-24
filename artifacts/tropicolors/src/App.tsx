@@ -67,7 +67,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isAdminPage = location === "/login" || location === "/inventario";
   const [deferredUiReady, setDeferredUiReady] = useState(false);
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobile(640);
 
   const isHomePage = location === "/";
 
@@ -88,9 +88,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       style={{ scrollSnapType: isMobile ? "none" : "y proximity" }}
     >
       <Navbar />
-      {isHomePage ? <HeroLanding /> : null}
-      <main>{children}</main>
-      <Footer />
+      <div>
+        {isHomePage ? <HeroLanding /> : null}
+        <main>{children}</main>
+        <Footer />
+      </div>
       {deferredUiReady ? (
         <Suspense fallback={null}>
           <CartDrawer />
