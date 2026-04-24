@@ -67,7 +67,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isAdminPage = location === "/login" || location === "/inventario";
   const [deferredUiReady, setDeferredUiReady] = useState(false);
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobile(640);
 
   const isHomePage = location === "/";
 

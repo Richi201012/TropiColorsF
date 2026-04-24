@@ -6,8 +6,7 @@ import { useCart } from "@/context/CartContext";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [activeLink, setActiveLink] = useState("inicio");
   const { setIsCartOpen, cartCount, triggerCartBounce } = useCart();
 
@@ -79,8 +78,7 @@ export function Navbar() {
 
   const handleNavClick = (href: string, id: string) => {
     setActiveLink(id);
-    setDesktopSidebarOpen(false);
-    setMobileMenuOpen(false);
+    setMenuOpen(false);
 
     if (href === "#inicio") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -99,11 +97,11 @@ export function Navbar() {
         type="button"
         initial={{ x: -24, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        onClick={() => setDesktopSidebarOpen((current) => !current)}
-        className="fixed left-5 top-5 z-50 hidden h-14 w-14 items-center justify-center rounded-2xl border border-white/70 bg-white/88 text-[#003F91] shadow-[0_18px_44px_rgba(0,63,145,0.16)] backdrop-blur-xl transition-colors hover:bg-white lg:flex"
+        onClick={() => setMenuOpen((current) => !current)}
+        className="fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/88 text-[#003F91] shadow-[0_18px_44px_rgba(0,63,145,0.16)] backdrop-blur-xl transition-colors hover:bg-white sm:left-5 sm:top-5 sm:h-14 sm:w-14"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(0,63,145,0.1),rgba(0,168,181,0.08),rgba(255,205,0,0.14))]">
-          {desktopSidebarOpen ? (
+        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(0,63,145,0.1),rgba(0,168,181,0.08),rgba(255,205,0,0.14))] sm:h-10 sm:w-10">
+          {menuOpen ? (
             <X size={20} strokeWidth={2.2} />
           ) : (
             <Menu size={20} strokeWidth={2.2} />
@@ -111,16 +109,44 @@ export function Navbar() {
         </span>
       </motion.button>
 
+      <motion.button
+        type="button"
+        initial={{ x: 24, opacity: 0, scale: 1 }}
+        animate={{
+          x: 0,
+          opacity: 1,
+          scale: triggerCartBounce ? [1, 1.08, 1] : 1,
+        }}
+        onClick={() => setIsCartOpen(true)}
+        className="fixed right-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/88 text-[#003F91] shadow-[0_18px_44px_rgba(0,63,145,0.16)] backdrop-blur-xl transition-colors hover:bg-white sm:right-5 sm:top-5 sm:h-14 sm:w-14"
+        whileTap={{ scale: 0.95 }}
+        transition={{ duration: 0.3 }}
+      >
+        <ShoppingBag size={20} strokeWidth={2} />
+        <AnimatePresence>
+          {cartCount > 0 ? (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              className="absolute -right-1 -top-1 min-w-[22px] rounded-full bg-gradient-to-r from-[#FF2E63] to-[#C71585] px-1.5 py-0.5 text-[11px] font-bold text-white shadow-lg shadow-pink-500/35"
+            >
+              {cartCount > 99 ? "99+" : cartCount}
+            </motion.span>
+          ) : null}
+        </AnimatePresence>
+      </motion.button>
+
       <AnimatePresence>
-        {desktopSidebarOpen ? (
+        {menuOpen ? (
           <motion.button
             type="button"
             aria-label="Cerrar navegacion lateral"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setDesktopSidebarOpen(false)}
-            className="fixed inset-0 z-40 hidden bg-slate-950/18 backdrop-blur-[2px] lg:block"
+            onClick={() => setMenuOpen(false)}
+            className="fixed inset-0 z-40 bg-slate-950/18 backdrop-blur-[2px]"
           />
         ) : null}
       </AnimatePresence>
@@ -128,11 +154,11 @@ export function Navbar() {
       <motion.aside
         initial={false}
         animate={{
-          x: desktopSidebarOpen ? 0 : -320,
-          opacity: desktopSidebarOpen ? 1 : 0.96,
+          x: menuOpen ? 0 : -340,
+          opacity: menuOpen ? 1 : 0.96,
         }}
         transition={{ type: "spring", stiffness: 260, damping: 28 }}
-        className="pointer-events-none fixed left-0 top-0 z-50 hidden h-screen w-[304px] p-5 lg:block"
+        className="pointer-events-none fixed left-0 top-0 z-50 h-screen w-[304px] max-w-[calc(100vw-1rem)] p-3 sm:p-5"
       >
         <div
           className={`relative flex h-full flex-col overflow-hidden rounded-[34px] border transition-all duration-500 ${
@@ -260,143 +286,6 @@ export function Navbar() {
           </div>
         </div>
       </motion.aside>
-
-      <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        className={`fixed left-0 right-0 top-0 z-50 px-4 py-4 transition-all duration-500 lg:hidden ${
-          isScrolled ? "sm:px-5" : "sm:px-6"
-        }`}
-      >
-        <div
-          className={`mx-auto max-w-7xl rounded-[28px] border transition-all duration-500 ${
-            isScrolled
-              ? "border-white/70 bg-white/90 shadow-[0_20px_60px_rgba(0,63,145,0.12)] backdrop-blur-2xl"
-              : "border-white/60 bg-white/80 shadow-[0_18px_48px_rgba(0,63,145,0.08)] backdrop-blur-xl"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-            <Link href="/">
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-3"
-              >
-                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.92),rgba(255,255,255,0.58)_72%,rgba(255,255,255,0.18)_100%)]">
-                  <img
-                    src={`${import.meta.env.BASE_URL}logo-tropicolors.png`}
-                    alt="TropicColors"
-                    decoding="async"
-                    className="h-10 w-auto object-contain"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-display text-lg font-black tracking-[-0.04em] text-[#003F91]">
-                    TropiColors
-                  </p>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    Color para la industria
-                  </p>
-                </div>
-              </motion.div>
-            </Link>
-
-            <div className="flex items-center gap-2">
-              <motion.button
-                type="button"
-                onClick={() => setIsCartOpen(true)}
-                className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/76 text-gray-600 transition-colors hover:border-[#003F91]/20 hover:text-[#003F91]"
-                whileTap={{ scale: 0.95 }}
-                animate={triggerCartBounce ? { scale: [1, 1.14, 1] } : {}}
-                transition={{ duration: 0.3 }}
-              >
-                <ShoppingBag size={22} strokeWidth={2} />
-                <AnimatePresence>
-                  {cartCount > 0 ? (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      className="absolute -right-1 -top-1 min-w-[22px] rounded-full bg-gradient-to-r from-[#FF2E63] to-[#C71585] px-1.5 py-0.5 text-[11px] font-bold text-white shadow-lg shadow-pink-500/35"
-                    >
-                      {cartCount > 99 ? "99+" : cartCount}
-                    </motion.span>
-                  ) : null}
-                </AnimatePresence>
-              </motion.button>
-
-              <motion.button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/76 text-gray-600 hover:text-[#003F91]"
-                whileTap={{ scale: 0.95 }}
-              >
-                <Menu size={22} strokeWidth={2} />
-              </motion.button>
-            </div>
-          </div>
-        </div>
-      </motion.nav>
-
-      <AnimatePresence>
-        {mobileMenuOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-white lg:hidden"
-          >
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-tropicolors.png`}
-                alt="TropicColors"
-                decoding="async"
-                className="h-12 w-auto object-contain"
-              />
-              <motion.button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-xl bg-gray-50 p-2.5 text-gray-600"
-                whileTap={{ scale: 0.95 }}
-              >
-                <X size={24} />
-              </motion.button>
-            </div>
-
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8">
-              {navLinks.map((link, index) => (
-                <motion.button
-                  key={link.name}
-                  type="button"
-                  onClick={() => handleNavClick(link.href, link.id)}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.08 }}
-                  className={`w-full max-w-xs rounded-2xl py-4 text-center text-lg font-semibold transition-all ${
-                    activeLink === link.id
-                      ? "bg-[#003F91] text-white shadow-lg shadow-blue-500/30"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {link.name}
-                </motion.button>
-              ))}
-
-              <motion.a
-                href="https://wa.me/525551146856"
-                target="_blank"
-                rel="noopener noreferrer"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="mt-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#25D366] to-[#20BD5A] px-8 py-4 font-bold text-white shadow-xl shadow-green-500/25"
-              >
-                <MessageCircle size={22} />
-                Contáctanos por WhatsApp
-              </motion.a>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </>
   );
 }
