@@ -41,6 +41,9 @@ export type Product = {
     Record<Concentration, Array<{ label: string; price: number }>>
   >;
   specialWholesaleBoxes?: Partial<Record<Concentration, number[]>>;
+  specialWholesaleBoxPrices?: Partial<
+    Record<Concentration, Record<string, number>>
+  >;
 };
 
 export type CategoryColor = {

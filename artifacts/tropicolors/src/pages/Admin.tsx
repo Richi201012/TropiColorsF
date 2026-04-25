@@ -121,6 +121,17 @@ import { toast } from "@/hooks/use-toast";
 import { isInventoryUserEmail } from "@/lib/auth-access";
 import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 
+type ProductConcentration = "125" | "250";
+type ProductPriceTuple = [number, number, number, number, number];
+type PresentationOverride = { label: string; price: number };
+type PresentationOverrides = Partial<
+  Record<ProductConcentration, PresentationOverride[]>
+>;
+type SpecialWholesaleBoxes = Partial<Record<ProductConcentration, number[]>>;
+type SpecialWholesaleBoxPrices = Partial<
+  Record<ProductConcentration, Record<string, number>>
+>;
+
 // Auth Context for session management
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -2485,12 +2496,17 @@ type FirebaseProduct = {
   hex2?: string;
   textColor: string;
   prices: {
-    125?: [number, number, number, number, number];
-    250?: [number, number, number, number, number];
+    125?: ProductPriceTuple;
+    250?: ProductPriceTuple;
   };
   industrial?: boolean;
   note?: string;
   stock?: number;
+  purchaseWarning?: string;
+  onlyWholesale?: boolean;
+  presentationOverrides?: PresentationOverrides;
+  specialWholesaleBoxes?: SpecialWholesaleBoxes;
+  specialWholesaleBoxPrices?: SpecialWholesaleBoxPrices;
 };
 
 type EditableProduct = {
@@ -2500,11 +2516,16 @@ type EditableProduct = {
   hex: string;
   hex2?: string;
   textColor: string;
-  prices125: [number, number, number, number, number];
-  prices250: [number, number, number, number, number];
+  prices125: ProductPriceTuple;
+  prices250: ProductPriceTuple;
   industrial: boolean;
   note: string;
   stock?: number;
+  purchaseWarning?: string;
+  onlyWholesale?: boolean;
+  presentationOverrides?: PresentationOverrides;
+  specialWholesaleBoxes?: SpecialWholesaleBoxes;
+  specialWholesaleBoxPrices?: SpecialWholesaleBoxPrices;
 };
 
 const PRESENTATION_LABELS = [
@@ -2514,6 +2535,13 @@ const PRESENTATION_LABELS = [
   "Cubeta 6 KG",
   "Cubeta 20 KG",
 ];
+
+const NARANJA_850_ID = "naranja-850";
+const NARANJA_850_BOXES = [18, 32] as const;
+const NARANJA_850_WARNING =
+  "Este producto solamente se vende por caja de 18 o 32 piezas";
+const NARANJA_850_NOTE_ADMIN =
+  "Color intenso y uniforme para aplicaciones exigentes.";
 
 const CATEGORIES = [
   "Amarillos",
@@ -2868,6 +2896,244 @@ const GEL_COLORS_DEFAULT: Omit<FirebaseProduct, "id">[] = [
   },
 ];
 
+function isNaranja850Editable(product: Pick<EditableProduct, "id" | "name">) {
+  return (
+    product.id === NARANJA_850_ID ||
+    product.name.trim().toLowerCase() === "naranja 850"
+  );
+}
+
+function getNaranja850BoxPrice(product: EditableProduct, pieces: number) {
+  const explicitPrice =
+    product.specialWholesaleBoxPrices?.["250"]?.[String(pieces)];
+
+  if (typeof explicitPrice === "number") {
+    return explicitPrice;
+  }
+
+  const basePrice =
+    product.presentationOverrides?.["250"]?.[0]?.price ||
+    product.prices250[0] ||
+    0;
+
+  return basePrice > 0 ? basePrice * pieces : 0;
+}
+
+function getNaranja850BasePrice(
+  boxPrices: Record<string, number>,
+  fallback = 0,
+) {
+  const firstPricedBox = NARANJA_850_BOXES.find(
+    (pieces) => boxPrices[String(pieces)] > 0,
+  );
+
+  return firstPricedBox
+    ? boxPrices[String(firstPricedBox)] / firstPricedBox
+    : fallback;
+}
+
+function normalizeNaranja850Product(product: EditableProduct): EditableProduct {
+  const boxPrices = Object.fromEntries(
+    NARANJA_850_BOXES.map((pieces) => [
+      String(pieces),
+      getNaranja850BoxPrice(product, pieces),
+    ]),
+  ) as Record<string, number>;
+  const basePrice = getNaranja850BasePrice(boxPrices, product.prices250[0]);
+
+  return {
+    ...product,
+    id: product.id || NARANJA_850_ID,
+    name: product.name || "Naranja 850",
+    category: "Naranja",
+    prices125: [0, 0, 0, 0, 0],
+    prices250: [basePrice || 0, 0, 0, 0, 0],
+    note: product.note || NARANJA_850_NOTE_ADMIN,
+    purchaseWarning: product.purchaseWarning || NARANJA_850_WARNING,
+    onlyWholesale: true,
+    presentationOverrides: {
+      ...product.presentationOverrides,
+      250: [{ label: "250 gramos", price: basePrice || 0 }],
+    },
+    specialWholesaleBoxes: {
+      ...product.specialWholesaleBoxes,
+      250: [...NARANJA_850_BOXES],
+    },
+    specialWholesaleBoxPrices: {
+      ...product.specialWholesaleBoxPrices,
+      250: boxPrices,
+    },
+  };
+}
+
+function buildNaranja850EditableProduct(): EditableProduct {
+  return normalizeNaranja850Product({
+    id: NARANJA_850_ID,
+    name: "Naranja 850",
+    category: "Naranja",
+    hex: "#FF6B00",
+    hex2: "#FF4500",
+    textColor: "#ffffff",
+    prices125: [0, 0, 0, 0, 0],
+    prices250: [160, 0, 0, 0, 0],
+    industrial: false,
+    note: NARANJA_850_NOTE_ADMIN,
+    stock: 0,
+    purchaseWarning: NARANJA_850_WARNING,
+    onlyWholesale: true,
+    presentationOverrides: {
+      250: [{ label: "250 gramos", price: 160 }],
+    },
+    specialWholesaleBoxes: {
+      250: [...NARANJA_850_BOXES],
+    },
+    specialWholesaleBoxPrices: {
+      250: {
+        18: 2880,
+        32: 5120,
+      },
+    },
+  });
+}
+
+function buildProductPayload(product: EditableProduct): Record<string, unknown> {
+  const normalizedProduct = isNaranja850Editable(product)
+    ? normalizeNaranja850Product(product)
+    : product;
+
+  const productData: Record<string, unknown> = {
+    name: normalizedProduct.name,
+    category: normalizedProduct.category,
+    hex: normalizedProduct.hex,
+    hex2: normalizedProduct.hex2,
+    textColor: normalizedProduct.textColor,
+    prices: {
+      125: normalizedProduct.prices125,
+      250: normalizedProduct.prices250,
+    },
+  };
+
+  if (normalizedProduct.industrial) {
+    productData.industrial = true;
+  }
+  if (normalizedProduct.note) {
+    productData.note = normalizedProduct.note;
+  }
+  if (normalizedProduct.purchaseWarning) {
+    productData.purchaseWarning = normalizedProduct.purchaseWarning;
+  }
+  if (normalizedProduct.onlyWholesale) {
+    productData.onlyWholesale = true;
+  }
+  if (normalizedProduct.presentationOverrides) {
+    productData.presentationOverrides = normalizedProduct.presentationOverrides;
+  }
+  if (normalizedProduct.specialWholesaleBoxes) {
+    productData.specialWholesaleBoxes = normalizedProduct.specialWholesaleBoxes;
+  }
+  if (normalizedProduct.specialWholesaleBoxPrices) {
+    productData.specialWholesaleBoxPrices =
+      normalizedProduct.specialWholesaleBoxPrices;
+  }
+
+  return productData;
+}
+
+function getEditableProductDisplayPrices(product: EditableProduct): number[] {
+  if (isNaranja850Editable(product)) {
+    const prices = NARANJA_850_BOXES.map((pieces) =>
+      getNaranja850BoxPrice(product, pieces),
+    ).filter((price) => price > 0);
+
+    return prices.length > 0 ? prices : [0];
+  }
+
+  const prices = [...product.prices125, ...product.prices250].filter(
+    (price) => price > 0,
+  );
+
+  return prices.length > 0 ? prices : [0];
+}
+
+function Naranja850PricingEditor({
+  product,
+  onChange,
+}: {
+  product: EditableProduct;
+  onChange: (product: EditableProduct) => void;
+}) {
+  const handleBoxPriceChange = (pieces: number, value: string) => {
+    const rawValue = value.replace(/[^0-9.]/g, "");
+    const price = rawValue === "" ? 0 : parseFloat(rawValue) || 0;
+    const nextBoxPrices = {
+      ...(product.specialWholesaleBoxPrices?.["250"] || {}),
+      [String(pieces)]: price,
+    };
+    const basePrice = getNaranja850BasePrice(nextBoxPrices);
+
+    onChange(
+      normalizeNaranja850Product({
+        ...product,
+        prices125: [0, 0, 0, 0, 0],
+        prices250: [basePrice, 0, 0, 0, 0],
+        presentationOverrides: {
+          ...product.presentationOverrides,
+          250: [{ label: "250 gramos", price: basePrice }],
+        },
+        specialWholesaleBoxPrices: {
+          ...product.specialWholesaleBoxPrices,
+          250: nextBoxPrices,
+        },
+      }),
+    );
+  };
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-orange-200 bg-orange-50/70 p-4">
+      <div>
+        <h4 className="text-sm font-bold uppercase tracking-widest text-orange-700">
+          Precios especiales Naranja 850
+        </h4>
+        <p className="mt-1 text-xs font-medium text-orange-800/80">
+          Este producto solo se vende en cajas de 18 y 32 piezas. Ingresa el
+          precio total por caja.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {NARANJA_850_BOXES.map((pieces) => (
+          <div
+            key={pieces}
+            className="rounded-xl border border-orange-100 bg-white p-4 shadow-sm"
+          >
+            <label className="mb-3 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              Caja de {pieces} piezas
+            </label>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                $
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={
+                  getNaranja850BoxPrice(product, pieces) === 0
+                    ? ""
+                    : getNaranja850BoxPrice(product, pieces)
+                }
+                onChange={(event) =>
+                  handleBoxPriceChange(pieces, event.target.value)
+                }
+                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProductsView() {
   const [products, setProducts] = useState<EditableProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2989,11 +3255,11 @@ function ProductsView() {
     try {
       const snapshot = await getDocs(collection(db, "products"));
       if (snapshot.empty) {
-        setProducts([]);
+        setProducts([buildNaranja850EditableProduct()]);
       } else {
         const loaded: EditableProduct[] = snapshot.docs.map((doc) => {
           const data = doc.data() as FirebaseProduct;
-          return {
+          const mappedProduct: EditableProduct = {
             id: doc.id,
             name: data.name || "",
             category: data.category || "",
@@ -3015,8 +3281,22 @@ function ProductsView() {
             industrial: data.industrial || false,
             note: data.note || "",
             stock: data.stock || 0,
+            purchaseWarning: data.purchaseWarning || "",
+            onlyWholesale: Boolean(data.onlyWholesale),
+            presentationOverrides: data.presentationOverrides,
+            specialWholesaleBoxes: data.specialWholesaleBoxes,
+            specialWholesaleBoxPrices: data.specialWholesaleBoxPrices,
           };
+
+          return isNaranja850Editable(mappedProduct)
+            ? normalizeNaranja850Product(mappedProduct)
+            : mappedProduct;
         });
+
+        if (!loaded.some(isNaranja850Editable)) {
+          loaded.push(buildNaranja850EditableProduct());
+        }
+
         setProducts(loaded);
       }
     } catch (error) {
@@ -3050,28 +3330,15 @@ function ProductsView() {
     }
 
     setSaving(true);
-    const newId = `nuevo-${Date.now()}`;
+    const newId = isNaranja850Editable(newProduct)
+      ? NARANJA_850_ID
+      : `nuevo-${Date.now()}`;
 
     try {
-      const productData: Record<string, unknown> = {
-        name: newProduct.name,
-        category: newProduct.category,
-        hex: newProduct.hex,
-        hex2: newProduct.hex2,
-        textColor: newProduct.textColor,
-        prices: {
-          125: newProduct.prices125,
-          250: newProduct.prices250,
-        },
+      const productData = {
+        ...buildProductPayload({ ...newProduct, id: newId }),
         createdAt: new Date().toISOString(),
       };
-
-      if (newProduct.industrial) {
-        productData.industrial = true;
-      }
-      if (newProduct.note) {
-        productData.note = newProduct.note;
-      }
 
       await setDoc(doc(db, "products", newId), productData);
       setShowAddModal(false);
@@ -3160,31 +3427,22 @@ function ProductsView() {
   const handleSaveProduct = async (product: EditableProduct) => {
     setSaving(true);
     try {
-      const productData: Record<string, unknown> = {
-        name: product.name,
-        category: product.category,
-        hex: product.hex,
-        hex2: product.hex2,
-        textColor: product.textColor,
-        prices: {
-          125: product.prices125,
-          250: product.prices250,
-        },
+      const normalizedProduct = isNaranja850Editable(product)
+        ? normalizeNaranja850Product(product)
+        : product;
+      const productData = {
+        ...buildProductPayload(normalizedProduct),
         updatedAt: new Date().toISOString(),
       };
 
-      if (product.industrial) {
-        productData.industrial = product.industrial;
-      }
-      if (product.note) {
-        productData.note = product.note;
-      }
-
-      await setDoc(doc(db, "products", product.id), productData, {
+      await setDoc(doc(db, "products", normalizedProduct.id), productData, {
         merge: true,
       });
-      showMessage(`Producto "${product.name}" actualizado correctamente.`);
+      showMessage(
+        `Producto "${normalizedProduct.name}" actualizado correctamente.`,
+      );
       setHasChanges(false);
+      await loadProducts();
     } catch (error) {
       console.error("[ProductsView] Error saving product:", error);
       showMessage("Error al guardar los cambios.");
@@ -3209,25 +3467,10 @@ function ProductsView() {
     };
 
     try {
-      const productData: Record<string, unknown> = {
-        name: newProduct.name,
-        category: newProduct.category,
-        hex: newProduct.hex,
-        hex2: newProduct.hex2,
-        textColor: newProduct.textColor,
-        prices: {
-          125: newProduct.prices125,
-          250: newProduct.prices250,
-        },
+      const productData = {
+        ...buildProductPayload(newProduct),
         createdAt: new Date().toISOString(),
       };
-
-      if (newProduct.industrial) {
-        productData.industrial = newProduct.industrial;
-      }
-      if (newProduct.note) {
-        productData.note = newProduct.note;
-      }
 
       await setDoc(doc(db, "products", newId), productData);
       setProducts((prev) => [...prev, newProduct]);
@@ -3257,32 +3500,20 @@ function ProductsView() {
 
     setSaving(true);
     try {
-      const productData: Record<string, unknown> = {
-        name: editingProduct.name,
-        category: editingProduct.category,
-        hex: editingProduct.hex,
-        hex2: editingProduct.hex2,
-        textColor: editingProduct.textColor,
-        prices: {
-          125: editingProduct.prices125,
-          250: editingProduct.prices250,
-        },
+      const normalizedProduct = isNaranja850Editable(editingProduct)
+        ? normalizeNaranja850Product(editingProduct)
+        : editingProduct;
+      const productData = {
+        ...buildProductPayload(normalizedProduct),
         updatedAt: new Date().toISOString(),
       };
 
-      if (editingProduct.industrial) {
-        productData.industrial = true;
-      }
-      if (editingProduct.note) {
-        productData.note = editingProduct.note;
-      }
-
-      await setDoc(doc(db, "products", editingProduct.id), productData, {
+      await setDoc(doc(db, "products", normalizedProduct.id), productData, {
         merge: true,
       });
       setShowEditModal(false);
       showMessage(
-        `Producto "${editingProduct.name}" actualizado correctamente.`,
+        `Producto "${normalizedProduct.name}" actualizado correctamente.`,
       );
       await loadProducts();
     } catch (error) {
@@ -3456,10 +3687,8 @@ function ProductsView() {
                   </p>
                   <p className="text-lg font-extrabold text-slate-900">
                     $
-                    {Math.min(
-                      ...product.prices125.filter((p) => p > 0),
-                      ...product.prices250.filter((p) => p > 0),
-                    ) || "0"}
+                    {Math.min(...getEditableProductDisplayPrices(product)) ||
+                      "0"}
                     <span className="text-sm font-semibold text-slate-500">
                       {" "}
                       MXN
@@ -3656,117 +3885,130 @@ function ProductsView() {
                     </label>
                   </div>
 
-                  {/* Pricing 125g */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                      Precios • Presentación 125g
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {PRESENTATION_LABELS.map((label, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
-                        >
-                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                            {label}
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                              $
-                            </span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="0"
-                              value={
-                                newProduct.prices125[idx] === 0
-                                  ? ""
-                                  : newProduct.prices125[idx]
-                              }
-                              onChange={(e) => {
-                                const rawValue = e.target.value.replace(
-                                  /[^0-9.]/g,
-                                  "",
-                                );
-                                const newPrices = [...newProduct.prices125] as [
-                                  number,
-                                  number,
-                                  number,
-                                  number,
-                                  number,
-                                ];
-                                newPrices[idx] =
-                                  rawValue === ""
-                                    ? 0
-                                    : parseFloat(rawValue) || 0;
-                                setNewProduct({
-                                  ...newProduct,
-                                  prices125: newPrices,
-                                });
-                              }}
-                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                            />
-                          </div>
+                  {isNaranja850Editable(newProduct) ? (
+                    <Naranja850PricingEditor
+                      product={normalizeNaranja850Product(newProduct)}
+                      onChange={setNewProduct}
+                    />
+                  ) : (
+                    <>
+                      {/* Pricing 125g */}
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                          Precios • Presentación 125g
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                          {PRESENTATION_LABELS.map((label, idx) => (
+                            <div
+                              key={idx}
+                              className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                            >
+                              <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                                {label}
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                                  $
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="0"
+                                  value={
+                                    newProduct.prices125[idx] === 0
+                                      ? ""
+                                      : newProduct.prices125[idx]
+                                  }
+                                  onChange={(e) => {
+                                    const rawValue = e.target.value.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                    );
+                                    const newPrices = [
+                                      ...newProduct.prices125,
+                                    ] as [
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                    ];
+                                    newPrices[idx] =
+                                      rawValue === ""
+                                        ? 0
+                                        : parseFloat(rawValue) || 0;
+                                    setNewProduct({
+                                      ...newProduct,
+                                      prices125: newPrices,
+                                    });
+                                  }}
+                                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* Pricing 250g */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                      Precios • Presentación 250g
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {PRESENTATION_LABELS.map((label, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
-                        >
-                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                            {label}
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                              $
-                            </span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="0"
-                              value={
-                                newProduct.prices250[idx] === 0
-                                  ? ""
-                                  : newProduct.prices250[idx]
-                              }
-                              onChange={(e) => {
-                                const rawValue = e.target.value.replace(
-                                  /[^0-9.]/g,
-                                  "",
-                                );
-                                const newPrices = [...newProduct.prices250] as [
-                                  number,
-                                  number,
-                                  number,
-                                  number,
-                                  number,
-                                ];
-                                newPrices[idx] =
-                                  rawValue === ""
-                                    ? 0
-                                    : parseFloat(rawValue) || 0;
-                                setNewProduct({
-                                  ...newProduct,
-                                  prices250: newPrices,
-                                });
-                              }}
-                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                            />
-                          </div>
+                      {/* Pricing 250g */}
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                          Precios • Presentación 250g
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                          {PRESENTATION_LABELS.map((label, idx) => (
+                            <div
+                              key={idx}
+                              className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                            >
+                              <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                                {label}
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                                  $
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="0"
+                                  value={
+                                    newProduct.prices250[idx] === 0
+                                      ? ""
+                                      : newProduct.prices250[idx]
+                                  }
+                                  onChange={(e) => {
+                                    const rawValue = e.target.value.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                    );
+                                    const newPrices = [
+                                      ...newProduct.prices250,
+                                    ] as [
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                    ];
+                                    newPrices[idx] =
+                                      rawValue === ""
+                                        ? 0
+                                        : parseFloat(rawValue) || 0;
+                                    setNewProduct({
+                                      ...newProduct,
+                                      prices250: newPrices,
+                                    });
+                                  }}
+                                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -3964,109 +4206,130 @@ function ProductsView() {
                     </label>
                   </div>
 
-                  {/* Pricing 125g */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                      Precios • Presentación 125g
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {PRESENTATION_LABELS.map((label, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
-                        >
-                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                            {label}
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                              $
-                            </span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="0"
-                              value={
-                                editingProduct.prices125[idx] === 0
-                                  ? ""
-                                  : editingProduct.prices125[idx]
-                              }
-                              onChange={(e) => {
-                                const rawValue = e.target.value.replace(
-                                  /[^0-9.]/g,
-                                  "",
-                                );
-                                const newPrices = [
-                                  ...editingProduct.prices125,
-                                ] as [number, number, number, number, number];
-                                newPrices[idx] =
-                                  rawValue === ""
-                                    ? 0
-                                    : parseFloat(rawValue) || 0;
-                                setEditingProduct({
-                                  ...editingProduct,
-                                  prices125: newPrices,
-                                });
-                              }}
-                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                            />
-                          </div>
+                  {isNaranja850Editable(editingProduct) ? (
+                    <Naranja850PricingEditor
+                      product={normalizeNaranja850Product(editingProduct)}
+                      onChange={(nextProduct) => setEditingProduct(nextProduct)}
+                    />
+                  ) : (
+                    <>
+                      {/* Pricing 125g */}
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                          Precios • Presentación 125g
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                          {PRESENTATION_LABELS.map((label, idx) => (
+                            <div
+                              key={idx}
+                              className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                            >
+                              <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                                {label}
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                                  $
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="0"
+                                  value={
+                                    editingProduct.prices125[idx] === 0
+                                      ? ""
+                                      : editingProduct.prices125[idx]
+                                  }
+                                  onChange={(e) => {
+                                    const rawValue = e.target.value.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                    );
+                                    const newPrices = [
+                                      ...editingProduct.prices125,
+                                    ] as [
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                    ];
+                                    newPrices[idx] =
+                                      rawValue === ""
+                                        ? 0
+                                        : parseFloat(rawValue) || 0;
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      prices125: newPrices,
+                                    });
+                                  }}
+                                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* Pricing 250g */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
-                      Precios • Presentación 250g
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {PRESENTATION_LABELS.map((label, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
-                        >
-                          <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
-                            {label}
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
-                              $
-                            </span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="0"
-                              value={
-                                editingProduct.prices250[idx] === 0
-                                  ? ""
-                                  : editingProduct.prices250[idx]
-                              }
-                              onChange={(e) => {
-                                const rawValue = e.target.value.replace(
-                                  /[^0-9.]/g,
-                                  "",
-                                );
-                                const newPrices = [
-                                  ...editingProduct.prices250,
-                                ] as [number, number, number, number, number];
-                                newPrices[idx] =
-                                  rawValue === ""
-                                    ? 0
-                                    : parseFloat(rawValue) || 0;
-                                setEditingProduct({
-                                  ...editingProduct,
-                                  prices250: newPrices,
-                                });
-                              }}
-                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                            />
-                          </div>
+                      {/* Pricing 250g */}
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                          Precios • Presentación 250g
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                          {PRESENTATION_LABELS.map((label, idx) => (
+                            <div
+                              key={idx}
+                              className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 p-4"
+                            >
+                              <label className="mb-3 block text-xs font-bold text-slate-500 whitespace-normal break-words leading-relaxed">
+                                {label}
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-medium text-slate-400">
+                                  $
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="0"
+                                  value={
+                                    editingProduct.prices250[idx] === 0
+                                      ? ""
+                                      : editingProduct.prices250[idx]
+                                  }
+                                  onChange={(e) => {
+                                    const rawValue = e.target.value.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                    );
+                                    const newPrices = [
+                                      ...editingProduct.prices250,
+                                    ] as [
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                      number,
+                                    ];
+                                    newPrices[idx] =
+                                      rawValue === ""
+                                        ? 0
+                                        : parseFloat(rawValue) || 0;
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      prices250: newPrices,
+                                    });
+                                  }}
+                                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-6 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

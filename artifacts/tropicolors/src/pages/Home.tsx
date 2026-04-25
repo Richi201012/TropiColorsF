@@ -290,6 +290,8 @@ export default function Home() {
                     onlyWholesale: Boolean(data.onlyWholesale),
                     presentationOverrides: data.presentationOverrides || undefined,
                     specialWholesaleBoxes: data.specialWholesaleBoxes || undefined,
+                    specialWholesaleBoxPrices:
+                      data.specialWholesaleBoxPrices || undefined,
                   };
                 });
                 startTransition(() => {
