@@ -17,6 +17,8 @@ import NotFound from "@/pages/not-found";
 
 const Admin = lazy(() => import("@/pages/Admin"));
 const Inventario = lazy(() => import("@/pages/Inventario"));
+const OrderTracking = lazy(() => import("@/pages/OrderTracking"));
+const OrderTrackingSearch = lazy(() => import("@/pages/OrderTrackingSearch"));
 const CartDrawer = lazy(() =>
   import("@/components/CartDrawer").then((module) => ({
     default: module.CartDrawer,
@@ -66,6 +68,8 @@ function scheduleDeferredUi(callback: () => void) {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isAdminPage = location === "/login" || location === "/inventario";
+  const isTrackingPage =
+    location === "/seguimiento_de_pedido" || location.startsWith("/pedido/");
   const [deferredUiReady, setDeferredUiReady] = useState(false);
   const isMobile = useIsMobile(640);
 
@@ -78,7 +82,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
     return cancelDeferredUi;
   }, []);
-  if (isAdminPage) {
+  if (isAdminPage || isTrackingPage) {
     return <>{children}</>;
   }
 
@@ -116,6 +120,8 @@ function Router() {
     >
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/seguimiento_de_pedido" component={OrderTrackingSearch} />
+        <Route path="/pedido/:trackingToken" component={OrderTracking} />
         <Route path="/login" component={Admin} />
         <Route path="/inventario" component={Inventario} />
         <Route component={NotFound} />
@@ -172,7 +178,10 @@ function App() {
     window.addEventListener("error", handleWindowError);
 
     return () => {
-      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      window.removeEventListener(
+        "unhandledrejection",
+        handleUnhandledRejection,
+      );
       window.removeEventListener("error", handleWindowError);
     };
   }, []);

@@ -19,6 +19,8 @@ import {
   MapPinned,
   Building2,
   Landmark,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
@@ -178,6 +180,7 @@ type CheckoutSubmitResponse = {
   sessionUrl: string;
   transferReference: string;
   whatsappUrl: string;
+  trackingUrl?: string;
 };
 
 const initialCheckoutValues: CheckoutFormData = {
@@ -431,6 +434,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
     orderId: string;
     transferReference: string;
     whatsappUrl: string;
+    trackingUrl?: string;
   } | null>(null);
 
   const postalCode = formValues.shippingPostalCode;
@@ -476,7 +480,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
       const fieldValue = formValues[field];
       nextValidity[field] =
         typeof fieldValue === "string" &&
-        Boolean(hasAttemptedSubmit && !validationErrors[field] && fieldValue.trim());
+        Boolean(
+          hasAttemptedSubmit && !validationErrors[field] && fieldValue.trim(),
+        );
     });
 
     return nextValidity;
@@ -633,7 +639,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
       nextValue = value.replace(/\D/g, "").slice(0, 10);
     }
     if (field === "customerRfc") {
-      nextValue = value.toUpperCase().replace(/[^A-Z0-9&Ñ]/g, "").slice(0, 13);
+      nextValue = value
+        .toUpperCase()
+        .replace(/[^A-Z0-9&Ñ]/g, "")
+        .slice(0, 13);
     }
     if (field === "shippingPostalCode") {
       nextValue = value.replace(/\D/g, "").slice(0, 5);
@@ -718,6 +727,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
         orderId: response.orderId,
         transferReference: response.transferReference,
         whatsappUrl: response.whatsappUrl,
+        trackingUrl: response.trackingUrl,
       });
     }
   };
@@ -848,7 +858,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             {formatCartItemPriceLabel(item)}
                           </p>
                           <p className="mt-1 text-sm text-cyan-300">
-                            ${calculateCartItemSubtotal(item).toLocaleString("es-MX")}
+                            $
+                            {calculateCartItemSubtotal(item).toLocaleString(
+                              "es-MX",
+                            )}
                           </p>
                         </div>
                       </div>
@@ -858,9 +871,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                   <div className="relative mt-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 shadow-lg shadow-slate-950/20 backdrop-blur-sm">
                     <div className="flex items-center justify-between text-sm text-slate-300">
                       <span>Productos</span>
-                        <span>
-                        {itemCount}
-                      </span>
+                      <span>{itemCount}</span>
                     </div>
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
                       <span className="text-base font-medium text-white">
@@ -910,11 +921,11 @@ const CheckoutModal = React.memo(function CheckoutModal({
                     </div>
                   </div>
                   <p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-500">
-                      {step === 1
-                        ? "Completa tus datos y registra el pedido para pago por transferencia."
-                        : paymentResult
-                          ? "Tu pedido quedo registrado y sera validado manualmente."
-                          : "Revisa el resumen final antes de registrar el pedido."}
+                    {step === 1
+                      ? "Completa tus datos y registra el pedido para pago por transferencia."
+                      : paymentResult
+                        ? "Tu pedido quedo registrado y sera validado manualmente."
+                        : "Revisa el resumen final antes de registrar el pedido."}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {[
@@ -1052,9 +1063,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               <p className="text-sm font-semibold text-slate-900">
                                 Necesito factura
                               </p>
-                              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                               
-                              </p>
+                              <p className="mt-1 text-xs leading-relaxed text-slate-500"></p>
                             </div>
                           </label>
                         </div>
@@ -1121,7 +1130,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           <FieldShell
                             icon={<Building2 className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingExteriorNumber)}
-                            isValid={Boolean(fieldValidity.shippingExteriorNumber)}
+                            isValid={Boolean(
+                              fieldValidity.shippingExteriorNumber,
+                            )}
                           >
                             <input
                               value={formValues.shippingExteriorNumber}
@@ -1149,7 +1160,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           <FieldShell
                             icon={<Building2 className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingInteriorNumber)}
-                            isValid={Boolean(fieldValidity.shippingInteriorNumber)}
+                            isValid={Boolean(
+                              fieldValidity.shippingInteriorNumber,
+                            )}
                           >
                             <input
                               value={formValues.shippingInteriorNumber}
@@ -1224,7 +1237,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             <FieldShell
                               icon={<Building2 className="h-4 w-4" />}
                               hasError={Boolean(errors.shippingNeighborhood)}
-                              isValid={Boolean(fieldValidity.shippingNeighborhood)}
+                              isValid={Boolean(
+                                fieldValidity.shippingNeighborhood,
+                              )}
                               disabled={shouldDisableLocationFields}
                             >
                               <select
@@ -1260,7 +1275,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             <FieldShell
                               icon={<Building2 className="h-4 w-4" />}
                               hasError={Boolean(errors.shippingNeighborhood)}
-                              isValid={Boolean(fieldValidity.shippingNeighborhood)}
+                              isValid={Boolean(
+                                fieldValidity.shippingNeighborhood,
+                              )}
                               disabled={
                                 shouldDisableLocationFields ||
                                 neighborhoodLockedByLookup
@@ -1315,7 +1332,9 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           <FieldShell
                             icon={<Landmark className="h-4 w-4" />}
                             hasError={Boolean(errors.shippingMunicipality)}
-                            isValid={Boolean(fieldValidity.shippingMunicipality)}
+                            isValid={Boolean(
+                              fieldValidity.shippingMunicipality,
+                            )}
                             disabled={!modeManual}
                           >
                             <input
@@ -1387,7 +1406,8 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               Metodo de pago
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              Este pedido se registra solo con transferencia bancaria.
+                              Este pedido se registra solo con transferencia
+                              bancaria.
                             </p>
                             <div className="mt-4 flex items-center gap-4 rounded-3xl border border-sky-200 bg-sky-50 p-4">
                               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-600 text-white">
@@ -1398,7 +1418,8 @@ const CheckoutModal = React.memo(function CheckoutModal({
                                   Transferencia bancaria
                                 </p>
                                 <p className="mt-1 text-xs text-slate-500">
-                                  Pago manual validado por el equipo de Tropicolors.
+                                  Pago manual validado por el equipo de
+                                  Tropicolors.
                                 </p>
                               </div>
                               <div className="h-4 w-4 rounded-full border-2 border-sky-500 bg-sky-500" />
@@ -1451,8 +1472,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         </button>
                       </div>
                     </form>
-                  ) : (
-                    paymentResult ? (
+                  ) : paymentResult ? (
                     <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-emerald-100 bg-white/80 p-6 text-center shadow-sm sm:min-h-[420px] sm:p-8">
                       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-lg shadow-emerald-100">
                         <ShieldCheck className="h-10 w-10" />
@@ -1461,9 +1481,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         Pedido recibido
                       </h4>
                       <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-                        Tu pedido ya quedo registrado y el correo de confirmacion
-                        ya se esta enviando. Cuando tengas tu comprobante,
-                        puedes abrir WhatsApp desde aqui para compartirlo.
+                        Tu pedido ya quedo registrado y el correo de
+                        confirmacion ya se esta enviando. Cuando tengas tu
+                        comprobante, puedes abrir WhatsApp desde aqui para
+                        compartirlo.
                       </p>
                       <div className="mt-5 w-full max-w-md rounded-2xl border border-sky-100 bg-sky-50/90 px-4 py-4 text-left text-sm text-sky-900">
                         <p className="font-semibold">Siguiente paso</p>
@@ -1476,6 +1497,37 @@ const CheckoutModal = React.memo(function CheckoutModal({
                       <p className="mt-4 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold tracking-[0.18em] text-slate-600">
                         {paymentResult.orderId}
                       </p>
+                      {paymentResult.trackingUrl ? (
+                        <div className="mt-5 flex w-full max-w-md flex-col gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/80 p-3 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              window.open(
+                                paymentResult.trackingUrl || "",
+                                "_blank",
+                                "noopener,noreferrer",
+                              )
+                            }
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-800"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Ver seguimiento
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopyValue(
+                                "Link de seguimiento",
+                                paymentResult.trackingUrl || "",
+                              )
+                            }
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-white px-4 py-3 text-sm font-semibold text-sky-800 transition hover:bg-cyan-50"
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copiar link
+                          </button>
+                        </div>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() =>
@@ -1498,7 +1550,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         <ArrowRight className="h-4 w-4" />
                       </button>
                     </div>
-                    ) : (
+                  ) : (
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                         <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
@@ -1535,7 +1587,8 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               Transferencia bancaria interbancaria
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              Tu pedido se registra y queda pendiente de validacion.
+                              Tu pedido se registra y queda pendiente de
+                              validacion.
                             </p>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-300">
@@ -1646,7 +1699,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1698,161 +1751,167 @@ export function CartDrawer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isCartOpen, isCheckoutModalOpen, setIsCartOpen]);
 
-  const onSubmit = useCallback(async (
-    data: CheckoutFormData,
-    paymentMethod: PaymentMethod,
-  ) => {
-    if (items.length === 0) {
-      throw new Error("No hay productos en el carrito.");
-    }
-
-    const invalidItem = items.find((item) => {
-      if (item.purchaseType === "pieza") {
-        return item.quantity <= 0 || item.unitPrice <= 0;
+  const onSubmit = useCallback(
+    async (data: CheckoutFormData, paymentMethod: PaymentMethod) => {
+      if (items.length === 0) {
+        throw new Error("No hay productos en el carrito.");
       }
 
-      if (item.purchaseType === "mayoreo") {
-        if (item.quantity <= 0 || item.priceBase <= 0) {
-          return true;
+      const invalidItem = items.find((item) => {
+        if (item.purchaseType === "pieza") {
+          return item.quantity <= 0 || item.unitPrice <= 0;
         }
 
-        if (item.piecesPerBox && item.piecesPerBox <= 1) {
-          return true;
+        if (item.purchaseType === "mayoreo") {
+          if (item.quantity <= 0 || item.priceBase <= 0) {
+            return true;
+          }
+
+          if (item.piecesPerBox && item.piecesPerBox <= 1) {
+            return true;
+          }
         }
+
+        return false;
+      });
+
+      if (invalidItem) {
+        toast({
+          title: "Carrito inválido",
+          description:
+            "Hay productos con una configuración de compra inválida. Revisa el carrito antes de continuar.",
+          variant: "destructive",
+        });
+        throw new Error("Carrito inválido");
       }
 
-      return false;
-    });
+      setIsProcessing(true);
 
-    if (invalidItem) {
-      toast({
-        title: "Carrito inválido",
-        description:
-          "Hay productos con una configuración de compra inválida. Revisa el carrito antes de continuar.",
-        variant: "destructive",
-      });
-      throw new Error("Carrito inválido");
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const submitStartedAt = performance.now();
-      const currentTransferReference = buildTransferReference(
-        data.customerPhone,
-      );
-      const orderDocumentId = await createOrder({
-        customerName: data.customerName,
-        customerEmail: data.customerEmail,
-        customerPhone: data.customerPhone,
-        requiresInvoice: data.requiresInvoice,
-        customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
-        shippingAddress: data.shippingAddress,
-        shippingExteriorNumber: data.shippingExteriorNumber.trim(),
-        shippingInteriorNumber: data.shippingInteriorNumber.trim(),
-        shippingPostalCode: data.shippingPostalCode,
-        shippingNeighborhood: data.shippingNeighborhood,
-        shippingMunicipality: data.shippingMunicipality,
-        shippingState: data.shippingState,
-        paymentMethod,
-        paymentStatus: "pending",
-        orderStatus: "pending",
-        paymentReference: currentTransferReference,
-        total: cartTotal,
-        items: items.map((item) => ({
-          productId: item.productId,
-          productName: item.productName,
-          size: item.size,
-          price: item.price,
-          quantity: item.quantity,
-          purchaseType: item.purchaseType,
-          priceBase: item.priceBase,
-          unitPrice: item.unitPrice,
-          subtotal: calculateCartItemSubtotal(item),
-          piecesPerBox: item.piecesPerBox,
-          quantityBoxes: item.quantityBoxes,
-          totalPieces: item.totalPieces,
-          concentration: item.concentration,
-          hexCode: item.hexCode,
-          imageUrl: item.imageUrl,
-        })),
-        paymentDetails: null,
-      });
-      console.log(
-        "[CartDrawer] Pedido guardado en Firebase en",
-        `${Math.round(performance.now() - submitStartedAt)}ms`,
-      );
-
-      // Crear notificación para el admin
       try {
-        await createNotification({
-          orderId: orderDocumentId,
+        const submitStartedAt = performance.now();
+        const currentTransferReference = buildTransferReference(
+          data.customerPhone,
+        );
+        const createdOrder = await createOrder({
           customerName: data.customerName,
-          total: cartTotal,
+          customerEmail: data.customerEmail,
+          customerPhone: data.customerPhone,
           requiresInvoice: data.requiresInvoice,
           customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
-        });
-      } catch (notifError) {
-        console.error("[CartDrawer] Error al crear notificación:", notifError);
-      }
-
-      const numeroPedido = `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`;
-      void enviarCorreoEstadoPedidoEnSegundoPlano({
-        nombre: data.customerName,
-        email: data.customerEmail,
-        estado: "Pendiente",
-        productos: items.map((item) => ({
-          nombre:
-            item.purchaseType === "pieza"
-              ? `${item.productName} (${formatCartItemQuantity(item)})`
-              : `${item.productName} (${formatCartItemQuantity(item)})`,
-          cantidad: item.quantity,
-          precio: item.price,
-        })),
-        total: cartTotal,
-        direccion: buildShippingAddress(data),
-        numeroExterior: data.shippingExteriorNumber.trim(),
-        numeroInterior: data.shippingInteriorNumber.trim(),
-        numeroPedido,
-      })
-        .then((emailResult) => {
-          if (!emailResult.success) {
-            console.error(
-              "[CartDrawer] No se pudo encolar el correo de pedido pendiente:",
-              emailResult.error,
-            );
-          }
-        })
-        .catch((emailError) => {
-          console.error(
-            "[CartDrawer] Error al enviar correo de pedido pendiente:",
-            emailError,
-          );
-        });
-
-      return {
-        success: true,
-        orderId: `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`,
-        sessionUrl: "",
-        transferReference: currentTransferReference,
-        whatsappUrl: buildWhatsAppUrl({
-          orderId: `ORD-${orderDocumentId.slice(0, 8).toUpperCase()}`,
-          customerName: data.customerName,
+          shippingAddress: data.shippingAddress,
+          shippingExteriorNumber: data.shippingExteriorNumber.trim(),
+          shippingInteriorNumber: data.shippingInteriorNumber.trim(),
+          shippingPostalCode: data.shippingPostalCode,
+          shippingNeighborhood: data.shippingNeighborhood,
+          shippingMunicipality: data.shippingMunicipality,
+          shippingState: data.shippingState,
+          paymentMethod,
+          paymentStatus: "pending",
+          orderStatus: "pending",
+          paymentReference: currentTransferReference,
           total: cartTotal,
+          items: items.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            size: item.size,
+            price: item.price,
+            quantity: item.quantity,
+            purchaseType: item.purchaseType,
+            priceBase: item.priceBase,
+            unitPrice: item.unitPrice,
+            subtotal: calculateCartItemSubtotal(item),
+            piecesPerBox: item.piecesPerBox,
+            quantityBoxes: item.quantityBoxes,
+            totalPieces: item.totalPieces,
+            concentration: item.concentration,
+            hexCode: item.hexCode,
+            imageUrl: item.imageUrl,
+          })),
+          paymentDetails: null,
+        });
+        console.log(
+          "[CartDrawer] Pedido guardado en Firebase en",
+          `${Math.round(performance.now() - submitStartedAt)}ms`,
+        );
+
+        // Crear notificación para el admin
+        try {
+          await createNotification({
+            orderId: createdOrder.orderId,
+            customerName: data.customerName,
+            total: cartTotal,
+            requiresInvoice: data.requiresInvoice,
+            customerRfc: data.requiresInvoice ? data.customerRfc.trim() : "",
+          });
+        } catch (notifError) {
+          console.error(
+            "[CartDrawer] Error al crear notificación:",
+            notifError,
+          );
+        }
+
+        const numeroPedido = createdOrder.displayOrderId;
+        void enviarCorreoEstadoPedidoEnSegundoPlano({
+          nombre: data.customerName,
+          email: data.customerEmail,
+          estado: "Pendiente",
+          productos: items.map((item) => ({
+            nombre:
+              item.purchaseType === "pieza"
+                ? `${item.productName} (${formatCartItemQuantity(item)})`
+                : `${item.productName} (${formatCartItemQuantity(item)})`,
+            cantidad: item.quantity,
+            precio: item.price,
+          })),
+          total: cartTotal,
+          direccion: buildShippingAddress(data),
+          numeroExterior: data.shippingExteriorNumber.trim(),
+          numeroInterior: data.shippingInteriorNumber.trim(),
+          numeroPedido,
+          trackingUrl: createdOrder.trackingUrl,
+        })
+          .then((emailResult) => {
+            if (!emailResult.success) {
+              console.error(
+                "[CartDrawer] No se pudo encolar el correo de pedido pendiente:",
+                emailResult.error,
+              );
+            }
+          })
+          .catch((emailError) => {
+            console.error(
+              "[CartDrawer] Error al enviar correo de pedido pendiente:",
+              emailError,
+            );
+          });
+
+        return {
+          success: true,
+          orderId: createdOrder.displayOrderId,
+          sessionUrl: "",
           transferReference: currentTransferReference,
-        }),
-      } satisfies CheckoutSubmitResponse;
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [cartTotal, items, toast]);
+          trackingUrl: createdOrder.trackingUrl,
+          whatsappUrl: buildWhatsAppUrl({
+            orderId: createdOrder.displayOrderId,
+            customerName: data.customerName,
+            total: cartTotal,
+            transferReference: currentTransferReference,
+          }),
+        } satisfies CheckoutSubmitResponse;
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            "No se pudo guardar el pedido en Firebase. Intenta nuevamente.",
+          variant: "destructive",
+        });
+        throw error;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [cartTotal, items, toast],
+  );
 
   const handleFinalizeCheckout = useCallback(() => {
     clearCart();
@@ -1947,7 +2006,9 @@ export function CartDrawer() {
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
                           <button
-                            onClick={() => updateQuantity(item.cartKey, item.quantity - 1)}
+                            onClick={() =>
+                              updateQuantity(item.cartKey, item.quantity - 1)
+                            }
                             className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
                           >
                             <Minus className="h-3 w-3 text-gray-600" />
@@ -1956,7 +2017,9 @@ export function CartDrawer() {
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
+                            onClick={() =>
+                              updateQuantity(item.cartKey, item.quantity + 1)
+                            }
                             className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
                           >
                             <Plus className="h-3 w-3 text-gray-600" />
@@ -1964,7 +2027,10 @@ export function CartDrawer() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-gray-800">
-                            ${calculateCartItemSubtotal(item).toLocaleString("es-MX")}
+                            $
+                            {calculateCartItemSubtotal(item).toLocaleString(
+                              "es-MX",
+                            )}
                           </span>
                           <button
                             onClick={() => removeFromCart(item.cartKey)}
@@ -1990,9 +2056,7 @@ export function CartDrawer() {
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-semibold">${cartTotal}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  
-                </div>
+                <div className="flex items-center justify-between text-sm text-gray-500"></div>
                 <div className="flex items-center justify-between border-t pt-2">
                   <span className="text-lg font-bold">Total</span>
                   <span className="text-xl font-bold text-blue-600">

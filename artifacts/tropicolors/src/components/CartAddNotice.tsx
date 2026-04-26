@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, ShoppingBag, ArrowRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
@@ -15,9 +15,13 @@ export function CartAddNotice() {
     cartCount,
   } = useCart();
   const [isVisible, setIsVisible] = useState(false);
+  const handledTokenRef = useRef(recentlyAddedToken);
 
   useEffect(() => {
     if (!recentlyAddedItem || recentlyAddedToken === 0) return;
+    if (handledTokenRef.current === recentlyAddedToken) return;
+
+    handledTokenRef.current = recentlyAddedToken;
 
     setIsVisible(true);
 

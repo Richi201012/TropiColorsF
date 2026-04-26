@@ -16,6 +16,8 @@ import {
 import { firestore } from "../lib/firebase";
 
 const router: IRouter = Router();
+const ORDER_TRACKING_COLLECTION = "order_tracking";
+const ORDER_TRACKING_LOOKUP_COLLECTION = "order_tracking_lookup";
 
 type CheckoutItem = {
   productId?: string;
@@ -51,6 +53,81 @@ function generateOrderNumber(): string {
   return `TC-${timestamp}-${random}`;
 }
 
+function generateTrackingToken(): string {
+  return randomUUID().replace(/-/g, "");
+}
+
+function normalizeOrderNumberForLookup(orderNumber: string): string {
+  return orderNumber
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/\//g, "-");
+}
+
+function getLookupAliases(orderId: string, orderNumber: string) {
+  return Array.from(new Set([orderNumber, orderId].filter(Boolean)));
+}
+
+function buildTrackingLookupPayload({
+  orderId,
+  orderNumber,
+  trackingToken,
+}: {
+  orderId: string;
+  orderNumber: string;
+  trackingToken: string;
+}) {
+  return removeUndefinedFields({
+    orderId,
+    orderNumber,
+    orderNumberLookup: normalizeOrderNumberForLookup(orderNumber),
+    trackingToken,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+function getTrackingStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    pendiente: "Pendiente",
+    pagado: "Pagado",
+    enviado: "Enviado",
+    entregado: "Entregado",
+    cancelado: "Cancelado",
+  };
+
+  return labels[status] || "Pendiente";
+}
+
+function getTrackingStatusDescription(status: string): string {
+  const descriptions: Record<string, string> = {
+    pendiente:
+      "Tu pedido esta registrado. Validaremos tu pago y datos para comenzar a prepararlo.",
+    pagado:
+      "Tu pago ya fue confirmado. Estamos preparando los productos de tu pedido.",
+    enviado:
+      "Tu pedido ya fue enviado. Revisa los datos de paqueteria y guia cuando esten disponibles.",
+    entregado:
+      "Tu pedido ya fue entregado. Gracias por comprar en Tropicolors.",
+    cancelado:
+      "Este pedido fue cancelado. Si tienes dudas, contactanos por WhatsApp.",
+  };
+
+  return descriptions[status] || descriptions.pendiente;
+}
+
+function buildTrackingItems(items: FirestoreOrderItem[]) {
+  return items.slice(0, 30).map((item) =>
+    removeUndefinedFields({
+      productName: item.productName,
+      quantity: item.quantity,
+      size: item.size,
+      subtotal: Number((item.price * item.quantity).toFixed(2)),
+    }),
+  );
+}
+
 function getStripeClient(): Stripe | null {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) return null;
@@ -59,6 +136,14 @@ function getStripeClient(): Stripe | null {
 
 function getStripePublishableKey(): string | null {
   return process.env.STRIPE_PUBLISHABLE_KEY || null;
+}
+
+function getClientBaseUrl(): string {
+  return (
+    process.env.PUBLIC_SITE_URL ||
+    process.env.BASE_URL ||
+    `http://localhost:${process.env.PORT || 3000}`
+  ).replace(/\/+$/, "");
 }
 
 function mapCheckoutItems(items: CheckoutItem[]): FirestoreOrderItem[] {
@@ -148,9 +233,10 @@ router.post("/checkout", async (req, res) => {
     const totalAmount = calculateTotalAmount(normalizedItems);
     const orderId = randomUUID();
     const orderNumber = generateOrderNumber();
-    const baseUrl =
-      process.env.BASE_URL ||
-      `http://localhost:${process.env.PORT || 3000}`;
+    const trackingToken = generateTrackingToken();
+    const initialStatus = "pendiente";
+    const historyDate = new Date().toISOString();
+    const baseUrl = getClientBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       ui_mode: "custom",
@@ -169,10 +255,11 @@ router.post("/checkout", async (req, res) => {
 
     await setDoc(doc(firestore, "orders", orderId), {
       orderNumber,
+      trackingToken,
       stripeSessionId: session.id,
       paymentMethod: "card",
       paymentStatus: "pending",
-      status: "pendiente",
+      status: initialStatus,
       orderStatus: "pending",
       currency: "MXN",
       total: Number(totalAmount.toFixed(2)),
@@ -194,15 +281,63 @@ router.post("/checkout", async (req, res) => {
       updatedAt: serverTimestamp(),
       historial: [
         {
-          estado: "pendiente",
-          fecha: new Date().toISOString(),
+          estado: initialStatus,
+          fecha: historyDate,
         },
       ],
     });
 
+    try {
+      await setDoc(doc(firestore, ORDER_TRACKING_COLLECTION, trackingToken), {
+        orderId,
+        orderNumber,
+        trackingToken,
+        status: initialStatus,
+        statusLabel: getTrackingStatusLabel(initialStatus),
+        description: getTrackingStatusDescription(initialStatus),
+        total: Number(totalAmount.toFixed(2)),
+        currency: "MXN",
+        paymentMethod: "card",
+        paymentStatus: "pending",
+        items: buildTrackingItems(normalizedItems),
+        historial: [
+          {
+            estado: initialStatus,
+            label: getTrackingStatusLabel(initialStatus),
+            description: getTrackingStatusDescription(initialStatus),
+            fecha: historyDate,
+          },
+        ],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      await Promise.all(
+        getLookupAliases(orderId, orderNumber).map((alias) =>
+          setDoc(
+            doc(
+              firestore,
+              ORDER_TRACKING_LOOKUP_COLLECTION,
+              normalizeOrderNumberForLookup(alias),
+            ),
+            buildTrackingLookupPayload({
+              orderId,
+              orderNumber: alias,
+              trackingToken,
+            }),
+          ),
+        ),
+      );
+    } catch (trackingError) {
+      req.log.error(
+        trackingError,
+        "Error creating public order tracking document",
+      );
+    }
+
     res.json({
       orderId,
       orderNumber,
+      trackingToken,
       sessionId: session.id,
       clientSecret: session.client_secret,
       publishableKey,
@@ -306,10 +441,12 @@ router.get("/orders", async (req, res) => {
       query(collection(firestore, "orders"), orderBy("createdAt", "desc")),
     );
 
-    const orders = snapshot.docs.map((docSnap: (typeof snapshot.docs)[number]) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    }));
+    const orders = snapshot.docs.map(
+      (docSnap: (typeof snapshot.docs)[number]) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }),
+    );
 
     res.json(orders);
   } catch (error) {

@@ -20,6 +20,53 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function isTrackingStatus(status) {
+      return status in [
+        "pendiente",
+        "pagado",
+        "enviado",
+        "entregado",
+        "cancelado",
+      ];
+    }
+
+    function isPublicTrackingCreate(trackingToken) {
+      return request.resource.data.keys().hasOnly([
+        "orderId",
+        "orderNumber",
+        "trackingToken",
+        "status",
+        "statusLabel",
+        "description",
+        "total",
+        "currency",
+        "paymentMethod",
+        "paymentStatus",
+        "items",
+        "historial",
+        "createdAt",
+        "updatedAt",
+      ]) &&
+        request.resource.data.orderId is string &&
+        request.resource.data.trackingToken == trackingToken &&
+        isTrackingStatus(request.resource.data.status);
+    }
+
+    function isPublicTrackingLookupCreate(lookupId) {
+      return request.resource.data.keys().hasOnly([
+        "orderId",
+        "orderNumber",
+        "orderNumberLookup",
+        "trackingToken",
+        "createdAt",
+        "updatedAt",
+      ]) &&
+        request.resource.data.orderId is string &&
+        request.resource.data.orderNumber is string &&
+        request.resource.data.orderNumberLookup == lookupId &&
+        request.resource.data.trackingToken is string;
+    }
+
     match /products/{productId} {
       allow read: if true;
       allow create, update, delete: if isAdminUser();
@@ -34,6 +81,20 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow create: if true;
       allow read, update, delete: if isAdminUser();
+    }
+
+    match /order_tracking/{trackingToken} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isAdminUser() || isPublicTrackingCreate(trackingToken);
+      allow update, delete: if isAdminUser();
+    }
+
+    match /order_tracking_lookup/{lookupId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isAdminUser() || isPublicTrackingLookupCreate(lookupId);
+      allow update, delete: if isAdminUser();
     }
 
     match /notifications/{notificationId} {

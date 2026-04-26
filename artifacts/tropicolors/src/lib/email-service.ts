@@ -20,6 +20,7 @@ export type DatosPedidoCorreo = {
   numeroInterior?: string;
   total: number;
   numeroPedido?: string;
+  trackingUrl?: string;
   productos: ProductoPedido[];
 };
 
@@ -37,6 +38,7 @@ export type DatosEstadoPedidoCorreo = {
   guia?: string;
   cancellationReason?: string;
   numeroPedido?: string;
+  trackingUrl?: string;
 };
 
 export type DatosFacturaCorreo = {

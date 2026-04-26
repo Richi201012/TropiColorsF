@@ -94,6 +94,10 @@ const ProductCard = React.memo(function ProductCard({
     () => product.specialWholesaleBoxes?.[selectedConcentration] || [],
     [product.specialWholesaleBoxes, selectedConcentration],
   );
+  const specialWholesaleBoxPrices = useMemo(
+    () => product.specialWholesaleBoxPrices?.[selectedConcentration] || {},
+    [product.specialWholesaleBoxPrices, selectedConcentration],
+  );
   const wholesalePiecesOptions = useMemo(() => {
     if (specialWholesaleBoxes.length > 0) {
       return specialWholesaleBoxes;
@@ -120,7 +124,13 @@ const ProductCard = React.memo(function ProductCard({
       specialWholesaleBoxes.length > 0);
   const allowsPiece =
     !isOnlyWholesale && piecePriceBase > 0 && isPieceEligiblePresentation;
-  const allowsMayoreo = priceBase > 0;
+  const selectedWholesaleBoxPrice =
+    selectedWholesalePieces && specialWholesaleBoxPrices[selectedWholesalePieces]
+      ? specialWholesaleBoxPrices[selectedWholesalePieces]
+      : null;
+  const allowsMayoreo =
+    priceBase > 0 ||
+    Boolean(selectedWholesalePieces && selectedWholesaleBoxPrice);
 
   useEffect(() => {
     if (isOnlyWholesale && purchaseType !== "mayoreo") {
@@ -159,8 +169,11 @@ const ProductCard = React.memo(function ProductCard({
     [piecePriceBase],
   );
   const wholesaleUnitTotal = useMemo(
-    () => calculateMayoreoUnitTotal(priceBase, selectedWholesalePieces),
-    [priceBase, selectedWholesalePieces],
+    () =>
+      selectedWholesaleBoxPrice && selectedWholesaleBoxPrice > 0
+        ? selectedWholesaleBoxPrice
+        : calculateMayoreoUnitTotal(priceBase, selectedWholesalePieces),
+    [priceBase, selectedWholesaleBoxPrice, selectedWholesalePieces],
   );
   const currentSubtotal =
     purchaseType === "pieza"
@@ -169,7 +182,11 @@ const ProductCard = React.memo(function ProductCard({
 
   const handleAddToCart = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
-      if (!selected || priceBase <= 0) {
+      if (!selected) {
+        return;
+      }
+
+      if (purchaseType === "pieza" && priceBase <= 0) {
         return;
       }
 
@@ -193,7 +210,11 @@ const ProductCard = React.memo(function ProductCard({
       const effectiveUnitPrice =
         purchaseType === "pieza" ? piecePrice : wholesaleUnitTotal;
       const effectivePriceBase =
-        purchaseType === "pieza" ? piecePriceBase : priceBase;
+        purchaseType === "pieza"
+          ? piecePriceBase
+          : selectedWholesaleBoxPrice && effectivePiecesPerBox
+            ? selectedWholesaleBoxPrice / effectivePiecesPerBox
+            : priceBase;
       const effectiveSubtotal = effectiveUnitPrice * effectiveQuantity;
 
       addFlyingItem({
@@ -245,6 +266,7 @@ const ProductCard = React.memo(function ProductCard({
       purchaseType,
       selected,
       selectedConcentration,
+      selectedWholesaleBoxPrice,
       selectedWholesalePieces,
       toast,
       wholesaleQuantity,
@@ -464,15 +486,7 @@ const ProductCard = React.memo(function ProductCard({
                       Compra por mayoreo
                     </p>
                     <p className="mt-2 text-lg font-black">
-                      $
-                      {(
-                        selectedWholesalePieces
-                          ? calculateMayoreoUnitTotal(
-                              priceBase,
-                              selectedWholesalePieces,
-                            )
-                          : priceBase
-                      ).toLocaleString("es-MX")}
+                      ${wholesaleUnitTotal.toLocaleString("es-MX")}
                     </p>
                     <p
                       className={`mt-1 text-xs ${

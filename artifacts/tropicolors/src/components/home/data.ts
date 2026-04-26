@@ -150,13 +150,19 @@ export const PRODUCTS: Product[] = [
     prices: { 250: [160, 0, 0, 0, 0] },
     note: NARANJA_850_NOTE,
     purchaseWarning:
-      "Este producto solamente se vende por caja de 18 o 32 pieza",
+      "Este producto solamente se vende por caja de 18 o 32 piezas",
     onlyWholesale: true,
     presentationOverrides: {
       250: [{ label: "250 gramos", price: 160 }],
     },
     specialWholesaleBoxes: {
       250: [18, 32],
+    },
+    specialWholesaleBoxPrices: {
+      250: {
+        18: 2880,
+        32: 5120,
+      },
     },
   },
   {

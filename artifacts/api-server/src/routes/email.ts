@@ -164,6 +164,7 @@ async function procesarCorreoPedido(
     total,
     productos,
     numeroPedido,
+    trackingUrl,
   } = body;
 
   if (
@@ -208,6 +209,7 @@ async function procesarCorreoPedido(
     productos,
     total,
     numeroPedido,
+    trackingUrl,
   });
 
   console.log(
@@ -280,6 +282,7 @@ async function procesarCorreoEstado(
     guia,
     cancellationReason,
     numeroPedido,
+    trackingUrl,
   } = body;
 
   if (!nombre || !email || !estado || !productos || !total || !direccion) {
@@ -328,6 +331,7 @@ async function procesarCorreoEstado(
     guia,
     cancellationReason,
     numeroPedido,
+    trackingUrl,
   });
   console.log(
     `${logPrefix} HTML generado en ${Date.now() - templateStartedAt}ms`,
