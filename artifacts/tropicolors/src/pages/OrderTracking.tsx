@@ -141,7 +141,7 @@ export default function OrderTracking() {
       (snapshot) => {
         if (!snapshot.exists()) {
           setOrder(null);
-          setError("No encontramos informacion para este pedido.");
+          setError("Este pedido no existe o fue eliminado.");
           setIsLoading(false);
           return;
         }

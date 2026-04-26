@@ -69,6 +69,12 @@ export type CreateOrderResult = {
   trackingUrl?: string;
 };
 
+export type DeleteOrderInput = {
+  orderId: string;
+  orderNumber?: string;
+  trackingToken?: string;
+};
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== "object") return false;
   const prototype = Object.getPrototypeOf(value);
@@ -165,14 +171,13 @@ export async function createOrder(
 
   await setDoc(orderRef, payload);
 
-  let trackingUrl: string | undefined;
+  const trackingUrl = buildOrderTrackingUrl(trackingToken);
 
   try {
     await setDoc(
       doc(db, ORDER_TRACKING_COLLECTION, trackingToken),
       trackingPayload,
     );
-    trackingUrl = buildOrderTrackingUrl(trackingToken);
 
     try {
       await Promise.all(
@@ -210,6 +215,41 @@ export async function createOrder(
     trackingToken,
     trackingUrl,
   };
+}
+
+export async function deleteOrderAndTracking({
+  orderId,
+  orderNumber,
+  trackingToken,
+}: DeleteOrderInput) {
+  const orderRef = doc(db, "orders", orderId);
+  let resolvedOrderNumber = orderNumber;
+  let resolvedTrackingToken = trackingToken;
+
+  if (!resolvedOrderNumber || !resolvedTrackingToken) {
+    const orderSnapshot = await getDoc(orderRef);
+
+    if (orderSnapshot.exists()) {
+      const orderData = orderSnapshot.data() as Record<string, unknown>;
+      resolvedOrderNumber ||= getString(orderData.orderNumber);
+      resolvedTrackingToken ||= getString(orderData.trackingToken);
+    }
+  }
+
+  const batch = writeBatch(db);
+  batch.delete(orderRef);
+
+  if (resolvedTrackingToken) {
+    batch.delete(doc(db, ORDER_TRACKING_COLLECTION, resolvedTrackingToken));
+  }
+
+  for (const alias of getLookupAliases(orderId, resolvedOrderNumber || "")) {
+    const lookupId = normalizeOrderNumberForLookup(alias);
+    if (!lookupId) continue;
+    batch.delete(doc(db, ORDER_TRACKING_LOOKUP_COLLECTION, lookupId));
+  }
+
+  await batch.commit();
 }
 
 export type OrderStatus =
@@ -269,8 +309,7 @@ export async function updateOrderStatus(
       `ORD-${orderId.slice(0, 8).toUpperCase()}`;
     const trackingPayload = stripUndefined({
       orderId,
-      orderNumber:
-        orderNumber,
+      orderNumber: orderNumber,
       trackingToken,
       status,
       statusLabel: getTrackingStatusLabel(status),

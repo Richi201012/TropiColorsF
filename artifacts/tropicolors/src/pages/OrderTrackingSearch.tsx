@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
+  ORDER_TRACKING_COLLECTION,
   ORDER_TRACKING_LOOKUP_COLLECTION,
   normalizeOrderNumberForLookup,
 } from "@/lib/order-tracking";
@@ -59,6 +60,15 @@ export default function OrderTrackingSearch() {
       const lookupData = lookupSnapshot.data() as TrackingLookup;
       if (!lookupData.trackingToken) {
         setError("Este pedido aun no tiene seguimiento disponible.");
+        return;
+      }
+
+      const trackingSnapshot = await getDoc(
+        doc(db, ORDER_TRACKING_COLLECTION, lookupData.trackingToken),
+      );
+
+      if (!trackingSnapshot.exists()) {
+        setError("Este pedido no existe o fue eliminado.");
         return;
       }
 

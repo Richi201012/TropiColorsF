@@ -101,7 +101,10 @@ import {
   filtrarClientes,
 } from "@/hooks/useClientesFromOrders";
 import { buildFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
-import { updateOrderStatus as updateOrderStatusDB } from "@/services/order-service";
+import {
+  deleteOrderAndTracking,
+  updateOrderStatus as updateOrderStatusDB,
+} from "@/services/order-service";
 import {
   enviarCorreoEstadoPedidoEnSegundoPlano,
   enviarFacturaCorreo,
@@ -184,7 +187,10 @@ const useAuthProvider = () => {
 
   useEffect(() => {
     void setPersistence(auth, browserSessionPersistence).catch((error) => {
-      console.error("[Admin Auth] No se pudo establecer session persistence:", error);
+      console.error(
+        "[Admin Auth] No se pudo establecer session persistence:",
+        error,
+      );
     });
 
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
@@ -207,7 +213,10 @@ const useAuthProvider = () => {
           phone: String(firestoreData?.phone || ""),
         });
       } catch (profileError) {
-        console.error("[Admin Auth] No se pudo cargar el perfil del usuario:", profileError);
+        console.error(
+          "[Admin Auth] No se pudo cargar el perfil del usuario:",
+          profileError,
+        );
         setUserProfile({
           name: String(nextUser.displayName || ""),
           email: String(nextUser.email || ""),
@@ -3033,7 +3042,9 @@ function buildNaranja850EditableProduct(): EditableProduct {
   });
 }
 
-function buildProductPayload(product: EditableProduct): Record<string, unknown> {
+function buildProductPayload(
+  product: EditableProduct,
+): Record<string, unknown> {
   const normalizedProduct = isNaranja850Editable(product)
     ? normalizeNaranja850Product(product)
     : product;
@@ -4755,7 +4766,9 @@ function NotificationsView({
                 </div>
                 <button
                   type="button"
-                  onClick={() => !isDeletingAll && setShowDeleteAllConfirm(false)}
+                  onClick={() =>
+                    !isDeletingAll && setShowDeleteAllConfirm(false)
+                  }
                   disabled={isDeletingAll}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950 disabled:opacity-50"
                 >
@@ -4772,7 +4785,8 @@ function NotificationsView({
                       ¿Deseas eliminar todas las notificaciones?
                     </p>
                     <p className="mt-1 text-xs text-red-700">
-                      Se eliminarán permanentemente {notifications.length} notificaciones.
+                      Se eliminarán permanentemente {notifications.length}{" "}
+                      notificaciones.
                     </p>
                   </div>
                 </div>
@@ -4916,7 +4930,10 @@ function Dashboard({
         return;
       }
     } catch (error) {
-      console.warn("[Admin] No se pudo reproducir el beep de notificación:", error);
+      console.warn(
+        "[Admin] No se pudo reproducir el beep de notificación:",
+        error,
+      );
     }
 
     try {
@@ -5172,6 +5189,8 @@ function Dashboard({
   const [pendingDeleteOrder, setPendingDeleteOrder] = useState<{
     orderId: string;
     customerName: string;
+    orderNumber?: string;
+    trackingToken?: string;
   } | null>(null);
 
   // Cerrar modales con ESC
@@ -5488,7 +5507,13 @@ function Dashboard({
   };
 
   const handleDeleteOrder = (orderId: string, customerName: string) => {
-    setPendingDeleteOrder({ orderId, customerName });
+    const order = orders.find((entry) => entry.id === orderId);
+    setPendingDeleteOrder({
+      orderId,
+      customerName,
+      orderNumber: order?.orderNumber,
+      trackingToken: order?.trackingToken,
+    });
     setShowDeleteConfirm(true);
   };
 
@@ -5497,13 +5522,18 @@ function Dashboard({
 
     setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, "orders", pendingDeleteOrder.orderId));
+      await deleteOrderAndTracking({
+        orderId: pendingDeleteOrder.orderId,
+        orderNumber: pendingDeleteOrder.orderNumber,
+        trackingToken: pendingDeleteOrder.trackingToken,
+      });
       setOrders((current) =>
         current.filter((order) => order.id !== pendingDeleteOrder.orderId),
       );
       toast({
         title: "Pedido eliminado",
-        description: "El pedido se ha eliminado correctamente.",
+        description:
+          "El pedido y su seguimiento publico se eliminaron correctamente.",
       });
     } catch (error) {
       console.error("[Admin] Error al eliminar pedido:", error);
@@ -6794,9 +6824,7 @@ function Dashboard({
               {isUpdatingStatus && (
                 <Loader2 size={16} className="animate-spin" />
               )}
-              {isUpdatingStatus
-                ? "Actualizando..."
-                : "Confirmar y notificar"}
+              {isUpdatingStatus ? "Actualizando..." : "Confirmar y notificar"}
             </button>
           </div>
         </div>
