@@ -1,6 +1,7 @@
 import { memo } from "react";
+import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Search } from "lucide-react";
+import { PackageSearch, Search } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
@@ -69,8 +70,8 @@ const CatalogSection = memo(function CatalogSection({
             en cada aplicación.
           </h2>
           <p className="mx-auto mt-5 max-w-3xl text-sm leading-relaxed text-slate-500 sm:mt-6 sm:text-base">
-            Desde alimentos hasta procesos industriales, precisión, intensidad
-            y consistencia en cada resultado.
+            Desde alimentos hasta procesos industriales, precisión, intensidad y
+            consistencia en cada resultado.
           </p>
           <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-x-4 gap-y-2 px-2 text-sm leading-relaxed text-slate-500">
             <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5">
@@ -104,6 +105,15 @@ const CatalogSection = memo(function CatalogSection({
                 </p>
               </div>
             ))}
+          </div>
+          <div className="mt-7 flex justify-center">
+            <Link
+              href="/seguimiento_de_pedido"
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-[#003F91]/15 bg-white px-5 py-3 text-sm font-extrabold text-[#003F91] shadow-[0_12px_30px_rgba(0,63,145,0.10)] transition hover:-translate-y-0.5 hover:border-[#003F91]/30 hover:bg-[#003F91] hover:text-white"
+            >
+              <PackageSearch size={18} />
+              Seguir mi pedido
+            </Link>
           </div>
         </div>
 

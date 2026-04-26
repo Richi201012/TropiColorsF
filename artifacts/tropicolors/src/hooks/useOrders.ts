@@ -39,9 +39,11 @@ type FirestoreOrder = {
   currency?: string;
   createdAt?: Timestamp | string | Date;
   updatedAt?: Timestamp | string | Date;
+  orderNumber?: string;
   paymentMethod?: string; // Nuevo campo para método de pago
   metodoPago?: string; // Alternativa para método de pago
   status?: string; // Estado del pedido
+  trackingToken?: string;
   historial?: Array<{
     estado?: string;
     fecha?: Timestamp | string | Date;
@@ -92,6 +94,7 @@ export type OrderProduct = {
 
 export type AdminOrder = {
   id: string;
+  orderNumber?: string;
   customer: string;
   email: string;
   phone?: string;
@@ -115,6 +118,7 @@ export type AdminOrder = {
   tipoEnvio?: string;
   guia?: string;
   cancellationReason?: string;
+  trackingToken?: string;
   historial?: HistorialEntry[];
 };
 
@@ -285,6 +289,7 @@ export function useOrders() {
 
           return {
             id: doc.id,
+            orderNumber: data.orderNumber,
             customer: data.customerName || "Cliente sin nombre",
             email: data.customerEmail || "sin-email@ejemplo.com",
             phone: data.customerPhone || "",
@@ -308,6 +313,7 @@ export function useOrders() {
             tipoEnvio: data.tipoEnvio as string | undefined,
             guia: data.guia as string | undefined,
             cancellationReason: data.cancellationReason as string | undefined,
+            trackingToken: data.trackingToken as string | undefined,
             historial: mappedHistorial,
           };
         });

@@ -120,6 +120,11 @@ import { ReferencesView } from "@/components/ReferencesView";
 import { toast } from "@/hooks/use-toast";
 import { isInventoryUserEmail } from "@/lib/auth-access";
 import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
+import {
+  ORDER_TRACKING_LOOKUP_COLLECTION,
+  buildOrderTrackingUrl,
+  normalizeOrderNumberForLookup,
+} from "@/lib/order-tracking";
 
 type ProductConcentration = "125" | "250";
 type ProductPriceTuple = [number, number, number, number, number];
@@ -1036,6 +1041,7 @@ function formatTimeOnly(dateString?: string): string {
 function exportOrdersToCSV(orders: AdminOrder[]) {
   const headers = [
     "ID",
+    "Numero de pedido",
     "Cliente",
     "Email",
     "Teléfono",
@@ -1049,6 +1055,7 @@ function exportOrdersToCSV(orders: AdminOrder[]) {
 
   const rows = orders.map((order) => [
     order.id,
+    order.orderNumber || "",
     order.customer,
     order.email,
     order.phone || "",
@@ -1505,11 +1512,23 @@ function OrdersView({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
 
+  const handleOpenTracking = (trackingToken?: string) => {
+    if (!trackingToken) return;
+    window.open(
+      buildOrderTrackingUrl(trackingToken),
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       !searchTerm ||
       order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.orderNumber || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       order.email.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
@@ -1632,7 +1651,7 @@ function OrdersView({
                       Pedido
                     </p>
                     <p className="mt-1 truncate text-sm font-semibold text-slate-950">
-                      {order.id.slice(0, 12)}
+                      {order.orderNumber || order.id.slice(0, 12)}
                     </p>
                   </div>
                   <p className="text-right text-xs text-muted-foreground">
@@ -1697,6 +1716,15 @@ function OrdersView({
                   >
                     Ver detalle
                   </button>
+                  {order.trackingToken ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenTracking(order.trackingToken)}
+                      className="inline-flex flex-1 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                    >
+                      Seguimiento
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => onDeleteOrder(order.id, order.customer)}
@@ -1726,7 +1754,7 @@ function OrdersView({
                 className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-slate-50"
               >
                 <span className="truncate font-semibold text-slate-950">
-                  {order.id.slice(0, 10)}
+                  {order.orderNumber || order.id.slice(0, 10)}
                 </span>
                 <div className="min-w-0">
                   <span className="block truncate text-slate-600">
@@ -1765,6 +1793,15 @@ function OrdersView({
                   >
                     Ver detalle
                   </button>
+                  {order.trackingToken ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenTracking(order.trackingToken)}
+                      className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                    >
+                      Seguimiento
+                    </button>
+                  ) : null}
                 </div>
                 <div className="flex items-center justify-center">
                   <button
@@ -4984,6 +5021,52 @@ function Dashboard({
     isLoading: isLoadingOrders,
     error: errorOrders,
   } = useOrders();
+  const indexedTrackingAliasesRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const lookupWrites = orders.flatMap((order) => {
+      if (!order.trackingToken) {
+        return [];
+      }
+
+      const aliases = Array.from(
+        new Set([order.orderNumber, order.id].filter(Boolean)),
+      ) as string[];
+
+      return aliases
+        .map((alias) => {
+          const lookupId = normalizeOrderNumberForLookup(alias);
+          if (!lookupId || indexedTrackingAliasesRef.current.has(lookupId)) {
+            return null;
+          }
+
+          indexedTrackingAliasesRef.current.add(lookupId);
+          return setDoc(
+            doc(db, ORDER_TRACKING_LOOKUP_COLLECTION, lookupId),
+            {
+              orderId: order.id,
+              orderNumber: alias,
+              orderNumberLookup: lookupId,
+              trackingToken: order.trackingToken,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          ).catch((error) => {
+            indexedTrackingAliasesRef.current.delete(lookupId);
+            console.warn(
+              "[Admin] No se pudo indexar seguimiento de pedido:",
+              alias,
+              error,
+            );
+          });
+        })
+        .filter(Boolean);
+    });
+
+    if (lookupWrites.length > 0) {
+      void Promise.all(lookupWrites);
+    }
+  }, [orders]);
 
   // Estado para inventario en tiempo real
   const [productosStock, setProductosStock] = useState<{ stock: number }[]>([]);
@@ -5323,7 +5406,10 @@ function Dashboard({
       tipoEnvio: shippingData?.tipoEnvio,
       guia: shippingData?.guia,
       cancellationReason: shippingData?.cancellationReason,
-      numeroPedido: order.id,
+      numeroPedido: order.orderNumber || order.id,
+      trackingUrl: order.trackingToken
+        ? buildOrderTrackingUrl(order.trackingToken)
+        : undefined,
     };
 
     toast({

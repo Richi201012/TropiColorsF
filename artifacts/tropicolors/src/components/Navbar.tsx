@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { ShoppingBag, Menu, X, MessageCircle } from "lucide-react";
+import { ShoppingBag, Menu, X, MessageCircle, PackageSearch } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/context/CartContext";
 
@@ -229,6 +229,44 @@ export function Navbar() {
                   />
                 </motion.button>
               ))}
+              <Link href="/seguimiento_de_pedido">
+                <motion.div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setActiveLink("seguimiento");
+                    setMenuOpen(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      setActiveLink("seguimiento");
+                      setMenuOpen(false);
+                    }
+                  }}
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="relative mt-1 flex w-full items-center justify-between overflow-hidden rounded-2xl px-4 py-3.5 text-left text-[#003F91]"
+                >
+                  {activeLink === "seguimiento" ? (
+                    <motion.div
+                      layoutId="activeSidebarPill"
+                      className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(0,63,145,0.12),rgba(0,168,181,0.08),rgba(255,205,0,0.14))] shadow-[0_10px_28px_rgba(0,63,145,0.10)]"
+                      transition={{ type: "spring", stiffness: 360, damping: 30 }}
+                    />
+                  ) : null}
+                  <span className="relative z-10 flex items-center gap-2 text-sm font-semibold">
+                    <PackageSearch size={16} />
+                    Seguimiento
+                  </span>
+                  <span
+                    className={`relative z-10 h-2.5 w-2.5 rounded-full transition-colors ${
+                      activeLink === "seguimiento"
+                        ? "bg-[#003F91]"
+                        : "bg-slate-300"
+                    }`}
+                  />
+                </motion.div>
+              </Link>
             </div>
 
             <div className="mt-6 space-y-3">

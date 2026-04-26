@@ -20,6 +20,7 @@ export interface DatosPedido {
   productos: Producto[];
   total: number;
   numeroPedido?: string;
+  trackingUrl?: string;
 }
 
 export interface DatosContacto {
@@ -232,6 +233,27 @@ export function generarEmailConfirmacion(pedido: DatosPedido): string {
             </td>
           </tr>
 
+          ${
+            pedido.trackingUrl
+              ? `
+          <tr>
+            <td style="background: #ffffff; padding: 0 32px 24px; text-align: center;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); border: 1px solid #bfdbfe; border-radius: 14px;">
+                <tr>
+                  <td style="padding: 22px 20px;">
+                    <p style="margin: 0 0 12px; color: #0d1340; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Seguimiento de tu pedido</p>
+                    <p style="margin: 0 0 16px; color: #64748b; font-size: 13px; line-height: 1.6;">Puedes consultar el avance de tu pedido en tiempo real desde este enlace.</p>
+                    <a href="${pedido.trackingUrl}" style="display: inline-block; background: linear-gradient(135deg, #0d1340 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 13px 30px; border-radius: 999px; font-size: 14px; font-weight: 800;">Ver seguimiento</a>
+                    <p style="margin: 14px 0 0; color: #64748b; font-size: 11px; line-height: 1.5; word-break: break-all;">${pedido.trackingUrl}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          `
+              : ""
+          }
+
           <tr>
             <td style="background: #ffffff; padding: 0 32px 36px; text-align: center;">
               <p style="margin: 0 0 18px; color: #64748b; font-size: 14px; line-height: 1.6;">¿Tienes dudas sobre tu pedido? Estamos aquí para ayudarte.</p>
@@ -274,6 +296,7 @@ export interface EmailPedidoData {
   numeroInterior?: string;
   total: number;
   numeroPedido?: string;
+  trackingUrl?: string;
   productos: Array<{ nombre: string; cantidad: number; precio: number }>;
 }
 
@@ -295,6 +318,7 @@ export interface DatosEstadoPedido {
   guia?: string;
   cancellationReason?: string;
   numeroPedido?: string;
+  trackingUrl?: string;
 }
 
 export interface EmailEstadoData extends DatosEstadoPedido {}
@@ -694,6 +718,27 @@ export function generarEmailEstadoPedido(data: DatosEstadoPedido): string {
               </table>
             </td>
           </tr>
+
+          ${
+            data.trackingUrl
+              ? `
+          <tr>
+            <td style="background: #ffffff; padding: 0 32px 24px; text-align: center;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); border: 1px solid #bfdbfe; border-radius: 14px;">
+                <tr>
+                  <td style="padding: 22px 20px;">
+                    <p style="margin: 0 0 12px; color: #0d1340; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Seguimiento en tiempo real</p>
+                    <p style="margin: 0 0 16px; color: #64748b; font-size: 13px; line-height: 1.6;">Este enlace se actualiza cuando cambia el estado de tu pedido.</p>
+                    <a href="${data.trackingUrl}" style="display: inline-block; background: linear-gradient(135deg, #0d1340 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 13px 30px; border-radius: 999px; font-size: 14px; font-weight: 800;">Ver seguimiento</a>
+                    <p style="margin: 14px 0 0; color: #64748b; font-size: 11px; line-height: 1.5; word-break: break-all;">${data.trackingUrl}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          `
+              : ""
+          }
 
           <tr>
             <td style="background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 20px 20px; padding: 28px 32px; text-align: center;">

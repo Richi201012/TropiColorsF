@@ -3,10 +3,21 @@ import {
   collection,
   serverTimestamp,
   doc,
-  updateDoc,
+  setDoc,
   arrayUnion,
+  writeBatch,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import {
+  ORDER_TRACKING_COLLECTION,
+  ORDER_TRACKING_LOOKUP_COLLECTION,
+  buildOrderTrackingUrl,
+  generateTrackingToken,
+  getTrackingStatusDescription,
+  getTrackingStatusLabel,
+  normalizeOrderNumberForLookup,
+} from "@/lib/order-tracking";
 
 type OrderItemInput = {
   productId: string;
@@ -51,6 +62,13 @@ export type CreateOrderInput = {
   } | null;
 };
 
+export type CreateOrderResult = {
+  orderId: string;
+  displayOrderId: string;
+  trackingToken: string;
+  trackingUrl?: string;
+};
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== "object") return false;
   const prototype = Object.getPrototypeOf(value);
@@ -73,17 +91,125 @@ function stripUndefined<T>(value: T): T {
   return value;
 }
 
-export async function createOrder(input: CreateOrderInput) {
+function buildTrackingLookupPayload({
+  orderId,
+  orderNumber,
+  trackingToken,
+}: {
+  orderId: string;
+  orderNumber: string;
+  trackingToken: string;
+}) {
+  return stripUndefined({
+    orderId,
+    orderNumber,
+    orderNumberLookup: normalizeOrderNumberForLookup(orderNumber),
+    trackingToken,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+function getLookupAliases(orderId: string, orderNumber: string) {
+  return Array.from(new Set([orderNumber, orderId].filter(Boolean)));
+}
+
+export async function createOrder(
+  input: CreateOrderInput,
+): Promise<CreateOrderResult> {
+  const orderRef = doc(collection(db, "orders"));
+  const trackingToken = generateTrackingToken();
+  const displayOrderId = `ORD-${orderRef.id.slice(0, 8).toUpperCase()}`;
+  const initialStatus: OrderStatus = "pendiente";
+  const historyDate = new Date().toISOString();
+
   const payload = stripUndefined({
     ...input,
+    orderNumber: displayOrderId,
+    status: initialStatus,
+    trackingToken,
     currency: "MXN",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    historial: [
+      {
+        estado: initialStatus,
+        fecha: historyDate,
+      },
+    ],
+  });
+
+  const trackingPayload = stripUndefined({
+    orderId: orderRef.id,
+    orderNumber: displayOrderId,
+    trackingToken,
+    status: initialStatus,
+    statusLabel: getTrackingStatusLabel(initialStatus),
+    description: getTrackingStatusDescription(initialStatus),
+    total: input.total,
+    currency: "MXN",
+    paymentMethod: input.paymentMethod,
+    paymentStatus: input.paymentStatus,
+    items: buildTrackingItems(input.items),
+    historial: [
+      {
+        estado: initialStatus,
+        label: getTrackingStatusLabel(initialStatus),
+        description: getTrackingStatusDescription(initialStatus),
+        fecha: historyDate,
+      },
+    ],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 
-  const docRef = await addDoc(collection(db, "orders"), payload);
+  await setDoc(orderRef, payload);
 
-  return docRef.id;
+  let trackingUrl: string | undefined;
+
+  try {
+    await setDoc(
+      doc(db, ORDER_TRACKING_COLLECTION, trackingToken),
+      trackingPayload,
+    );
+    trackingUrl = buildOrderTrackingUrl(trackingToken);
+
+    try {
+      await Promise.all(
+        getLookupAliases(orderRef.id, displayOrderId).map((alias) =>
+          setDoc(
+            doc(
+              db,
+              ORDER_TRACKING_LOOKUP_COLLECTION,
+              normalizeOrderNumberForLookup(alias),
+            ),
+            buildTrackingLookupPayload({
+              orderId: orderRef.id,
+              orderNumber: alias,
+              trackingToken,
+            }),
+          ),
+        ),
+      );
+    } catch (lookupError) {
+      console.error(
+        "[order-service] No se pudo crear el indice de busqueda:",
+        lookupError,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[order-service] No se pudo crear el tracking publico:",
+      error,
+    );
+  }
+
+  return {
+    orderId: orderRef.id,
+    displayOrderId,
+    trackingToken,
+    trackingUrl,
+  };
 }
 
 export type OrderStatus =
@@ -104,14 +230,23 @@ export async function updateOrderStatus(
   },
 ) {
   const orderRef = doc(db, "orders", orderId);
+  const orderSnapshot = await getDoc(orderRef);
+
+  if (!orderSnapshot.exists()) {
+    throw new Error("Pedido no encontrado.");
+  }
+
+  const currentOrder = orderSnapshot.data() as Record<string, unknown>;
+  const historyEntry = stripUndefined({
+    estado: status,
+    fecha: new Date().toISOString(),
+    motivo: shippingData?.cancellationReason || null,
+  });
+
   const payload: Record<string, unknown> = {
     status,
     updatedAt: serverTimestamp(),
-    historial: arrayUnion({
-      estado: status,
-      fecha: new Date().toISOString(),
-      motivo: shippingData?.cancellationReason || null,
-    }),
+    historial: arrayUnion(historyEntry),
   };
 
   if (shippingData) {
@@ -123,7 +258,72 @@ export async function updateOrderStatus(
     }
   }
 
-  await updateDoc(orderRef, payload);
+  const batch = writeBatch(db);
+  batch.update(orderRef, payload);
+
+  const trackingToken = getString(currentOrder.trackingToken);
+
+  if (trackingToken) {
+    const orderNumber =
+      getString(currentOrder.orderNumber) ||
+      `ORD-${orderId.slice(0, 8).toUpperCase()}`;
+    const trackingPayload = stripUndefined({
+      orderId,
+      orderNumber:
+        orderNumber,
+      trackingToken,
+      status,
+      statusLabel: getTrackingStatusLabel(status),
+      description: getTrackingStatusDescription(status),
+      total: getNumber(currentOrder.total),
+      currency: getString(currentOrder.currency) || "MXN",
+      paymentMethod:
+        getString(currentOrder.paymentMethod) ||
+        getString(currentOrder.metodoPago),
+      paymentStatus:
+        status === "pagado" ? "paid" : getString(currentOrder.paymentStatus),
+      items: buildTrackingItems(currentOrder.items),
+      paqueteria:
+        shippingData?.paqueteria || getString(currentOrder.paqueteria),
+      tipoEnvio: shippingData?.tipoEnvio || getString(currentOrder.tipoEnvio),
+      guia: shippingData?.guia || getString(currentOrder.guia),
+      cancellationReason:
+        shippingData?.cancellationReason ||
+        getString(currentOrder.cancellationReason),
+      historial: arrayUnion(
+        stripUndefined({
+          ...historyEntry,
+          label: getTrackingStatusLabel(status),
+          description: getTrackingStatusDescription(status),
+        }),
+      ),
+      updatedAt: serverTimestamp(),
+    });
+
+    batch.set(
+      doc(db, ORDER_TRACKING_COLLECTION, trackingToken),
+      trackingPayload,
+      { merge: true },
+    );
+
+    for (const alias of getLookupAliases(orderId, orderNumber)) {
+      batch.set(
+        doc(
+          db,
+          ORDER_TRACKING_LOOKUP_COLLECTION,
+          normalizeOrderNumberForLookup(alias),
+        ),
+        buildTrackingLookupPayload({
+          orderId,
+          orderNumber: alias,
+          trackingToken,
+        }),
+        { merge: true },
+      );
+    }
+  }
+
+  await batch.commit();
 
   // Log activity
   try {
@@ -131,6 +331,37 @@ export async function updateOrderStatus(
   } catch {
     // Silently fail - activity log is non-critical
   }
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function getNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function buildTrackingItems(items: unknown) {
+  if (!Array.isArray(items)) return [];
+
+  return items.slice(0, 30).map((item) => {
+    if (!isPlainObject(item)) {
+      return {
+        productName: "Producto",
+        quantity: 1,
+      };
+    }
+
+    return stripUndefined({
+      productName:
+        getString(item.productName) || getString(item.name) || "Producto",
+      quantity: getNumber(item.quantity) || 1,
+      size: getString(item.size),
+      subtotal: getNumber(item.subtotal),
+    });
+  });
 }
 
 function statusLabel(status: OrderStatus): string {
