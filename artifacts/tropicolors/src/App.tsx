@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/context/CartContext";
 import { toast } from "@/hooks/use-toast";
 import { isFirestorePermissionDenied } from "@/lib/firebase-errors";
+import { trackPageView } from "@/lib/analytics";
 
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -41,6 +42,16 @@ const FlyToCart = lazy(() =>
 );
 
 const queryClient = new QueryClient();
+
+function AnalyticsTracker() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    trackPageView(location);
+  }, [location]);
+
+  return null;
+}
 
 function scheduleDeferredUi(callback: () => void) {
   const browserWindow = window as Window & {
@@ -191,6 +202,7 @@ function App() {
       <TooltipProvider>
         <CartProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AnalyticsTracker />
             <AppLayout>
               <Router />
             </AppLayout>

@@ -127,7 +127,7 @@ function getPublicSiteUrl(): string {
     return `${window.location.origin}${normalizedBasePath}`.replace(/\/+$/, "");
   }
 
-  return "https://tropicolors.netlify.app";
+  return "https://tropicolors.mx";
 }
 
 export function buildOrderTrackingUrl(token: string): string {

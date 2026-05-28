@@ -3,4 +3,4 @@ Allow: /
 Disallow: /login
 Disallow: /inventario
 
-Sitemap: https://tropicolors.netlify.app/sitemap.xml
+Sitemap: https://tropicolors.mx/sitemap.xml
