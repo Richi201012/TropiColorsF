@@ -33,7 +33,6 @@ import {
   isNaranja850Product,
   validateContactForm,
 } from "@/components/home/utils";
-import AdSlotShell from "@/components/ads/AdSlotShell";
 import { useReferences } from "@/hooks/useReferences";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -449,7 +448,7 @@ export default function Home() {
   return (
     <div
       id="inicio"
-      className="ad-safe-page relative overflow-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#fffdf8_32%,#ffffff_68%,#f8fbff_100%)]"
+      className="relative overflow-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#fffdf8_32%,#ffffff_68%,#f8fbff_100%)]"
     >
       <HomeBackground blobs={visibleHomeBlobs} />
 
@@ -462,12 +461,6 @@ export default function Home() {
         onSearchChange={handleSearchChange}
         addToCart={addToCart}
         addFlyingItem={addFlyingItem}
-      />
-
-      <AdSlotShell
-        title="Corte limpio después del catálogo"
-        description="Buen punto para un banner horizontal sin partir la lectura del catálogo ni deformar las tarjetas de producto."
-        slotName="home-catalog-break"
       />
 
       {secondarySectionsReady ? (
@@ -486,13 +479,6 @@ export default function Home() {
             isSubmittingReference={isSubmittingReference}
             onReferenceFieldChange={handleReferenceFieldChange}
             onReferenceSubmit={handleReferenceSubmit}
-          />
-          <AdSlotShell
-            title="Espacio previo al cierre comercial"
-            description="Úsalo para un anuncio intermedio antes del CTA final y del formulario de contacto, evitando competir con conversiones críticas."
-            slotName="home-conversion-break"
-            className="pt-0"
-            canvasClassName="min-h-[132px] sm:min-h-[160px]"
           />
           <WhatsAppCtaSection />
           <ContactSection
