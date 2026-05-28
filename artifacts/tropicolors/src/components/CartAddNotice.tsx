@@ -42,7 +42,7 @@ export function CartAddNotice() {
           animate={{ opacity: 1, x: 0, y: 0 }}
           exit={{ opacity: 0, x: -18, y: 18 }}
           transition={{ duration: 0.28, ease: "easeOut" }}
-          className="fixed bottom-5 left-5 z-[65] w-[calc(100vw-2.5rem)] max-w-sm"
+          className="fixed left-4 z-[65] w-[calc(100vw-2rem)] max-w-sm sm:left-5 sm:w-[calc(100vw-2.5rem)] bottom-[calc(env(safe-area-inset-bottom)+var(--tc-floating-clearance)-0.5rem)]"
         >
           <div className="relative overflow-hidden rounded-[28px] border border-white/45 bg-[linear-gradient(145deg,rgba(255,255,255,0.96)_0%,rgba(245,250,255,0.94)_48%,rgba(255,248,231,0.96)_100%)] p-4 shadow-[0_22px_55px_rgba(0,63,145,0.18)] backdrop-blur-xl">
             <div className="pointer-events-none absolute -left-8 top-0 h-24 w-24 rounded-full bg-[#00A8B5]/18 blur-3xl" />

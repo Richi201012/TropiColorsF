@@ -5,7 +5,7 @@ import { Facebook, Instagram, Mail, MapPin, Phone } from "lucide-react";
 export function Footer() {
   return (
     <footer className="bg-gray-100 text-gray-700">
-      <div className="max-w-7xl mx-auto px-6 py-12">
+      <div className="mx-auto max-w-7xl px-6 pb-[calc(3rem+var(--tc-anchor-ad-clearance))] pt-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-start">
           {/* Logo + Descripción */}
           <div className="flex flex-col">
