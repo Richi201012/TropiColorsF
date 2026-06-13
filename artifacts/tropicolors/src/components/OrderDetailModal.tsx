@@ -36,6 +36,8 @@ type OrderDetail = {
   phone: string;
   address: string;
   items: OrderDetailItem[];
+  subtotal: number;
+  shippingFee: number;
   total: number;
   status: string;
   paymentMethod: string;
@@ -60,6 +62,8 @@ type FirestoreOrderData = {
   status?: string;
   paymentMethod?: string;
   metodoPago?: string;
+  subtotal?: number;
+  shippingFee?: number;
   total?: number;
   createdAt?: Timestamp | string | Date;
   updatedAt?: Timestamp | string | Date;
@@ -237,13 +241,19 @@ export function OrderDetailModal({
           JSON.stringify(items),
         );
 
-        const totalFromData = Number(data.total) || 0;
-        const totalFromItems = items.reduce(
+        const subtotalFromItems = items.reduce(
           (sum, item) => sum + calculateCartItemSubtotal(item),
           0,
         );
+        const subtotalFromData = Number(data.subtotal) || 0;
+        const shippingFee = Number(data.shippingFee) || 0;
+        const totalFromData = Number(data.total) || 0;
+        const calculatedSubtotal =
+          subtotalFromData > 0 ? subtotalFromData : subtotalFromItems;
         const calculatedTotal =
-          totalFromData > 0 ? totalFromData : totalFromItems;
+          totalFromData > 0
+            ? totalFromData
+            : calculatedSubtotal + shippingFee;
         console.log("[OrderDetailModal] total:", calculatedTotal);
 
         if (!cancelled) {
@@ -262,6 +272,8 @@ export function OrderDetailModal({
             phone: data.customerPhone || "",
             address: buildAddress(data),
             items,
+            subtotal: calculatedSubtotal,
+            shippingFee,
             total: calculatedTotal,
             status: mapStatus(data.status || "pendiente"),
             paymentMethod: data.paymentMethod || data.metodoPago || "N/A",
@@ -559,13 +571,25 @@ export function OrderDetailModal({
 
                 {/* Totals */}
                 <div className="border-t border-border/50 bg-slate-50 px-5 py-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-base font-bold text-slate-950">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm text-slate-600">
+                      <span>Subtotal</span>
+                      <span>${order.subtotal.toLocaleString("es-MX")}</span>
+                    </div>
+                    {order.shippingFee > 0 ? (
+                      <div className="flex items-center justify-between text-sm text-slate-600">
+                        <span>Envio</span>
+                        <span>${order.shippingFee.toLocaleString("es-MX")}</span>
+                      </div>
+                    ) : null}
+                    <div className="flex items-center justify-between border-t border-border/50 pt-3">
+                      <span className="text-base font-bold text-slate-950">
                       Total del pedido
-                    </span>
-                    <span className="text-2xl font-display font-bold text-primary">
-                      ${order.total.toLocaleString("es-MX")}
-                    </span>
+                      </span>
+                      <span className="text-2xl font-display font-bold text-primary">
+                        ${order.total.toLocaleString("es-MX")}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

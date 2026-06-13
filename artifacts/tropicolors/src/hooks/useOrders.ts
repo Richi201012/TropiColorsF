@@ -37,6 +37,8 @@ type FirestoreOrder = {
   shippingMunicipality?: string;
   shippingState?: string;
   currency?: string;
+  subtotal?: number;
+  shippingFee?: number;
   createdAt?: Timestamp | string | Date;
   updatedAt?: Timestamp | string | Date;
   orderNumber?: string;
@@ -107,6 +109,8 @@ export type AdminOrder = {
   municipality?: string;
   state?: string;
   postalCode?: string;
+  subtotal: number;
+  shippingFee: number;
   total: number;
   status: OrderStatus;
   items: OrderProduct[];
@@ -165,8 +169,18 @@ export function useOrders() {
 
           console.log(`[useOrders] 📄 Procesando documento: ${doc.id}`, data);
 
-          // Calcular total desde el array de items
-          const calculatedTotal = calcularTotal(data.items);
+          const calculatedSubtotal = calcularSubtotalItems(data.items);
+          const storedSubtotal = Number(data.subtotal);
+          const shippingFee = Number(data.shippingFee) || 0;
+          const storedTotal = Number(data.total);
+          const subtotal =
+            Number.isFinite(storedSubtotal) && storedSubtotal > 0
+              ? storedSubtotal
+              : calculatedSubtotal;
+          const total =
+            Number.isFinite(storedTotal) && storedTotal > 0
+              ? storedTotal
+              : subtotal + shippingFee;
 
           // Mapear items al formato que espera el UI
           const mappedItems: OrderProduct[] = (data.items || []).map((item) => {
@@ -302,7 +316,9 @@ export function useOrders() {
             municipality: data.shippingMunicipality || "",
             state: data.shippingState || "",
             postalCode: data.shippingPostalCode || "",
-            total: calculatedTotal,
+            subtotal,
+            shippingFee,
+            total,
             status: mapOrderStatus(data.status),
             items: mappedItems,
             createdAt: createdAtString,
@@ -354,7 +370,7 @@ export function useOrders() {
 /**
  * Calcula el total del pedido a partir del array de items
  */
-function calcularTotal(
+function calcularSubtotalItems(
   items?: Array<{ price?: number; quantity?: number; subtotal?: number }>,
 ): number {
   if (!items || !Array.isArray(items) || items.length === 0) {

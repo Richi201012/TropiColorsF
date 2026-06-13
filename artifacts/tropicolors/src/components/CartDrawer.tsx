@@ -244,6 +244,10 @@ function buildTransferReference(phone: string): string {
   return `TC-TROPIC-${lastDigits}`;
 }
 
+function formatAmount(value: number): string {
+  return value.toLocaleString("es-MX");
+}
+
 function buildWhatsAppUrl(params: {
   orderId: string;
   customerName: string;
@@ -254,7 +258,7 @@ function buildWhatsAppUrl(params: {
     "Hola, ya realice mi transferencia de Tropicolors.",
     `Pedido: ${params.orderId}`,
     `Nombre: ${params.customerName}`,
-    `Monto: $${params.total} MXN`,
+    `Monto: $${formatAmount(params.total)} MXN`,
     `Concepto: ${params.transferReference}`,
     "Adjunto mi comprobante de transferencia.",
   ].join("\n");
@@ -394,6 +398,8 @@ function FieldShell({
 const CheckoutModal = React.memo(function CheckoutModal({
   open,
   items,
+  cartSubtotal,
+  shippingFee,
   cartTotal,
   isProcessing,
   onSubmit,
@@ -402,6 +408,8 @@ const CheckoutModal = React.memo(function CheckoutModal({
 }: {
   open: boolean;
   items: CartItem[];
+  cartSubtotal: number;
+  shippingFee: number;
   cartTotal: number;
   isProcessing: boolean;
   onSubmit: (
@@ -873,12 +881,22 @@ const CheckoutModal = React.memo(function CheckoutModal({
                       <span>Productos</span>
                       <span>{itemCount}</span>
                     </div>
+                    <div className="mt-3 space-y-3 border-t border-white/10 pt-3 text-sm text-slate-300">
+                      <div className="flex items-center justify-between">
+                        <span>Subtotal</span>
+                        <span>${formatAmount(cartSubtotal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Envio</span>
+                        <span>${formatAmount(shippingFee)}</span>
+                      </div>
+                    </div>
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
                       <span className="text-base font-medium text-white">
                         Total
                       </span>
                       <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-200 bg-clip-text text-4xl font-black tracking-tight text-transparent">
-                        ${cartTotal}
+                        ${formatAmount(cartTotal)}
                       </span>
                     </div>
                   </div>
@@ -1437,16 +1455,21 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             <p className="mt-1 text-sm font-semibold text-slate-900">
                               Transferencia bancaria
                             </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              Pendiente de validacion manual: ${cartTotal} MXN
-                            </p>
+                            <div className="mt-2 space-y-1 text-xs text-slate-500">
+                              <p>Subtotal: ${formatAmount(cartSubtotal)} MXN</p>
+                              <p>Envio: ${formatAmount(shippingFee)} MXN</p>
+                              <p>
+                                Pendiente de validacion manual: $
+                                {formatAmount(cartTotal)} MXN
+                              </p>
+                            </div>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right">
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                               Total
                             </p>
                             <p className="mt-1 text-xl font-black text-cyan-300">
-                              ${cartTotal}
+                              ${formatAmount(cartTotal)}
                             </p>
                           </div>
                         </div>
@@ -1592,7 +1615,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             </p>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-300">
-                            ${cartTotal} MXN
+                            ${formatAmount(cartTotal)} MXN
                           </div>
                         </div>
                       </div>
@@ -1637,7 +1660,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               },
                               {
                                 label: "Monto",
-                                value: `$${cartTotal} MXN`,
+                                value: `$${formatAmount(cartTotal)} MXN`,
                               },
                             ].map((item) => (
                               <div
@@ -1666,11 +1689,21 @@ const CheckoutModal = React.memo(function CheckoutModal({
                       </div>
 
                       <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-                        <div className="flex items-center justify-between text-sm text-slate-500">
-                          <span>Total a pagar</span>
-                          <span className="text-3xl font-black tracking-tight text-sky-700">
-                            ${cartTotal}
-                          </span>
+                        <div className="space-y-3 text-sm text-slate-500">
+                          <div className="flex items-center justify-between">
+                            <span>Subtotal</span>
+                            <span>${formatAmount(cartSubtotal)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Envio</span>
+                            <span>${formatAmount(shippingFee)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                            <span>Total a pagar</span>
+                            <span className="text-3xl font-black tracking-tight text-sky-700">
+                              ${formatAmount(cartTotal)}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -1715,6 +1748,8 @@ export function CartDrawer() {
     isCartOpen,
     setIsCartOpen,
     items,
+    cartSubtotal,
+    cartShippingFee,
     cartTotal,
     removeFromCart,
     updateQuantity,
@@ -1809,6 +1844,8 @@ export function CartDrawer() {
           paymentStatus: "pending",
           orderStatus: "pending",
           paymentReference: currentTransferReference,
+          subtotal: cartSubtotal,
+          shippingFee: cartShippingFee,
           total: cartTotal,
           items: items.map((item) => ({
             productId: item.productId,
@@ -1910,7 +1947,7 @@ export function CartDrawer() {
         setIsProcessing(false);
       }
     },
-    [cartTotal, items, toast],
+    [cartShippingFee, cartSubtotal, cartTotal, items, toast],
   );
 
   const handleFinalizeCheckout = useCallback(() => {
@@ -2054,13 +2091,18 @@ export function CartDrawer() {
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-semibold">${cartTotal}</span>
+                  <span className="font-semibold">
+                    ${formatAmount(cartSubtotal)}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-500"></div>
+                <div className="flex items-center justify-between text-sm text-gray-500">
+                  <span>Envio</span>
+                  <span>${formatAmount(cartShippingFee)}</span>
+                </div>
                 <div className="flex items-center justify-between border-t pt-2">
                   <span className="text-lg font-bold">Total</span>
                   <span className="text-xl font-bold text-blue-600">
-                    ${cartTotal}
+                    ${formatAmount(cartTotal)}
                   </span>
                 </div>
                 <button
@@ -2078,6 +2120,8 @@ export function CartDrawer() {
             <CheckoutModal
               open={isCheckoutModalOpen}
               items={items}
+              cartSubtotal={cartSubtotal}
+              shippingFee={cartShippingFee}
               cartTotal={cartTotal}
               isProcessing={isProcessing}
               onSubmit={onSubmit}

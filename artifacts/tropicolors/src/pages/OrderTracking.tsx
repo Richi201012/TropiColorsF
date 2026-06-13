@@ -49,6 +49,8 @@ type OrderTrackingData = {
   status?: string;
   statusLabel?: string;
   description?: string;
+  subtotal?: number;
+  shippingFee?: number;
   total?: number;
   currency?: string;
   paymentMethod?: string;
@@ -171,6 +173,23 @@ export default function OrderTracking() {
     () => (trackingToken ? buildOrderTrackingUrl(trackingToken) : ""),
     [trackingToken],
   );
+  const orderSubtotal = useMemo(() => {
+    if (typeof order?.subtotal === "number" && Number.isFinite(order.subtotal)) {
+      return order.subtotal;
+    }
+
+    return (order?.items || []).reduce(
+      (sum, item) => sum + (Number(item.subtotal) || 0),
+      0,
+    );
+  }, [order]);
+  const orderTotal = useMemo(() => {
+    if (typeof order?.total === "number" && Number.isFinite(order.total)) {
+      return order.total;
+    }
+
+    return orderSubtotal + (Number(order?.shippingFee) || 0);
+  }, [order, orderSubtotal]);
   const visibleHistory =
     order?.historial && order.historial.length > 0
       ? [...order.historial].reverse()
@@ -458,8 +477,19 @@ export default function OrderTracking() {
                     value={paymentMethodLabel(order.paymentMethod)}
                   />
                   <SummaryRow
+                    label="Subtotal"
+                    value={formatMoney(orderSubtotal, order.currency) || "-"}
+                  />
+                  {typeof order.shippingFee === "number" &&
+                  order.shippingFee > 0 ? (
+                    <SummaryRow
+                      label="Envio"
+                      value={formatMoney(order.shippingFee, order.currency) || "-"}
+                    />
+                  ) : null}
+                  <SummaryRow
                     label="Total"
-                    value={formatMoney(order.total, order.currency) || "-"}
+                    value={formatMoney(orderTotal, order.currency) || "-"}
                   />
                 </div>
               </div>

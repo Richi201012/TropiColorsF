@@ -5576,10 +5576,12 @@ function Dashboard({
       selectedInvoiceOrder.createdAt || new Date().toISOString(),
     );
     const orderTotal = Number(selectedInvoiceOrder.total) || 0;
+    const shippingFee = Number(selectedInvoiceOrder.shippingFee) || 0;
+    const taxableTotal = Math.max(orderTotal - shippingFee, 0);
 
     // Calcular subtotal e IVA
-    const subtotal = orderTotal / 1.16;
-    const taxAmount = orderTotal - subtotal;
+    const subtotal = taxableTotal / 1.16;
+    const taxAmount = taxableTotal - subtotal;
 
     // Mapear items con validación para evitar NaN
     const mappedItems = selectedInvoiceOrder.items.map((item, index) => {
@@ -5626,6 +5628,7 @@ function Dashboard({
       },
       items: mappedItems,
       subtotal: subtotal,
+      shippingFee,
       taxRate: 0.16,
       taxAmount: taxAmount,
       total: orderTotal,
@@ -5682,6 +5685,8 @@ function Dashboard({
         customerPhone: newOrderForm.phone?.trim() || "",
         customerAddress:
           newOrderForm.address.trim() || "Dirección pendiente de captura",
+        subtotal: total,
+        shippingFee: 0,
         total,
         status: "pendiente",
         metodoPago: newOrderForm.metodoPago || "efectivo",
@@ -5715,6 +5720,8 @@ function Dashboard({
         email: newOrderForm.email.trim() || "sin-correo@cliente.com",
         address:
           newOrderForm.address.trim() || "Dirección pendiente de captura",
+        subtotal: total,
+        shippingFee: 0,
         total,
         status: "pendiente",
         items: productNames.map((name) => ({
@@ -6421,6 +6428,7 @@ function Dashboard({
                 };
               }),
               subtotal: Number(selectedInvoice.subtotal) || 0,
+              shippingFee: Number(selectedInvoice.shippingFee) || 0,
               taxRate: Number(selectedInvoice.taxRate) || 0,
               taxAmount: Number(selectedInvoice.taxAmount) || 0,
               total: Number(selectedInvoice.total) || 0,
@@ -6440,6 +6448,7 @@ function Dashboard({
                   precio: item.unitPrice,
                 })),
                 subtotal: selectedInvoice.subtotal,
+                shippingFee: selectedInvoice.shippingFee || 0,
                 iva: selectedInvoice.taxAmount,
                 total: selectedInvoice.total.toLocaleString("es-MX", {
                   minimumFractionDigits: 2,

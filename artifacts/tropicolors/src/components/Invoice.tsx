@@ -625,6 +625,22 @@ export const Invoice: React.FC<InvoiceProps> = ({
                     {formatCurrency(data.subtotal)}
                   </span>
                 </div>
+                {data.shippingFee && data.shippingFee > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <span style={{ color: C.grayD, fontSize: "12px" }}>
+                      Envio
+                    </span>
+                    <span style={{ color: C.ink, fontSize: "12px" }}>
+                      {formatCurrency(data.shippingFee)}
+                    </span>
+                  </div>
+                )}
                 {data.taxRate > 0 && (
                   <div
                     style={{

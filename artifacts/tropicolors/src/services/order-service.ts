@@ -54,6 +54,8 @@ export type CreateOrderInput = {
   paymentStatus: "paid" | "pending";
   orderStatus: "pending";
   paymentReference?: string;
+  subtotal: number;
+  shippingFee: number;
   total: number;
   items: OrderItemInput[];
   paymentDetails?: {
@@ -152,6 +154,8 @@ export async function createOrder(
     status: initialStatus,
     statusLabel: getTrackingStatusLabel(initialStatus),
     description: getTrackingStatusDescription(initialStatus),
+    subtotal: input.subtotal,
+    shippingFee: input.shippingFee,
     total: input.total,
     currency: "MXN",
     paymentMethod: input.paymentMethod,

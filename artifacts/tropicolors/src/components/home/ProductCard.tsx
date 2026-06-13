@@ -15,6 +15,7 @@ import {
   buildCartItemKey,
   calculateMayoreoUnitTotal,
   calculatePiecePrice,
+  calculateWholesalePrice,
   getPiecesFromPresentationLabel,
   type PurchaseType,
 } from "@/lib/commerce";
@@ -171,7 +172,7 @@ const ProductCard = React.memo(function ProductCard({
   const wholesaleUnitTotal = useMemo(
     () =>
       selectedWholesaleBoxPrice && selectedWholesaleBoxPrice > 0
-        ? selectedWholesaleBoxPrice
+        ? calculateWholesalePrice(selectedWholesaleBoxPrice)
         : calculateMayoreoUnitTotal(priceBase, selectedWholesalePieces),
     [priceBase, selectedWholesaleBoxPrice, selectedWholesalePieces],
   );

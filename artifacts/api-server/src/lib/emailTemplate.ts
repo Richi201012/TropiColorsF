@@ -779,6 +779,7 @@ export interface DatosFactura {
   fecha: string;
   productos: FacturaProducto[];
   subtotal: number;
+  shippingFee?: number;
   iva: number;
   total: string;
   telefono?: string;
@@ -1057,6 +1058,16 @@ export function generarEmailFactura(data: DatosFactura): string {
                               <td style="padding: 12px 16px; color: #64748b; font-size: 14px;">Subtotal</td>
                               <td style="padding: 12px 16px; text-align: right; color: #1e293b; font-size: 14px; font-weight: 600;">$${data.subtotal.toFixed(2)}</td>
                             </tr>
+                            ${
+                              data.shippingFee && data.shippingFee > 0
+                                ? `
+                            <tr>
+                              <td style="padding: 0 16px 12px; color: #64748b; font-size: 14px;">Envío</td>
+                              <td style="padding: 0 16px 12px; text-align: right; color: #1e293b; font-size: 14px; font-weight: 600;">$${data.shippingFee.toFixed(2)}</td>
+                            </tr>
+                            `
+                                : ""
+                            }
                             <tr>
                               <td style="padding: 0 16px 12px; color: #64748b; font-size: 14px;">IVA (16%)</td>
                               <td style="padding: 0 16px 12px; text-align: right; color: #1e293b; font-size: 14px; font-weight: 600;">$${data.iva.toFixed(2)}</td>

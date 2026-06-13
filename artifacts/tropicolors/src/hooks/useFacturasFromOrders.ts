@@ -35,12 +35,15 @@ export function useFacturasFromOrders() {
 }
 
 function mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
-  const calculatedTotal = order.items.reduce(
+  const calculatedSubtotal = order.items.reduce(
     (sum: number, item: OrderProduct) => {
       return sum + calculateCartItemSubtotal(item);
     },
     0,
   );
+  const subtotal = Number(order.subtotal) || calculatedSubtotal;
+  const shippingFee = Number(order.shippingFee) || 0;
+  const total = Number(order.total) || subtotal + shippingFee;
 
   const mappedItems: InvoiceItem[] = order.items.map((item, itemIndex) => ({
     id: `item-${itemIndex}`,
@@ -78,10 +81,11 @@ function mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
       rfc: order.requiresInvoice ? order.customerRfc || "" : "",
     },
     items: mappedItems,
-    subtotal: calculatedTotal,
+    subtotal,
+    shippingFee,
     taxRate: 0,
     taxAmount: 0,
-    total: calculatedTotal,
+    total,
     orderId: order.id,
   };
 }
@@ -127,9 +131,12 @@ export function crearFacturaDesdePedido(order: AdminOrder): InvoiceData {
 
 class InvoiceMapper {
   mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
-    const total = order.items.reduce((sum, item) => {
+    const calculatedSubtotal = order.items.reduce((sum, item) => {
       return sum + calculateCartItemSubtotal(item);
     }, 0);
+    const subtotal = Number(order.subtotal) || calculatedSubtotal;
+    const shippingFee = Number(order.shippingFee) || 0;
+    const total = Number(order.total) || subtotal + shippingFee;
 
     const items: InvoiceItem[] = order.items.map((item, itemIndex) => ({
       id: `item-${itemIndex}`,
@@ -166,7 +173,8 @@ class InvoiceMapper {
         rfc: order.requiresInvoice ? order.customerRfc || "" : "",
       },
       items,
-      subtotal: total,
+      subtotal,
+      shippingFee,
       taxRate: 0,
       taxAmount: 0,
       total,
