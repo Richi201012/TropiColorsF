@@ -49,6 +49,7 @@ export type DatosFacturaCorreo = {
   fecha: string;
   productos: ProductoPedido[];
   subtotal: number;
+  shippingFee?: number;
   iva: number;
   total: string;
   telefono?: string;

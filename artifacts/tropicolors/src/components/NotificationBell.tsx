@@ -11,7 +11,7 @@ export function NotificationBell({
     <button
       type="button"
       onClick={onClick}
-      className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-white text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
+      className="relative inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
     >
       <Bell size={16} />
       {count > 0 && (

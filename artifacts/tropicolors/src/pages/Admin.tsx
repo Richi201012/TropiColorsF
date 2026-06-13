@@ -121,6 +121,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { OrderDetailModal } from "@/components/OrderDetailModal";
 import { ReferencesView } from "@/components/ReferencesView";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { isInventoryUserEmail } from "@/lib/auth-access";
 import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 import {
@@ -601,7 +602,7 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   }));
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="relative min-h-[100dvh] overflow-hidden">
       {/* Animated Gradient Background */}
       <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_top,#163b73_0%,#0b1d3d_38%,#07142a_100%)] animate-gradient">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,205,0,0.1)_0%,rgba(255,46,99,0.08)_32%,rgba(0,168,181,0.12)_68%,rgba(0,63,145,0.22)_100%)]" />
@@ -639,7 +640,7 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
       {/* Login Container */}
       <div
         className={`
-        relative min-h-screen flex items-center justify-center p-4
+        relative flex min-h-[100dvh] items-center justify-center p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+1rem)]
         transition-all duration-700
         ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
       `}
@@ -1264,7 +1265,7 @@ function DashboardSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="p-6 sm:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-2xl font-display font-bold text-slate-950">
@@ -4833,6 +4834,8 @@ function Dashboard({
   onLogout: () => Promise<void>;
   onViewSite: () => Promise<void>;
 }) {
+  const isMobile = useIsMobile();
+  const { user, userProfile } = useAuth();
   const [vistaActiva, setVistaActiva] = useState<DashboardView>("resumen");
   const [modalActivo, setModalActivo] = useState<ModalActivo>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -4842,6 +4845,8 @@ function Dashboard({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
+  const [isMobileDockVisible, setIsMobileDockVisible] = useState(true);
+  const lastMobileScrollYRef = useRef(0);
 
   // Estado para modal de detalle de pedido desde notificaciones
   const [notificationOrderId, setNotificationOrderId] = useState<string | null>(
@@ -5576,10 +5581,12 @@ function Dashboard({
       selectedInvoiceOrder.createdAt || new Date().toISOString(),
     );
     const orderTotal = Number(selectedInvoiceOrder.total) || 0;
+    const shippingFee = Number(selectedInvoiceOrder.shippingFee) || 0;
+    const taxableTotal = Math.max(orderTotal - shippingFee, 0);
 
     // Calcular subtotal e IVA
-    const subtotal = orderTotal / 1.16;
-    const taxAmount = orderTotal - subtotal;
+    const subtotal = taxableTotal / 1.16;
+    const taxAmount = taxableTotal - subtotal;
 
     // Mapear items con validación para evitar NaN
     const mappedItems = selectedInvoiceOrder.items.map((item, index) => {
@@ -5626,6 +5633,7 @@ function Dashboard({
       },
       items: mappedItems,
       subtotal: subtotal,
+      shippingFee,
       taxRate: 0.16,
       taxAmount: taxAmount,
       total: orderTotal,
@@ -5682,6 +5690,8 @@ function Dashboard({
         customerPhone: newOrderForm.phone?.trim() || "",
         customerAddress:
           newOrderForm.address.trim() || "Dirección pendiente de captura",
+        subtotal: total,
+        shippingFee: 0,
         total,
         status: "pendiente",
         metodoPago: newOrderForm.metodoPago || "efectivo",
@@ -5715,6 +5725,8 @@ function Dashboard({
         email: newOrderForm.email.trim() || "sin-correo@cliente.com",
         address:
           newOrderForm.address.trim() || "Dirección pendiente de captura",
+        subtotal: total,
+        shippingFee: 0,
         total,
         status: "pendiente",
         items: productNames.map((name) => ({
@@ -5797,6 +5809,45 @@ function Dashboard({
   }, []);
 
   useEffect(() => {
+    if (!isMobile) {
+      setIsMobileDockVisible(true);
+      return;
+    }
+
+    lastMobileScrollYRef.current = window.scrollY;
+    setIsMobileDockVisible(true);
+
+    const handleDockScroll = () => {
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - lastMobileScrollYRef.current;
+
+      if (currentScrollY <= 24) {
+        setIsMobileDockVisible(true);
+        lastMobileScrollYRef.current = currentScrollY;
+        return;
+      }
+
+      if (Math.abs(delta) < 10) {
+        lastMobileScrollYRef.current = currentScrollY;
+        return;
+      }
+
+      setIsMobileDockVisible(delta < 0);
+      lastMobileScrollYRef.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleDockScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleDockScroll);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setIsMobileDockVisible(true);
+    }
+  }, [vistaActiva, isMobile]);
+
+  useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
     const scrollY = window.scrollY;
@@ -5842,8 +5893,90 @@ function Dashboard({
     };
   }, [modalActivo]);
 
+  const dashboardMeta: Record<
+    DashboardView,
+    { label: string; description: string; icon: React.ElementType }
+  > = {
+    resumen: {
+      label: "Panel central",
+      description: "Vista ejecutiva del negocio con métricas y accesos rápidos.",
+      icon: LayoutDashboard,
+    },
+    pedidos: {
+      label: "Pedidos",
+      description: "Revisa estados, seguimiento y detalle comercial en un solo flujo.",
+      icon: Package,
+    },
+    facturas: {
+      label: "Facturas",
+      description: "Genera y consulta comprobantes sin salir del panel.",
+      icon: FileText,
+    },
+    clientes: {
+      label: "Clientes",
+      description: "Consulta actividad, historial y altas recientes.",
+      icon: Users,
+    },
+    estadisticas: {
+      label: "Estadísticas",
+      description: "Tendencias comerciales, ventas y rendimiento general.",
+      icon: BarChart3,
+    },
+    configuracion: {
+      label: "Configuración",
+      description: "Controla sesión, accesos y ajustes internos del sistema.",
+      icon: Settings,
+    },
+    productos: {
+      label: "Productos",
+      description: "Edita catálogo, precios y disponibilidad desde móvil.",
+      icon: ShoppingBag,
+    },
+    referencias: {
+      label: "Referencias",
+      description: "Administra evidencia visual y material comercial.",
+      icon: Star,
+    },
+    notificaciones: {
+      label: "Alertas",
+      description: "Mantente al día con nuevos pedidos y movimientos clave.",
+      icon: Bell,
+    },
+  };
+
+  const desktopNavigationTabs = [
+    { key: "resumen", label: "Resumen", icon: LayoutDashboard },
+    { key: "pedidos", label: "Pedidos", icon: Package },
+    { key: "facturas", label: "Facturas", icon: FileText },
+    { key: "productos", label: "Productos", icon: ShoppingBag },
+    { key: "referencias", label: "Referencias", icon: Star },
+    { key: "notificaciones", label: "Notificaciones", icon: Bell },
+    {
+      key: "configuracion",
+      label: "Configuracion",
+      icon: Settings,
+    },
+  ] as const;
+
+  const mobilePrimaryTabs = [
+    { key: "resumen", shortLabel: "Panel", icon: LayoutDashboard },
+    { key: "pedidos", shortLabel: "Pedidos", icon: Package },
+    { key: "facturas", shortLabel: "Facturas", icon: FileText },
+    { key: "productos", shortLabel: "Productos", icon: ShoppingBag },
+    { key: "notificaciones", shortLabel: "Alertas", icon: Bell },
+  ] as const;
+
+  const mobileSecondaryTabs = [
+    { key: "clientes", label: "Clientes", icon: Users },
+    { key: "referencias", label: "Referencias", icon: Star },
+    { key: "configuracion", label: "Ajustes", icon: Settings },
+  ] as const;
+
+  const currentViewMeta = dashboardMeta[vistaActiva];
+  const CurrentViewIcon = currentViewMeta.icon;
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_22%),radial-gradient(circle_at_top_right,rgba(20,184,166,0.10),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f7fb_100%)]">
+    <div className="min-h-[100dvh] touch-pan-y bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_22%),radial-gradient(circle_at_top_right,rgba(20,184,166,0.10),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f7fb_100%)] pb-[calc(env(safe-area-inset-bottom)+1rem)]">
       {/* Header */}
       <header
         className={`sticky top-0 z-30 border-b transition-all duration-300 ${
@@ -5852,7 +5985,7 @@ function Dashboard({
             : "border-border/50 bg-white/78 backdrop-blur-xl"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-7xl mx-auto px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.65rem)] sm:px-6 sm:py-3 lg:px-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a_0%,#1d4ed8_55%,#14b8a6_100%)] shadow-[0_16px_30px_rgba(29,78,216,0.22)] ring-1 ring-primary/10">
@@ -5871,7 +6004,11 @@ function Dashboard({
                 <h1 className="mt-1.5 text-lg font-display font-bold tracking-tight text-slate-950">
                   Panel Administrativo
                 </h1>
-                <p className="mt-0.5 max-w-xl text-xs text-muted-foreground"></p>
+                <p className="mt-0.5 max-w-xl text-xs text-muted-foreground">
+                  {isMobile
+                    ? `Vista activa: ${currentViewMeta.label}`
+                    : "Pedidos, productos, clientes y operacion centralizada."}
+                </p>
                 <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
                   <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
                     Operación centralizada
@@ -5882,7 +6019,7 @@ function Dashboard({
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:flex-none">
+            <div className="flex items-center gap-2 sm:flex-row sm:items-center sm:justify-end lg:flex-none">
               <NotificationBell
                 count={unreadCount}
                 onClick={() => handleViewChange("notificaciones")}
@@ -5891,15 +6028,16 @@ function Dashboard({
                 type="button"
                 onClick={handleViewSite}
                 disabled={isLoggingOut}
-                className="group inline-flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-white/85 px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-border/70 bg-white/85 px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-primary/5 hover:text-primary hover:shadow-md active:translate-y-0"
               >
-                Ver sitio
+                <Eye size={15} />
+                <span className={isMobile ? "sr-only" : ""}>Ver sitio</span>
               </button>
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
                 className={`
-                  group inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-bold transition-all duration-200
+                  group inline-flex h-10 items-center justify-center gap-2 rounded-2xl border px-3 py-1.5 text-sm font-bold transition-all duration-200
                   ${
                     isLoggingOut
                       ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
@@ -5918,7 +6056,9 @@ function Dashboard({
                       size={14}
                       className="transition-transform duration-200 group-hover:-translate-x-0.5"
                     />
-                    Cerrar sesión
+                    <span className={isMobile ? "sr-only" : ""}>
+                      Cerrar sesión
+                    </span>
                   </>
                 )}
               </button>
@@ -5927,38 +6067,83 @@ function Dashboard({
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="max-w-7xl mx-auto px-4 py-4 pb-28 sm:px-6 sm:pb-4 lg:px-8">
+        {isMobile ? (
+          <div className="mb-4 space-y-4">
+            <div className="overflow-hidden rounded-[32px] border border-[#0f172a]/10 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.18),transparent_28%),linear-gradient(160deg,#071a34_0%,#0f172a_48%,#003f91_100%)] p-4 text-white shadow-[0_24px_65px_rgba(2,8,23,0.28)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.28em] text-cyan-100/75">
+                    Centro de control
+                  </p>
+                  <h2 className="mt-3 text-[2rem] font-display font-black leading-none tracking-tight text-white">
+                    {currentViewMeta.label}
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-200">
+                    {currentViewMeta.description}
+                  </p>
+                </div>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] border border-white/10 bg-white/10 shadow-[0_18px_35px_rgba(34,211,238,0.18)] backdrop-blur">
+                  <CurrentViewIcon size={24} className="text-cyan-200" />
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-[26px] border border-white/10 bg-white/6 px-4 py-4 backdrop-blur-sm">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-cyan-100/70">
+                  Sesión activa
+                </p>
+                <p className="mt-2 truncate text-base font-bold text-white">
+                  {userProfile.name || "Administrador Tropicolors"}
+                </p>
+                <p className="mt-1 truncate text-sm text-slate-300">
+                  {userProfile.email || user?.email || "Sin correo registrado"}
+                </p>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {mobileSecondaryTabs.map((tab) => {
+                  const TabIcon = tab.icon;
+                  const isActive = vistaActiva === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => handleViewChange(tab.key)}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold transition ${
+                        isActive
+                          ? "border-cyan-200/30 bg-cyan-300/18 text-white"
+                          : "border-white/10 bg-white/8 text-slate-200"
+                      }`}
+                    >
+                      <TabIcon size={14} />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {/* Tabs */}
-        <div className="mb-4 rounded-[28px] border border-white/70 bg-white/75 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="mb-4 hidden rounded-[26px] border border-white/70 bg-white/75 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:block sm:rounded-[28px]">
           <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
                 Navegación del panel
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-900"></p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                Cambia de vista sin salir del dashboard
+              </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-1 sm:flex sm:w-fit">
-            {(
-              [
-                { key: "resumen", label: "Resumen", icon: LayoutDashboard },
-                { key: "pedidos", label: "Pedidos", icon: Package },
-                { key: "facturas", label: "Facturas", icon: FileText },
-                { key: "productos", label: "Productos", icon: ShoppingBag },
-                { key: "referencias", label: "Referencias", icon: Star },
-                { key: "notificaciones", label: "Notificaciones", icon: Bell },
-                {
-                  key: "configuracion",
-                  label: "Configuración",
-                  icon: Settings,
-                },
-              ] as const
-            ).map((tab) => (
+          <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+            {desktopNavigationTabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => handleViewChange(tab.key)}
                 className={`
-                relative isolate flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 py-3 text-center text-sm font-bold transition-all duration-300 sm:min-h-0 sm:justify-start sm:px-6
+                relative isolate flex min-h-12 min-w-[148px] flex-none items-center justify-center gap-2 rounded-xl px-4 py-3 text-center text-sm font-bold transition-all duration-300 sm:min-h-0 sm:min-w-0 sm:justify-start sm:px-6
                 ${
                   vistaActiva === tab.key
                     ? "bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_70%,#14b8a6_100%)] text-white shadow-[0_12px_30px_rgba(29,78,216,0.24)]"
@@ -5976,14 +6161,16 @@ function Dashboard({
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          {stats.map((stat, i) => (
-            <MetricCard key={i} {...stat} delay={i * 100 + 200} />
-          ))}
-        </div>
+        {(!isMobile || vistaActiva === "resumen") && (
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {stats.map((stat, i) => (
+              <MetricCard key={i} {...stat} delay={i * 100 + 200} />
+            ))}
+          </div>
+        )}
 
         {/* Content Card */}
-        <div className="overflow-hidden rounded-[32px] border border-white/80 bg-white/80 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/80 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:rounded-[32px]">
           <div
             className={`
             transition-all duration-300
@@ -6055,61 +6242,116 @@ function Dashboard({
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[
-            {
-              icon: Package,
-              label: "Nuevo Pedido",
-              color: "from-blue-500 to-blue-600",
-              view: "pedidos" as DashboardView,
-            },
-            {
-              icon: FileText,
-              label: "Crear Factura",
-              color: "from-amber-500 to-amber-600",
-              view: "facturas" as DashboardView,
-            },
-            {
-              icon: Users,
-              label: "Agregar Cliente",
-              color: "from-purple-500 to-purple-600",
-              view: "clientes" as DashboardView,
-            },
-          ].map((action, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => {
-                if (action.view === "pedidos") {
-                  setVistaActiva("pedidos");
-                  setModalActivo("nuevoPedido");
-                  return;
-                }
-                if (action.view === "facturas") {
-                  openCreateInvoiceModal();
-                  return;
-                }
-                if (action.view === "clientes") {
-                  setVistaActiva("clientes");
-                  setModalActivo("cliente");
-                  return;
-                }
-                handleViewChange(action.view);
-              }}
-              className={`
-                p-4 rounded-2xl bg-gradient-to-br ${action.color} 
-                text-white font-bold text-sm flex items-center justify-center gap-2
-                hover:shadow-xl hover:scale-[1.02] transition-all duration-200
-                animate-fade-in-up
-              `}
-              style={{ animationDelay: `${i * 100 + 600}ms` }}
+        {(!isMobile || vistaActiva === "resumen") && (
+          <div className="mt-4 grid grid-cols-1 gap-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] sm:grid-cols-3 sm:pb-0">
+            {[
+              {
+                icon: Package,
+                label: "Nuevo Pedido",
+                color: "from-blue-500 to-blue-600",
+                view: "pedidos" as DashboardView,
+              },
+              {
+                icon: FileText,
+                label: "Crear Factura",
+                color: "from-amber-500 to-amber-600",
+                view: "facturas" as DashboardView,
+              },
+              {
+                icon: Users,
+                label: "Agregar Cliente",
+                color: "from-purple-500 to-purple-600",
+                view: "clientes" as DashboardView,
+              },
+            ].map((action, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => {
+                  if (action.view === "pedidos") {
+                    setVistaActiva("pedidos");
+                    setModalActivo("nuevoPedido");
+                    return;
+                  }
+                  if (action.view === "facturas") {
+                    openCreateInvoiceModal();
+                    return;
+                  }
+                  if (action.view === "clientes") {
+                    setVistaActiva("clientes");
+                    setModalActivo("cliente");
+                    return;
+                  }
+                  handleViewChange(action.view);
+                }}
+                className={`
+                  p-4 rounded-2xl bg-gradient-to-br ${action.color} 
+                  text-white font-bold text-sm flex items-center justify-center gap-2
+                  hover:shadow-xl hover:scale-[1.02] transition-all duration-200
+                  animate-fade-in-up
+                `}
+                style={{ animationDelay: `${i * 100 + 600}ms` }}
+              >
+                <action.icon size={18} />
+                {action.label}
+                <ChevronRight size={16} className="opacity-60" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isMobile ? (
+          <div
+            className={`pointer-events-none fixed inset-x-0 bottom-0 z-30 px-5 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] transition-all duration-300 sm:hidden ${
+              isMobileDockVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-24 opacity-0"
+            }`}
+          >
+            <div
+              className={`relative mx-auto max-w-[21.5rem] rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.56)_0%,rgba(15,23,42,0.72)_100%)] p-1.5 shadow-[0_22px_60px_rgba(2,8,23,0.32)] ring-1 ring-white/6 backdrop-blur-2xl ${
+                isMobileDockVisible ? "pointer-events-auto" : "pointer-events-none"
+              }`}
             >
-              <action.icon size={18} />
-              {action.label}
-              <ChevronRight size={16} className="opacity-60" />
-            </button>
-          ))}
-        </div>
+              <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.45),rgba(255,255,255,0))]" />
+              <div className="grid grid-cols-5 gap-1">
+                {mobilePrimaryTabs.map((tab) => {
+                  const TabIcon = tab.icon;
+                  const isActive = vistaActiva === tab.key;
+                  const showBadge =
+                    tab.key === "notificaciones" && unreadCount > 0;
+
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => handleViewChange(tab.key)}
+                      className={`relative flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 py-2 text-center transition-all duration-300 ${
+                        isActive
+                          ? "border border-white/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(178,247,255,0.72)_100%)] text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+                          : "border border-transparent text-slate-300/92"
+                      }`}
+                    >
+                      {showBadge ? (
+                        <span className="absolute right-1.5 top-1.5 inline-flex min-w-[17px] items-center justify-center rounded-full bg-rose-500 px-1 py-0.5 text-[9px] font-bold text-white">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      ) : null}
+                      <TabIcon size={16} />
+                      <span
+                        className={`text-[10px] font-bold leading-none ${
+                          isActive ? "text-slate-950" : "text-slate-300"
+                        }`}
+                      >
+                        {tab.shortLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <ModalShell
@@ -6421,6 +6663,7 @@ function Dashboard({
                 };
               }),
               subtotal: Number(selectedInvoice.subtotal) || 0,
+              shippingFee: Number(selectedInvoice.shippingFee) || 0,
               taxRate: Number(selectedInvoice.taxRate) || 0,
               taxAmount: Number(selectedInvoice.taxAmount) || 0,
               total: Number(selectedInvoice.total) || 0,
@@ -6440,6 +6683,7 @@ function Dashboard({
                   precio: item.unitPrice,
                 })),
                 subtotal: selectedInvoice.subtotal,
+                shippingFee: selectedInvoice.shippingFee || 0,
                 iva: selectedInvoice.taxAmount,
                 total: selectedInvoice.total.toLocaleString("es-MX", {
                   minimumFractionDigits: 2,

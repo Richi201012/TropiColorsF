@@ -244,6 +244,10 @@ function buildTransferReference(phone: string): string {
   return `TC-TROPIC-${lastDigits}`;
 }
 
+function formatAmount(value: number): string {
+  return value.toLocaleString("es-MX");
+}
+
 function buildWhatsAppUrl(params: {
   orderId: string;
   customerName: string;
@@ -254,7 +258,7 @@ function buildWhatsAppUrl(params: {
     "Hola, ya realice mi transferencia de Tropicolors.",
     `Pedido: ${params.orderId}`,
     `Nombre: ${params.customerName}`,
-    `Monto: $${params.total} MXN`,
+    `Monto: $${formatAmount(params.total)} MXN`,
     `Concepto: ${params.transferReference}`,
     "Adjunto mi comprobante de transferencia.",
   ].join("\n");
@@ -394,6 +398,8 @@ function FieldShell({
 const CheckoutModal = React.memo(function CheckoutModal({
   open,
   items,
+  cartSubtotal,
+  shippingFee,
   cartTotal,
   isProcessing,
   onSubmit,
@@ -402,6 +408,8 @@ const CheckoutModal = React.memo(function CheckoutModal({
 }: {
   open: boolean;
   items: CartItem[];
+  cartSubtotal: number;
+  shippingFee: number;
   cartTotal: number;
   isProcessing: boolean;
   onSubmit: (
@@ -744,7 +752,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
             onClick={onClose}
             className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-md"
           />
-          <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
+          <div className="fixed inset-0 z-[70] flex items-stretch justify-center overflow-y-auto p-0 sm:items-center sm:p-6">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -752,10 +760,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
               transition={{ duration: 0.22, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}
-              className="my-3 flex w-full max-w-5xl overflow-hidden rounded-[24px] border border-white/20 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] sm:rounded-[28px] lg:max-h-[88vh]"
+              className="flex min-h-[100dvh] w-full max-w-5xl overflow-hidden rounded-none border-0 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] sm:my-3 sm:min-h-0 sm:rounded-[28px] sm:border sm:border-white/20 lg:max-h-[88vh]"
             >
-              <div className="grid min-h-0 w-full grid-cols-1 lg:grid-cols-[1.02fr_1.18fr] lg:overflow-hidden">
-                <div className="relative overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-5 py-5 text-white sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+              <div className="grid min-h-[100dvh] w-full grid-cols-1 lg:min-h-0 lg:grid-cols-[1.02fr_1.18fr] lg:overflow-hidden">
+                <div className="relative overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+1rem)] text-white sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
                   <div className="pointer-events-none absolute inset-0 overflow-hidden">
                     <div className="absolute -right-16 top-16 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
                     <div className="absolute -left-10 bottom-20 h-48 w-48 rounded-full bg-sky-500/10 blur-3xl" />
@@ -873,18 +881,28 @@ const CheckoutModal = React.memo(function CheckoutModal({
                       <span>Productos</span>
                       <span>{itemCount}</span>
                     </div>
+                    <div className="mt-3 space-y-3 border-t border-white/10 pt-3 text-sm text-slate-300">
+                      <div className="flex items-center justify-between">
+                        <span>Subtotal</span>
+                        <span>${formatAmount(cartSubtotal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Envio</span>
+                        <span>${formatAmount(shippingFee)}</span>
+                      </div>
+                    </div>
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
                       <span className="text-base font-medium text-white">
                         Total
                       </span>
                       <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-200 bg-clip-text text-4xl font-black tracking-tight text-transparent">
-                        ${cartTotal}
+                        ${formatAmount(cartTotal)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="overflow-visible bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-5 py-5 sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+                <div className="overflow-visible bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
                   <div className="mb-6 flex items-start justify-between gap-4">
                     <div className="inline-flex items-center gap-3 rounded-2xl border border-sky-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-200">
@@ -1437,22 +1455,24 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             <p className="mt-1 text-sm font-semibold text-slate-900">
                               Transferencia bancaria
                             </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              Pendiente de validacion manual: ${cartTotal} MXN
-                            </p>
+                            <div className="mt-2 space-y-1 text-xs text-slate-500">
+                              <p>Subtotal: ${formatAmount(cartSubtotal)} MXN</p>
+                              <p>Envio: ${formatAmount(shippingFee)} MXN</p>
+                             
+                            </div>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right">
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                               Total
                             </p>
                             <p className="mt-1 text-xl font-black text-cyan-300">
-                              ${cartTotal}
+                              ${formatAmount(cartTotal)}
                             </p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                      <div className="sticky bottom-0 -mx-4 mt-2 flex flex-col-reverse gap-3 border-t border-slate-200 bg-[linear-gradient(180deg,rgba(248,251,255,0)_0%,rgba(248,251,255,0.96)_24%,rgba(255,255,255,0.98)_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-4 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5 sm:backdrop-blur-none sm:flex-row sm:justify-end">
                         <button
                           type="button"
                           onClick={onClose}
@@ -1592,7 +1612,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             </p>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-300">
-                            ${cartTotal} MXN
+                            ${formatAmount(cartTotal)} MXN
                           </div>
                         </div>
                       </div>
@@ -1637,7 +1657,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                               },
                               {
                                 label: "Monto",
-                                value: `$${cartTotal} MXN`,
+                                value: `$${formatAmount(cartTotal)} MXN`,
                               },
                             ].map((item) => (
                               <div
@@ -1666,15 +1686,25 @@ const CheckoutModal = React.memo(function CheckoutModal({
                       </div>
 
                       <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-                        <div className="flex items-center justify-between text-sm text-slate-500">
-                          <span>Total a pagar</span>
-                          <span className="text-3xl font-black tracking-tight text-sky-700">
-                            ${cartTotal}
-                          </span>
+                        <div className="space-y-3 text-sm text-slate-500">
+                          <div className="flex items-center justify-between">
+                            <span>Subtotal</span>
+                            <span>${formatAmount(cartSubtotal)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Envio</span>
+                            <span>${formatAmount(shippingFee)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                            <span>Total a pagar</span>
+                            <span className="text-3xl font-black tracking-tight text-sky-700">
+                              ${formatAmount(cartTotal)}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                      <div className="sticky bottom-0 -mx-4 mt-2 flex flex-col-reverse gap-3 border-t border-slate-200 bg-[linear-gradient(180deg,rgba(248,251,255,0)_0%,rgba(248,251,255,0.96)_24%,rgba(255,255,255,0.98)_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-4 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5 sm:backdrop-blur-none sm:flex-row sm:justify-end">
                         <button
                           type="button"
                           onClick={() => setStep(1)}
@@ -1715,6 +1745,8 @@ export function CartDrawer() {
     isCartOpen,
     setIsCartOpen,
     items,
+    cartSubtotal,
+    cartShippingFee,
     cartTotal,
     removeFromCart,
     updateQuantity,
@@ -1809,6 +1841,8 @@ export function CartDrawer() {
           paymentStatus: "pending",
           orderStatus: "pending",
           paymentReference: currentTransferReference,
+          subtotal: cartSubtotal,
+          shippingFee: cartShippingFee,
           total: cartTotal,
           items: items.map((item) => ({
             productId: item.productId,
@@ -1910,7 +1944,7 @@ export function CartDrawer() {
         setIsProcessing(false);
       }
     },
-    [cartTotal, items, toast],
+    [cartShippingFee, cartSubtotal, cartTotal, items, toast],
   );
 
   const handleFinalizeCheckout = useCallback(() => {
@@ -1942,10 +1976,10 @@ export function CartDrawer() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[380px] flex-col rounded-l-2xl bg-white shadow-2xl"
+            className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-none flex-col rounded-none bg-white shadow-2xl sm:max-w-[380px] sm:rounded-l-2xl"
             onWheel={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between rounded-tl-2xl border-b bg-gray-50 p-4">
+            <div className="flex items-center justify-between border-b bg-gray-50 p-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] sm:rounded-tl-2xl sm:pt-4">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="h-5 w-5 text-blue-600" />
                 <span className="text-lg font-bold text-gray-800">
@@ -1963,7 +1997,7 @@ export function CartDrawer() {
               </button>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="flex-1 space-y-3 overflow-y-auto p-4 pb-5">
               {items.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center py-16 text-gray-400">
                   <ShoppingBag className="mb-4 h-20 w-20 text-gray-300" />
@@ -2034,7 +2068,7 @@ export function CartDrawer() {
                           </span>
                           <button
                             onClick={() => removeFromCart(item.cartKey)}
-                            className="rounded-lg p-1.5 text-red-500 opacity-0 transition-all hover:bg-red-50 group-hover:opacity-100"
+                            className="rounded-lg p-1.5 text-red-500 opacity-100 transition-all hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -2047,20 +2081,25 @@ export function CartDrawer() {
             </div>
 
             {items.length > 0 && (
-              <div className="space-y-3 border-t bg-gray-50 p-4">
+              <div className="space-y-3 border-t bg-gray-50 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
                 <VaciarCarritoModalButton
                   clearCart={clearCart}
                   setIsCartOpen={setIsCartOpen}
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-semibold">${cartTotal}</span>
+                  <span className="font-semibold">
+                    ${formatAmount(cartSubtotal)}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-500"></div>
+                <div className="flex items-center justify-between text-sm text-gray-500">
+                  <span>Envio</span>
+                  <span>${formatAmount(cartShippingFee)}</span>
+                </div>
                 <div className="flex items-center justify-between border-t pt-2">
                   <span className="text-lg font-bold">Total</span>
                   <span className="text-xl font-bold text-blue-600">
-                    ${cartTotal}
+                    ${formatAmount(cartTotal)}
                   </span>
                 </div>
                 <button
@@ -2078,6 +2117,8 @@ export function CartDrawer() {
             <CheckoutModal
               open={isCheckoutModalOpen}
               items={items}
+              cartSubtotal={cartSubtotal}
+              shippingFee={cartShippingFee}
               cartTotal={cartTotal}
               isProcessing={isProcessing}
               onSubmit={onSubmit}

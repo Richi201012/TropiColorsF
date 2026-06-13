@@ -1,5 +1,8 @@
 export type PurchaseType = "pieza" | "mayoreo";
 
+export const PRICE_MARKUP_RATE = 0.3;
+export const SHIPPING_FEE = 150;
+
 export type CommerceCartItem = {
   cartKey: string;
   productId: string;
@@ -24,6 +27,10 @@ function roundCurrency(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+function applyMarkup(value: number): number {
+  return roundCurrency(value * (1 + PRICE_MARKUP_RATE));
+}
+
 export function getPiecesFromPresentationLabel(label: string): number | null {
   const match = label.match(/\((\d+)\s*pz\)/i);
   if (!match) {
@@ -35,18 +42,36 @@ export function getPiecesFromPresentationLabel(label: string): number | null {
 }
 
 export function calculatePiecePrice(priceBase: number): number {
-  return roundCurrency(priceBase * 1.3);
+  return applyMarkup(priceBase);
+}
+
+export function calculateWholesalePrice(baseAmount: number): number {
+  return applyMarkup(baseAmount);
 }
 
 export function calculateMayoreoUnitTotal(
   priceBase: number,
   piecesPerBox?: number | null,
 ): number {
-  if (!piecesPerBox || piecesPerBox <= 0) {
-    return roundCurrency(priceBase);
+  const baseAmount =
+    !piecesPerBox || piecesPerBox <= 0 ? priceBase : priceBase * piecesPerBox;
+
+  return calculateWholesalePrice(baseAmount);
+}
+
+export function calculateOrderShipping(itemCount: number): number {
+  return itemCount > 0 ? SHIPPING_FEE : 0;
+}
+
+export function calculateOrderTotal(
+  subtotal: number,
+  shippingFee: number,
+): number {
+  if (!Number.isFinite(subtotal) || subtotal <= 0) {
+    return 0;
   }
 
-  return roundCurrency(priceBase * piecesPerBox);
+  return roundCurrency(subtotal + shippingFee);
 }
 
 export function buildCartItemKey(
@@ -132,12 +157,17 @@ export function normalizeCartItem(raw: unknown): CommerceCartItem | null {
       ? item.purchaseType
       : "mayoreo";
   const legacyPrice = roundCurrency(Number(item.price) || 0);
+  const legacyUnitPrice = roundCurrency(Number(item.unitPrice) || legacyPrice);
   const priceBase =
     typeof item.priceBase === "number" && Number.isFinite(item.priceBase)
       ? roundCurrency(item.priceBase)
       : purchaseType === "pieza"
-        ? roundCurrency(legacyPrice / 1.3)
-        : legacyPrice;
+        ? roundCurrency(legacyPrice / (1 + PRICE_MARKUP_RATE))
+        : piecesPerBox && piecesPerBox > 0
+          ? roundCurrency(
+              legacyUnitPrice / piecesPerBox / (1 + PRICE_MARKUP_RATE),
+            )
+          : roundCurrency(legacyUnitPrice / (1 + PRICE_MARKUP_RATE));
   const unitPrice =
     typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice)
       ? roundCurrency(item.unitPrice)
@@ -170,10 +200,7 @@ export function normalizeCartItem(raw: unknown): CommerceCartItem | null {
     purchaseType,
     priceBase,
     unitPrice,
-    subtotal:
-      typeof item.subtotal === "number" && Number.isFinite(item.subtotal)
-        ? roundCurrency(item.subtotal)
-        : roundCurrency(price * quantity),
+    subtotal: roundCurrency(price * quantity),
     piecesPerBox,
     quantityBoxes:
       purchaseType === "mayoreo"
@@ -188,6 +215,9 @@ export function normalizeCartItem(raw: unknown): CommerceCartItem | null {
     warningMessage: item.warningMessage,
   };
 
-  normalized.subtotal = calculateCartItemSubtotal(normalized);
+  normalized.subtotal = calculateCartItemSubtotal({
+    price: normalized.price,
+    quantity: normalized.quantity,
+  });
   return normalized;
 }

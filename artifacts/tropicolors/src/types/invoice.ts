@@ -43,6 +43,7 @@ export interface InvoiceData {
   customer: Customer;
   items: InvoiceItem[];
   subtotal: number;
+  shippingFee?: number;
   taxRate: number;
   taxAmount: number;
   discount?: number;

@@ -11,6 +11,8 @@ import {
   type CommerceCartItem,
   buildCartItemKey,
   calculateCartItemSubtotal,
+  calculateOrderShipping,
+  calculateOrderTotal,
   normalizeCartItem,
 } from "@/lib/commerce";
 
@@ -33,6 +35,8 @@ interface CartContextType {
   clearCart: () => void;
   isCartOpen: boolean;
   setIsCartOpen: (isOpen: boolean) => void;
+  cartSubtotal: number;
+  cartShippingFee: number;
   cartTotal: number;
   cartCount: number;
   flyingItems: FlyingItem[];
@@ -198,10 +202,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems([]);
   }, []);
 
-  const cartTotal = useMemo(
+  const cartSubtotal = useMemo(
     () =>
       items.reduce((total, item) => total + calculateCartItemSubtotal(item), 0),
     [items],
+  );
+  const cartShippingFee = useMemo(
+    () => calculateOrderShipping(items.length),
+    [items.length],
+  );
+  const cartTotal = useMemo(
+    () => calculateOrderTotal(cartSubtotal, cartShippingFee),
+    [cartShippingFee, cartSubtotal],
   );
   const cartCount = useMemo(
     () => items.reduce((count, item) => count + item.quantity, 0),
@@ -218,6 +230,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         isCartOpen,
         setIsCartOpen,
+        cartSubtotal,
+        cartShippingFee,
         cartTotal,
         cartCount,
         flyingItems,

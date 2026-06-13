@@ -18,6 +18,7 @@ import { firestore } from "../lib/firebase";
 const router: IRouter = Router();
 const ORDER_TRACKING_COLLECTION = "order_tracking";
 const ORDER_TRACKING_LOOKUP_COLLECTION = "order_tracking_lookup";
+const SHIPPING_FEE = 150;
 
 type CheckoutItem = {
   productId?: string;
@@ -163,7 +164,7 @@ function mapCheckoutItems(items: CheckoutItem[]): FirestoreOrderItem[] {
 function buildLineItems(
   items: FirestoreOrderItem[],
 ): Stripe.Checkout.SessionCreateParams.LineItem[] {
-  return items.map((item) => ({
+  const lineItems = items.map((item) => ({
     price_data: {
       currency: "mxn",
       product_data: {
@@ -173,10 +174,34 @@ function buildLineItems(
     },
     quantity: item.quantity,
   }));
+
+  const shippingFee = calculateShippingFee(items);
+  if (shippingFee > 0) {
+    lineItems.push({
+      price_data: {
+        currency: "mxn",
+        product_data: {
+          name: "Envio",
+        },
+        unit_amount: Math.round(shippingFee * 100),
+      },
+      quantity: 1,
+    });
+  }
+
+  return lineItems;
+}
+
+function calculateSubtotalAmount(items: FirestoreOrderItem[]): number {
+  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+}
+
+function calculateShippingFee(items: FirestoreOrderItem[]): number {
+  return items.length > 0 ? SHIPPING_FEE : 0;
 }
 
 function calculateTotalAmount(items: FirestoreOrderItem[]): number {
-  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  return calculateSubtotalAmount(items) + calculateShippingFee(items);
 }
 
 router.post("/checkout", async (req, res) => {
@@ -230,6 +255,8 @@ router.post("/checkout", async (req, res) => {
     }
 
     const normalizedItems = mapCheckoutItems(items);
+    const subtotalAmount = calculateSubtotalAmount(normalizedItems);
+    const shippingFee = calculateShippingFee(normalizedItems);
     const totalAmount = calculateTotalAmount(normalizedItems);
     const orderId = randomUUID();
     const orderNumber = generateOrderNumber();
@@ -262,6 +289,8 @@ router.post("/checkout", async (req, res) => {
       status: initialStatus,
       orderStatus: "pending",
       currency: "MXN",
+      subtotal: Number(subtotalAmount.toFixed(2)),
+      shippingFee: Number(shippingFee.toFixed(2)),
       total: Number(totalAmount.toFixed(2)),
       amount: Math.round(totalAmount * 100),
       customerName,
@@ -295,6 +324,8 @@ router.post("/checkout", async (req, res) => {
         status: initialStatus,
         statusLabel: getTrackingStatusLabel(initialStatus),
         description: getTrackingStatusDescription(initialStatus),
+        subtotal: Number(subtotalAmount.toFixed(2)),
+        shippingFee: Number(shippingFee.toFixed(2)),
         total: Number(totalAmount.toFixed(2)),
         currency: "MXN",
         paymentMethod: "card",

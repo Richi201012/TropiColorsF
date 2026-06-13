@@ -368,6 +368,12 @@ export const InvoicePDFDocument: React.FC<InvoicePDFDocumentProps> = ({ data, lo
                 <Text style={s.totalRowLabel}>Subtotal</Text>
                 <Text style={s.totalRowValue}>{formatCurrency(data.subtotal)}</Text>
               </View>
+              {data.shippingFee && data.shippingFee > 0 && (
+                <View style={s.totalRow}>
+                  <Text style={s.totalRowLabel}>Envio</Text>
+                  <Text style={s.totalRowValue}>{formatCurrency(data.shippingFee)}</Text>
+                </View>
+              )}
               {data.taxRate > 0 && (
                 <View style={s.totalRow}>
                   <Text style={s.totalRowLabel}>IVA ({data.taxRate * 100}%)</Text>

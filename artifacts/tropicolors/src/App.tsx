@@ -99,13 +99,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="min-h-screen font-sans selection:bg-accent selection:text-primary"
+      className="relative min-h-[100dvh] touch-pan-y overflow-x-hidden bg-[#f8fbff] font-sans selection:bg-accent selection:text-primary"
       style={{ scrollSnapType: isMobile ? "none" : "y proximity" }}
     >
       <Navbar />
       <div>
         {isHomePage ? <HeroLanding /> : null}
-        <main>{children}</main>
+        <main className="relative">{children}</main>
         <Footer />
       </div>
       {deferredUiReady ? (

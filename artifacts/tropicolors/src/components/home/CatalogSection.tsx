@@ -39,7 +39,7 @@ const CatalogSection = memo(function CatalogSection({
   return (
     <section
       id="productos"
-      className="page-snap-section relative overflow-hidden bg-gradient-to-b from-slate-50 to-white !pt-3 sm:!pt-16"
+      className="page-snap-section relative overflow-hidden bg-gradient-to-b from-slate-50 to-white !pt-2 sm:!pt-16"
     >
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-[#003F91]/5 to-transparent blur-3xl pointer-events-none" />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -51,8 +51,8 @@ const CatalogSection = memo(function CatalogSection({
         <div className="absolute inset-x-0 top-0 h-[48%] bg-[linear-gradient(180deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.72)_60%,rgba(255,255,255,0.98)_100%)]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-4 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
-        <div className="mx-auto mb-10 max-w-6xl rounded-[32px] border border-white/70 bg-white/75 px-6 py-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-12 sm:px-10 sm:py-10">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-3 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
+        <div className="mx-auto mb-10 max-w-6xl rounded-[28px] border border-white/70 bg-white/75 px-4 py-7 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-12 sm:rounded-[32px] sm:px-10 sm:py-10">
           <h2 className="mt-4 px-2 text-4xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-4xl">
             Color sin límites{" "}
             <span
@@ -117,7 +117,7 @@ const CatalogSection = memo(function CatalogSection({
           </div>
         </div>
 
-        <div className="relative mb-14 rounded-[32px] border border-white/70 bg-white/70 px-4 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-16 sm:px-8 sm:py-8">
+        <div className="relative mb-14 rounded-[28px] border border-white/70 bg-white/70 px-3 py-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-16 sm:rounded-[32px] sm:px-8 sm:py-8">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute left-[8%] top-[-18%] h-28 w-40 rounded-full bg-[#003F91]/12 blur-3xl" />
             <div className="absolute left-1/2 top-[-10%] h-24 w-44 -translate-x-1/2 rounded-full bg-[#00A8B5]/12 blur-3xl" />
@@ -129,42 +129,80 @@ const CatalogSection = memo(function CatalogSection({
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-400">
                   Explora por familia
                 </p>
-                <div className="mt-4 flex w-full flex-wrap gap-3">
-                  {CATEGORY_ORDER.map((category, index) => {
-                    const isActive = activeCategory === category;
-                    const colors = CATEGORY_COLORS[category];
+                {isMobile ? (
+                  <div className="mt-4 grid grid-cols-2 gap-2.5 min-[430px]:grid-cols-3">
+                    {CATEGORY_ORDER.map((category, index) => {
+                      const isActive = activeCategory === category;
+                      const colors = CATEGORY_COLORS[category];
 
-                    return (
-                      <motion.button
-                        key={category}
-                        onClick={() => onCategoryChange(category)}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{
-                          duration: 0.25,
-                          delay: index * 0.04,
-                          ease: "easeOut",
-                        }}
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        className="whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300 sm:px-5 sm:py-2.5"
-                        style={{
-                          backgroundColor: isActive
-                            ? colors.bg
-                            : "rgba(243,244,246,0.9)",
-                          color: isActive ? colors.text : "#6b7280",
-                          boxShadow: isActive
-                            ? `0 10px 24px ${colors.bg}33`
-                            : "0 1px 3px rgba(0,0,0,0.05)",
-                          border: `1.5px solid ${isActive ? colors.bg : "rgba(229,231,235,0.8)"}`,
-                        }}
-                      >
-                        {category}
-                      </motion.button>
-                    );
-                  })}
-                </div>
+                      return (
+                        <motion.button
+                          key={category}
+                          onClick={() => onCategoryChange(category)}
+                          initial={{ opacity: 0, scale: 0.94 }}
+                          whileInView={{ opacity: 1, scale: 1 }}
+                          viewport={{ once: true }}
+                          transition={{
+                            duration: 0.22,
+                            delay: index * 0.03,
+                            ease: "easeOut",
+                          }}
+                          whileTap={{ scale: 0.98 }}
+                          className="flex min-h-[50px] w-full items-center justify-center rounded-2xl px-3 py-3 text-center text-[13px] font-bold leading-tight transition-all duration-300"
+                          style={{
+                            backgroundColor: isActive
+                              ? colors.bg
+                              : "rgba(248,250,252,0.96)",
+                            color: isActive ? colors.text : "#667085",
+                            boxShadow: isActive
+                              ? `0 12px 28px ${colors.bg}30`
+                              : "0 10px 24px rgba(15,23,42,0.06)",
+                            border: `1.5px solid ${isActive ? colors.bg : "rgba(226,232,240,0.95)"}`,
+                          }}
+                        >
+                          <span className="block max-w-full">{category}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="no-scrollbar -mx-1 mt-4 flex w-[calc(100%+0.5rem)] gap-3 overflow-x-auto px-1 pb-1 sm:mx-0 sm:w-full sm:flex-wrap sm:overflow-visible sm:px-0">
+                    {CATEGORY_ORDER.map((category, index) => {
+                      const isActive = activeCategory === category;
+                      const colors = CATEGORY_COLORS[category];
+
+                      return (
+                        <motion.button
+                          key={category}
+                          onClick={() => onCategoryChange(category)}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          whileInView={{ opacity: 1, scale: 1 }}
+                          viewport={{ once: true }}
+                          transition={{
+                            duration: 0.25,
+                            delay: index * 0.04,
+                            ease: "easeOut",
+                          }}
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="flex-none whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300 sm:px-5 sm:py-2.5"
+                          style={{
+                            backgroundColor: isActive
+                              ? colors.bg
+                              : "rgba(243,244,246,0.9)",
+                            color: isActive ? colors.text : "#6b7280",
+                            boxShadow: isActive
+                              ? `0 10px 24px ${colors.bg}33`
+                              : "0 1px 3px rgba(0,0,0,0.05)",
+                            border: `1.5px solid ${isActive ? colors.bg : "rgba(229,231,235,0.8)"}`,
+                          }}
+                        >
+                          {category}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="relative z-10 w-full">
