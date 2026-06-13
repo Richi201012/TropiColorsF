@@ -752,7 +752,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
             onClick={onClose}
             className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-md"
           />
-          <div className="fixed inset-0 z-[70] flex items-stretch justify-center overflow-y-auto p-0 sm:items-center sm:p-6">
+          <div className="fixed inset-0 z-[70] flex items-stretch justify-center overflow-y-auto p-0 [webkit-overflow-scrolling:touch] sm:items-center sm:p-6">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -760,7 +760,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
               transition={{ duration: 0.22, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}
-              className="flex min-h-[100dvh] w-full max-w-5xl overflow-hidden rounded-none border-0 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] sm:my-3 sm:min-h-0 sm:rounded-[28px] sm:border sm:border-white/20 lg:max-h-[88vh]"
+              className="flex min-h-[100dvh] w-full max-w-5xl touch-pan-y overflow-y-auto overflow-x-hidden rounded-none border-0 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] [webkit-overflow-scrolling:touch] sm:my-3 sm:min-h-0 sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-white/20 lg:max-h-[88vh]"
             >
               <div className="grid min-h-[100dvh] w-full grid-cols-1 lg:min-h-0 lg:grid-cols-[1.02fr_1.18fr] lg:overflow-hidden">
                 <div className="relative overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+1rem)] text-white sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
