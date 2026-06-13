@@ -275,7 +275,7 @@ export default function Inventario() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-[100dvh] bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
           <p className="text-slate-400 text-sm">Verificando sesión...</p>
@@ -286,7 +286,7 @@ export default function Inventario() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+      <div className="min-h-[100dvh] bg-slate-900 flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
           <Package className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-white mb-2">Inventario</h1>
@@ -309,9 +309,9 @@ export default function Inventario() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 pb-6">
-      <div className="bg-slate-800/50 border-b border-slate-700/50 px-4 py-3">
-        <div className="flex items-center justify-between">
+    <div className="min-h-[100dvh] touch-pan-y bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.18),transparent_24%),linear-gradient(180deg,#020617_0%,#0f172a_42%,#111827_100%)] pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+      <div className="sticky top-0 z-20 border-b border-slate-700/50 bg-slate-900/80 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-xl">
+        <div className="mx-auto flex max-w-md items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
               <Package className="w-5 h-5 text-primary" />
@@ -331,7 +331,7 @@ export default function Inventario() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="mx-auto max-w-md space-y-4 p-4">
         {producto ? (
           <div className="space-y-4">
             <div className="relative">
@@ -362,7 +362,7 @@ export default function Inventario() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
               <button
                 onClick={() => registrarMovimiento("entrada")}
                 disabled={guardando}
@@ -423,7 +423,7 @@ export default function Inventario() {
           </div>
         )}
 
-        <div className="bg-slate-800/30 rounded-2xl p-4 border border-slate-700/30">
+        <div className="bg-slate-800/30 rounded-2xl p-4 border border-slate-700/30 shadow-[0_18px_40px_rgba(2,8,23,0.25)]">
           <div className="flex items-center gap-2 mb-3">
             <History className="w-4 h-4 text-slate-400" />
             <span className="text-sm font-medium text-slate-300">
@@ -443,7 +443,7 @@ export default function Inventario() {
 
       {toast.show && (
         <div
-          className={`fixed bottom-6 left-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl animate-in slide-in-from-bottom-4 ${
+          className={`fixed left-4 right-4 z-50 flex items-center gap-3 rounded-2xl px-4 py-3 shadow-xl animate-in slide-in-from-bottom-4 bottom-[calc(env(safe-area-inset-bottom)+1rem)] ${
             toast.type === "success" ? "bg-green-600" : "bg-red-600"
           }`}
         >

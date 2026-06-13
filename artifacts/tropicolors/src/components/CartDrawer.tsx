@@ -752,7 +752,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
             onClick={onClose}
             className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-md"
           />
-          <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
+          <div className="fixed inset-0 z-[70] flex items-stretch justify-center overflow-y-auto p-0 sm:items-center sm:p-6">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -760,10 +760,10 @@ const CheckoutModal = React.memo(function CheckoutModal({
               transition={{ duration: 0.22, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}
-              className="my-3 flex w-full max-w-5xl overflow-hidden rounded-[24px] border border-white/20 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] sm:rounded-[28px] lg:max-h-[88vh]"
+              className="flex min-h-[100dvh] w-full max-w-5xl overflow-hidden rounded-none border-0 bg-white shadow-[0_30px_120px_rgba(15,23,42,0.35)] sm:my-3 sm:min-h-0 sm:rounded-[28px] sm:border sm:border-white/20 lg:max-h-[88vh]"
             >
-              <div className="grid min-h-0 w-full grid-cols-1 lg:grid-cols-[1.02fr_1.18fr] lg:overflow-hidden">
-                <div className="relative overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-5 py-5 text-white sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+              <div className="grid min-h-[100dvh] w-full grid-cols-1 lg:min-h-0 lg:grid-cols-[1.02fr_1.18fr] lg:overflow-hidden">
+                <div className="relative overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.22),transparent_32%),linear-gradient(160deg,#082f49_0%,#0f172a_38%,#111827_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+1rem)] text-white sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
                   <div className="pointer-events-none absolute inset-0 overflow-hidden">
                     <div className="absolute -right-16 top-16 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
                     <div className="absolute -left-10 bottom-20 h-48 w-48 rounded-full bg-sky-500/10 blur-3xl" />
@@ -902,7 +902,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                   </div>
                 </div>
 
-                <div className="overflow-visible bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-5 py-5 sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+                <div className="overflow-visible bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f5f9ff_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-8 sm:py-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
                   <div className="mb-6 flex items-start justify-between gap-4">
                     <div className="inline-flex items-center gap-3 rounded-2xl border border-sky-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-200">
@@ -1458,10 +1458,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             <div className="mt-2 space-y-1 text-xs text-slate-500">
                               <p>Subtotal: ${formatAmount(cartSubtotal)} MXN</p>
                               <p>Envio: ${formatAmount(shippingFee)} MXN</p>
-                              <p>
-                                Pendiente de validacion manual: $
-                                {formatAmount(cartTotal)} MXN
-                              </p>
+                             
                             </div>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right">
@@ -1475,7 +1472,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         </div>
                       </div>
 
-                      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                      <div className="sticky bottom-0 -mx-4 mt-2 flex flex-col-reverse gap-3 border-t border-slate-200 bg-[linear-gradient(180deg,rgba(248,251,255,0)_0%,rgba(248,251,255,0.96)_24%,rgba(255,255,255,0.98)_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-4 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5 sm:backdrop-blur-none sm:flex-row sm:justify-end">
                         <button
                           type="button"
                           onClick={onClose}
@@ -1707,7 +1704,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         </div>
                       </div>
 
-                      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                      <div className="sticky bottom-0 -mx-4 mt-2 flex flex-col-reverse gap-3 border-t border-slate-200 bg-[linear-gradient(180deg,rgba(248,251,255,0)_0%,rgba(248,251,255,0.96)_24%,rgba(255,255,255,0.98)_100%)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-4 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5 sm:backdrop-blur-none sm:flex-row sm:justify-end">
                         <button
                           type="button"
                           onClick={() => setStep(1)}
@@ -1979,10 +1976,10 @@ export function CartDrawer() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[380px] flex-col rounded-l-2xl bg-white shadow-2xl"
+            className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-none flex-col rounded-none bg-white shadow-2xl sm:max-w-[380px] sm:rounded-l-2xl"
             onWheel={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between rounded-tl-2xl border-b bg-gray-50 p-4">
+            <div className="flex items-center justify-between border-b bg-gray-50 p-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] sm:rounded-tl-2xl sm:pt-4">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="h-5 w-5 text-blue-600" />
                 <span className="text-lg font-bold text-gray-800">
@@ -2000,7 +1997,7 @@ export function CartDrawer() {
               </button>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="flex-1 space-y-3 overflow-y-auto p-4 pb-5">
               {items.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center py-16 text-gray-400">
                   <ShoppingBag className="mb-4 h-20 w-20 text-gray-300" />
@@ -2071,7 +2068,7 @@ export function CartDrawer() {
                           </span>
                           <button
                             onClick={() => removeFromCart(item.cartKey)}
-                            className="rounded-lg p-1.5 text-red-500 opacity-0 transition-all hover:bg-red-50 group-hover:opacity-100"
+                            className="rounded-lg p-1.5 text-red-500 opacity-100 transition-all hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -2084,7 +2081,7 @@ export function CartDrawer() {
             </div>
 
             {items.length > 0 && (
-              <div className="space-y-3 border-t bg-gray-50 p-4">
+              <div className="space-y-3 border-t bg-gray-50 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
                 <VaciarCarritoModalButton
                   clearCart={clearCart}
                   setIsCartOpen={setIsCartOpen}

@@ -98,7 +98,7 @@ export function Navbar() {
         initial={{ x: -24, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         onClick={() => setMenuOpen((current) => !current)}
-        className="fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/88 text-[#003F91] shadow-[0_18px_44px_rgba(0,63,145,0.16)] backdrop-blur-xl transition-colors hover:bg-white sm:left-5 sm:top-5 sm:h-14 sm:w-14"
+        className="fixed left-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/88 text-[#003F91] shadow-[0_18px_44px_rgba(0,63,145,0.16)] backdrop-blur-xl transition-colors hover:bg-white sm:left-5 sm:top-5 sm:h-14 sm:w-14"
       >
         <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(0,63,145,0.1),rgba(0,168,181,0.08),rgba(255,205,0,0.14))] sm:h-10 sm:w-10">
           {menuOpen ? (
@@ -118,7 +118,7 @@ export function Navbar() {
           scale: triggerCartBounce ? [1, 1.08, 1] : 1,
         }}
         onClick={() => setIsCartOpen(true)}
-        className="fixed right-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/88 text-[#003F91] shadow-[0_18px_44px_rgba(0,63,145,0.16)] backdrop-blur-xl transition-colors hover:bg-white sm:right-5 sm:top-5 sm:h-14 sm:w-14"
+        className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/88 text-[#003F91] shadow-[0_18px_44px_rgba(0,63,145,0.16)] backdrop-blur-xl transition-colors hover:bg-white sm:right-5 sm:top-5 sm:h-14 sm:w-14"
         whileTap={{ scale: 0.95 }}
         transition={{ duration: 0.3 }}
       >
@@ -158,21 +158,21 @@ export function Navbar() {
           opacity: menuOpen ? 1 : 0.96,
         }}
         transition={{ type: "spring", stiffness: 260, damping: 28 }}
-        className="pointer-events-none fixed left-0 top-0 z-50 h-screen w-[304px] max-w-[calc(100vw-1rem)] p-3 sm:p-5"
+        className="pointer-events-none fixed left-0 top-0 z-50 h-[100dvh] w-[304px] max-w-[calc(100vw-0.75rem)] px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:max-w-[calc(100vw-1rem)] sm:p-5"
       >
         <div
           className={`relative flex h-full flex-col overflow-hidden rounded-[34px] border transition-all duration-500 ${
             isScrolled
               ? "border-white/70 bg-white/88 shadow-[0_24px_70px_rgba(0,63,145,0.14)] backdrop-blur-2xl"
               : "border-white/60 bg-white/82 shadow-[0_18px_56px_rgba(0,63,145,0.10)] backdrop-blur-xl"
-          } pointer-events-auto`}
+          } ${menuOpen ? "pointer-events-auto" : "pointer-events-none"}`}
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,rgba(0,63,145,0),rgba(0,63,145,0.35),rgba(0,168,181,0.26),rgba(255,205,0,0.4),rgba(0,63,145,0))]" />
           <div className="pointer-events-none absolute -left-10 top-8 h-28 w-28 rounded-full bg-[#003F91]/10 blur-3xl" />
           <div className="pointer-events-none absolute right-[-18px] top-24 h-28 w-28 rounded-full bg-[#FFCD00]/14 blur-3xl" />
           <div className="pointer-events-none absolute left-8 bottom-20 h-28 w-28 rounded-full bg-[#00A8B5]/10 blur-3xl" />
 
-          <div className="relative flex h-full flex-col px-5 py-6">
+          <div className="relative flex h-full flex-col px-4 py-5 sm:px-5 sm:py-6">
             <Link href="/">
               <motion.div
                 whileHover={{ scale: 1.01 }}
