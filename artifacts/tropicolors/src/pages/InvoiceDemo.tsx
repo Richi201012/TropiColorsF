@@ -142,7 +142,7 @@ const invoiceData: InvoiceData = {
     name: 'Tropicolors',
     address: 'Calle Abedules Mz. 1 Lt. 36, Col. Ejercito del Trabajo II...',
     phone: '55 5114 6856',
-    email: 'm_tropicolors1@hotmail.com',
+    email: 'contacto@tropicolors.mx',
     rfc: 'VAVE840727NKA',
   },
   customer: {

@@ -18,11 +18,11 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY || "";
 
 // Remitente verificado en Brevo
 const BREVO_SENDER_EMAIL =
-  process.env.BREVO_SENDER_EMAIL || "m_tropicolors1@hotmail.com";
+  process.env.BREVO_SENDER_EMAIL || "contacto@tropicolors.mx";
 const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || "Tropicolors";
 
 // Correo del administrador
-const ADMIN_EMAIL = "m_tropicolors1@hotmail.com";
+const ADMIN_EMAIL = "contacto@tropicolors.mx";
 
 function normalizeBrevoError(message?: string): {
   publicMessage: string;

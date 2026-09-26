@@ -8,7 +8,7 @@ const CONTACT_DETAILS = [
   { label: "Lada sin costo", value: "01 800 8 36 74 68" },
   {
     label: "Correo electrónico",
-    value: "m_tropicolors1@hotmail.com",
+    value: "contacto@tropicolors.mx",
   },
   {
     label: "Dirección",
