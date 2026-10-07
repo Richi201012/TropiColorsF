@@ -222,6 +222,11 @@
       "choice": "Place catalog pagination above the product results and animate page changes directionally without forced scrolling",
       "reason": "Keep the pagination control visually stable when the last page contains fewer products and avoid disruptive upward page movement",
       "date": "2026-10-07"
+    },
+    {
+      "choice": "Use responsive table-based transactional emails with status-specific mascot artwork, brand colors, progress, order details, and accessible text fallbacks",
+      "reason": "Give customers a clear, recognizable update for every order state while preserving compatibility across desktop and mobile email clients",
+      "date": "2026-10-07"
     }
   ],
   "evidence": [

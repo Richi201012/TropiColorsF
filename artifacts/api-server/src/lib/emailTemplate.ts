@@ -4,6 +4,8 @@
  * Logo: /images/logo-tropicolors.png (servido desde el API server)
  */
 
+import { generarEmailEstadoPedido as generarEmailEstadoPedidoNuevo } from "./orderStatusEmailTemplate";
+
 export interface Producto {
   nombre: string;
   cantidad: number;
@@ -92,7 +94,7 @@ function generarFilasProductos(productos: Producto[]): string {
     .join("");
 }
 
-export function generarEmailConfirmacion(pedido: DatosPedido): string {
+function generarEmailConfirmacionLegacy(pedido: DatosPedido): string {
   const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
   const productosHtml = generarFilasProductos(pedido.productos);
   const fecha = new Date().toLocaleDateString("es-MX", {
@@ -285,6 +287,21 @@ export function generarEmailConfirmacion(pedido: DatosPedido): string {
 </body>
 </html>
 `;
+}
+
+export function generarEmailConfirmacion(pedido: DatosPedido): string {
+  return generarEmailEstadoPedidoNuevo({
+    nombre: pedido.nombre,
+    email: pedido.email,
+    estado: "Pendiente",
+    productos: pedido.productos,
+    total: pedido.total,
+    direccion: pedido.direccion,
+    numeroExterior: pedido.numeroExterior,
+    numeroInterior: pedido.numeroInterior,
+    numeroPedido: pedido.numeroPedido,
+    trackingUrl: pedido.trackingUrl,
+  });
 }
 
 export interface EmailPedidoData {
@@ -532,7 +549,7 @@ function obtenerColorEstado(estado: string): string {
   return colores[estado] || "#6b7280";
 }
 
-export function generarEmailEstadoPedido(data: DatosEstadoPedido): string {
+function generarEmailEstadoPedidoLegacy(data: DatosEstadoPedido): string {
   const logoUrl = "https://i.ibb.co/cKX9nVTQ/logo.png";
   const productosHtml = data.productos
     .map(
@@ -762,6 +779,11 @@ export function generarEmailEstadoPedido(data: DatosEstadoPedido): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+export {
+  generarAsuntoEstadoPedido,
+  generarEmailEstadoPedido,
+} from "./orderStatusEmailTemplate";
+
 // CORREO DE FACTURA
 // ═══════════════════════════════════════════════════════════════════════════
 

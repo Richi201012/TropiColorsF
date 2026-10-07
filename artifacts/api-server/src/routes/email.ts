@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import {
   generarEmailConfirmacion,
   generarEmailEstadoPedido,
+  generarAsuntoEstadoPedido,
   generarEmailAdminNuevoPedido,
   generarEmailFactura,
   generarEmailContacto,
@@ -220,7 +221,7 @@ async function procesarCorreoPedido(
   const customerResult = await enviarCorreoBrevoAPI(
     email,
     nombre,
-    "Pedido Confirmado - Tropicolors",
+    generarAsuntoEstadoPedido("Pendiente", numeroPedido),
     html,
   );
 
@@ -337,17 +338,14 @@ async function procesarCorreoEstado(
     `${logPrefix} HTML generado en ${Date.now() - templateStartedAt}ms`,
   );
 
-  const asuntos: Record<string, string> = {
-    Pendiente: "Tu pedido está pendiente - Tropicolors",
-    Pagado: "Tu pago ha sido confirmado - Tropicolors",
-    Enviado: "Tu pedido ha sido enviado - Tropicolors",
-    Entregado: "Tu pedido ha sido entregado - Tropicolors",
-    Cancelado: "Tu pedido ha sido cancelado - Tropicolors",
-  };
-
   console.log(`${logPrefix} Enviando correo a:`, email, "Estado:", estado);
   const providerStartedAt = Date.now();
-  const result = await enviarCorreoBrevoAPI(email, nombre, asuntos[estado], html);
+  const result = await enviarCorreoBrevoAPI(
+    email,
+    nombre,
+    generarAsuntoEstadoPedido(estado, numeroPedido),
+    html,
+  );
   console.log(
     `${logPrefix} Proveedor respondió en ${Date.now() - providerStartedAt}ms`,
   );
