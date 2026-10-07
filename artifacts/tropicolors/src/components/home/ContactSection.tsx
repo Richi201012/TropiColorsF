@@ -41,8 +41,8 @@ export default function ContactSection({
       id="contacto"
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      viewport={{ once: false, amount: 0.16 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
       className="page-snap-section bg-white"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,7 +115,7 @@ export default function ContactSection({
                       onChange={(event) =>
                         onFieldChange("name", event.target.value)
                       }
-                      className="w-full px-4 py-3 rounded-xl border border-border bg-white focus:ring-2 focus:ring-[#003F91]/20 focus:border-[#003F91] outline-none text-sm transition-all"
+                      className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/20"
                       placeholder="Tu nombre"
                     />
                     {contactErrors.name ? (
@@ -133,7 +133,7 @@ export default function ContactSection({
                       onChange={(event) =>
                         onFieldChange("email", event.target.value)
                       }
-                      className="w-full px-4 py-3 rounded-xl border border-border bg-white focus:ring-2 focus:ring-[#003F91]/20 focus:border-[#003F91] outline-none text-sm transition-all"
+                      className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/20"
                       placeholder="correo@ejemplo.com"
                     />
                     {contactErrors.email ? (
@@ -149,8 +149,10 @@ export default function ContactSection({
                   </label>
                   <input
                     value={contactForm.phone}
-                    onChange={(event) => onFieldChange("phone", event.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-border bg-white focus:ring-2 focus:ring-[#003F91]/20 focus:border-[#003F91] outline-none text-sm transition-all"
+                    onChange={(event) =>
+                      onFieldChange("phone", event.target.value)
+                    }
+                    className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/20"
                     placeholder="+52 55 1234 5678"
                   />
                 </div>
@@ -164,7 +166,7 @@ export default function ContactSection({
                       onFieldChange("message", event.target.value)
                     }
                     rows={4}
-                    className="w-full px-4 py-3 rounded-xl border border-border bg-white focus:ring-2 focus:ring-[#003F91]/20 focus:border-[#003F91] outline-none text-sm resize-none transition-all"
+                    className="w-full resize-none rounded-xl border border-border bg-white px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/20"
                     placeholder="Me interesa cotizar Azul 125 en cubeta de 6 KG..."
                   />
                   {contactErrors.message ? (

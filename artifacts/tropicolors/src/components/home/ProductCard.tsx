@@ -1,5 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   CheckCircle,
@@ -11,6 +17,7 @@ import {
   Star,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { MOTION_EASE_OUT, MOTION_SPRING } from "@/lib/motion";
 import {
   buildCartItemKey,
   calculateMayoreoUnitTotal,
@@ -19,7 +26,12 @@ import {
   getPiecesFromPresentationLabel,
   type PurchaseType,
 } from "@/lib/commerce";
-import type { AddFlyingItemFn, AddToCartFn, Concentration, Product } from "./types";
+import type {
+  AddFlyingItemFn,
+  AddToCartFn,
+  Concentration,
+  Product,
+} from "./types";
 import {
   clampQuantity,
   getPresentationOptions,
@@ -33,19 +45,24 @@ type ProductCardProps = {
   product: Product;
   addToCart: AddToCartFn;
   addFlyingItem: AddFlyingItemFn;
+  displayMode?: "card" | "panel";
+  onAddedToCart?: () => void;
 };
 
 const ProductCard = React.memo(function ProductCard({
   product,
   addToCart,
   addFlyingItem,
+  displayMode = "card",
+  onAddedToCart,
 }: ProductCardProps) {
   const { toast } = useToast();
   const availableConcentrations = useMemo(
-    () => (["125", "250"] as Concentration[]).filter((value) => {
-      const options = getPresentationOptions(product, value);
-      return options.length > 0;
-    }),
+    () =>
+      (["125", "250"] as Concentration[]).filter((value) => {
+        const options = getPresentationOptions(product, value);
+        return options.length > 0;
+      }),
     [product],
   );
   const [selectedConcentration, setSelectedConcentration] =
@@ -57,6 +74,19 @@ const ProductCard = React.memo(function ProductCard({
   const [selectedWholesalePieces, setSelectedWholesalePieces] = useState<
     number | null
   >(null);
+  const [justAdded, setJustAdded] = useState(false);
+  const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(
+    () => () => {
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!availableConcentrations.includes(selectedConcentration)) {
@@ -126,7 +156,8 @@ const ProductCard = React.memo(function ProductCard({
   const allowsPiece =
     !isOnlyWholesale && piecePriceBase > 0 && isPieceEligiblePresentation;
   const selectedWholesaleBoxPrice =
-    selectedWholesalePieces && specialWholesaleBoxPrices[selectedWholesalePieces]
+    selectedWholesalePieces &&
+    specialWholesaleBoxPrices[selectedWholesalePieces]
       ? specialWholesaleBoxPrices[selectedWholesalePieces]
       : null;
   const allowsMayoreo =
@@ -254,6 +285,17 @@ const ProductCard = React.memo(function ProductCard({
             : effectiveQuantity,
         warningMessage: product.purchaseWarning,
       });
+
+      onAddedToCart?.();
+
+      setJustAdded(true);
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current);
+      }
+      confirmationTimerRef.current = setTimeout(
+        () => setJustAdded(false),
+        1200,
+      );
     },
     [
       addFlyingItem,
@@ -272,16 +314,24 @@ const ProductCard = React.memo(function ProductCard({
       toast,
       wholesaleQuantity,
       wholesaleUnitTotal,
+      onAddedToCart,
     ],
   );
 
   return (
     <motion.div
-      layout
-      className="relative h-full overflow-hidden rounded-[26px] border border-white/80 bg-[radial-gradient(circle_at_top,rgba(255,208,74,0.10),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,249,255,0.98)_100%)] transition-all duration-300 will-change-transform hover:-translate-y-1 min-[480px]:rounded-[28px] lg:min-h-[640px]"
+      layout={displayMode === "card"}
+      transition={MOTION_SPRING}
+      className={`relative overflow-hidden rounded-[26px] border bg-[radial-gradient(circle_at_top,rgba(255,208,74,0.10),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,249,255,0.98)_100%)] transition-[border-color,box-shadow] duration-300 min-[480px]:rounded-[28px] ${
+        displayMode === "panel"
+          ? "h-auto border-slate-200/80 shadow-none"
+          : "h-full border-white/80 lg:min-h-[640px]"
+      }`}
       style={{
         boxShadow:
-          "0 18px 50px rgba(15,23,42,0.10), 0 2px 10px rgba(15,23,42,0.05)",
+          displayMode === "panel"
+            ? "none"
+            : "0 18px 50px rgba(15,23,42,0.10), 0 2px 10px rgba(15,23,42,0.05)",
       }}
     >
       <div
@@ -373,18 +423,19 @@ const ProductCard = React.memo(function ProductCard({
                 {availableConcentrations.map((value) => {
                   const isActive = selectedConcentration === value;
                   return (
-                    <button
+                    <motion.button
                       key={`selector-${value}`}
                       type="button"
                       onClick={() => setSelectedConcentration(value)}
-                      className={`rounded-full px-3.5 py-1.5 text-[10px] font-bold transition-all min-[400px]:px-4 min-[400px]:text-[11px] ${
+                      whileTap={{ scale: 0.96 }}
+                      className={`min-h-11 rounded-full px-3.5 py-1.5 text-[10px] font-bold transition-[background-color,color,border-color,box-shadow] min-[400px]:px-4 min-[400px]:text-[11px] ${
                         isActive
                           ? "bg-[#0b2d6b] text-white shadow-lg shadow-[#0b2d6b]/20"
                           : "border border-slate-200 bg-white text-slate-600"
                       }`}
                     >
                       C-{value}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
@@ -425,9 +476,11 @@ const ProductCard = React.memo(function ProductCard({
               ) : (
                 <div className="relative mt-3 min-[400px]:mt-4">
                   <select
-                    className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 pr-8 text-xs font-semibold text-gray-700 shadow-sm transition-all focus:border-[#003F91]/30 focus:outline-none focus:ring-2 focus:ring-[#003F91]/15 min-[400px]:py-3 min-[400px]:text-sm"
+                    className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 pr-8 text-xs font-semibold text-gray-700 shadow-sm transition-[border-color,box-shadow] focus-visible:border-[#003F91]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#003F91]/15 min-[400px]:py-3 min-[400px]:text-sm"
                     value={selectedIdx}
-                    onChange={(event) => setSelectedIdx(Number(event.target.value))}
+                    onChange={(event) =>
+                      setSelectedIdx(Number(event.target.value))
+                    }
                   >
                     {availablePresentations.map((presentation, index) => (
                       <option key={presentation.label} value={index}>
@@ -524,7 +577,7 @@ const ProductCard = React.memo(function ProductCard({
                             key={`${product.id}-${pieces}`}
                             type="button"
                             onClick={() => setSelectedWholesalePieces(pieces)}
-                            className={`rounded-full px-3.5 py-2 text-[11px] font-bold transition ${
+                            className={`min-h-11 rounded-full px-3.5 py-2 text-[11px] font-bold transition ${
                               isActive
                                 ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-200"
                                 : "border border-slate-200 bg-white text-slate-600"
@@ -559,12 +612,32 @@ const ProductCard = React.memo(function ProductCard({
                                 clampQuantity(current - 1),
                               )
                         }
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50"
                       >
                         <Minus size={16} />
                       </button>
-                      <span className="min-w-[3rem] text-center text-lg font-black text-[#0b2d6b]">
-                        {purchaseType === "pieza" ? pieceQuantity : wholesaleQuantity}
+                      <span className="relative min-w-[3rem] overflow-hidden text-center text-lg font-black tabular-nums text-[#0b2d6b]">
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          <motion.span
+                            key={
+                              purchaseType === "pieza"
+                                ? pieceQuantity
+                                : wholesaleQuantity
+                            }
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{
+                              duration: 0.16,
+                              ease: MOTION_EASE_OUT,
+                            }}
+                            className="inline-block"
+                          >
+                            {purchaseType === "pieza"
+                              ? pieceQuantity
+                              : wholesaleQuantity}
+                          </motion.span>
+                        </AnimatePresence>
                       </span>
                       <button
                         type="button"
@@ -577,7 +650,7 @@ const ProductCard = React.memo(function ProductCard({
                                 clampQuantity(current + 1),
                               )
                         }
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50"
                       >
                         <Plus size={16} />
                       </button>
@@ -600,9 +673,18 @@ const ProductCard = React.memo(function ProductCard({
                           : "Total por volumen"}
                     </span>
                     <div className="mt-1 flex flex-wrap items-end gap-x-1.5 gap-y-1 leading-[0.95]">
-                      <span className="break-all text-[1.45rem] font-bold tracking-tight text-[#0b4a92] min-[400px]:text-[1.6rem] min-[500px]:text-[1.8rem]">
-                        ${currentSubtotal.toLocaleString("es-MX")}
-                      </span>
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.span
+                          key={currentSubtotal}
+                          initial={{ opacity: 0, y: 7 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -7 }}
+                          transition={{ duration: 0.18, ease: MOTION_EASE_OUT }}
+                          className="inline-block break-all text-[1.45rem] font-bold tabular-nums tracking-tight text-[#0b4a92] min-[400px]:text-[1.6rem] min-[500px]:text-[1.8rem]"
+                        >
+                          ${currentSubtotal.toLocaleString("es-MX")}
+                        </motion.span>
+                      </AnimatePresence>
                       <span className="pb-0.5 text-[0.72rem] font-medium uppercase tracking-[0.08em] text-slate-400 min-[400px]:text-xs">
                         MXN
                       </span>
@@ -620,26 +702,49 @@ const ProductCard = React.memo(function ProductCard({
             </div>
 
             <div className="mt-3 space-y-2 min-[400px]:mt-4 min-[400px]:space-y-2.5">
-              <button
+              <motion.button
                 onClick={handleAddToCart}
-                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,#FFE34B_0%,#FFD400_55%,#F7C900_100%)] px-4 py-3 text-center text-sm font-extrabold text-[#202531] shadow-[0_18px_30px_rgba(255,205,0,0.30)] transition-all duration-200 hover:brightness-[1.02] active:scale-[0.99] min-[400px]:min-h-[54px] min-[400px]:gap-2.5 min-[400px]:rounded-[22px] min-[400px]:text-base"
+                whileTap={{ scale: 0.985 }}
+                animate={justAdded ? { scale: [1, 1.015, 1] } : { scale: 1 }}
+                transition={{ duration: 0.24, ease: MOTION_EASE_OUT }}
+                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,#FFE34B_0%,#FFD400_55%,#F7C900_100%)] px-4 py-3 text-center text-sm font-extrabold text-[#202531] shadow-[0_18px_30px_rgba(255,205,0,0.30)] transition-[filter,box-shadow] duration-200 hover:brightness-[1.02] min-[400px]:min-h-[54px] min-[400px]:gap-2.5 min-[400px]:rounded-[22px] min-[400px]:text-base"
               >
-                <ShoppingCart
-                  size={18}
-                  className="min-[400px]:h-5 min-[400px]:w-5"
-                />
-                Agregar al carrito
-                <ArrowRight
-                  size={16}
-                  className="min-[400px]:h-[18px] min-[400px]:w-[18px]"
-                />
-              </button>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={justAdded ? "added" : "add"}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.16 }}
+                    className="inline-flex items-center justify-center gap-2"
+                  >
+                    {justAdded ? (
+                      <CheckCircle
+                        size={18}
+                        className="min-[400px]:h-5 min-[400px]:w-5"
+                      />
+                    ) : (
+                      <ShoppingCart
+                        size={18}
+                        className="min-[400px]:h-5 min-[400px]:w-5"
+                      />
+                    )}
+                    {justAdded ? "Agregado" : "Agregar al carrito"}
+                    {!justAdded ? (
+                      <ArrowRight
+                        size={16}
+                        className="min-[400px]:h-[18px] min-[400px]:w-[18px]"
+                      />
+                    ) : null}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.button>
 
               <a
                 href={`https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20${encodeURIComponent(product.name)}%20Conc.%20${selectedConcentration}%20-%20${encodeURIComponent(selected?.label ?? "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-1 text-xs font-semibold text-slate-500 transition hover:text-[#003F91] min-[400px]:text-sm"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 py-1 text-xs font-semibold text-slate-500 transition hover:text-[#003F91] min-[400px]:text-sm"
                 title="Cotizar por WhatsApp"
               >
                 <MessageCircle size={15} />

@@ -50,7 +50,7 @@ export type CreateOrderInput = {
   shippingNeighborhood: string;
   shippingMunicipality: string;
   shippingState: string;
-  paymentMethod: "card" | "oxxo" | "transfer";
+  paymentMethod: string;
   paymentStatus: "paid" | "pending";
   orderStatus: "pending";
   paymentReference?: string;

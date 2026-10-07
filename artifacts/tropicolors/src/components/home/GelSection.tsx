@@ -29,8 +29,8 @@ const GelSection = memo(function GelSection({
       id="gel"
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      viewport={{ once: false, amount: 0.16 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
       className="page-snap-section bg-white overflow-visible"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -131,7 +131,7 @@ const GelSection = memo(function GelSection({
                 href="https://wa.me/525551146856?text=Hola%20quiero%20comprar%20colorante%20en%20gel%20de%20Tropicolors"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 px-10 py-4.5 bg-[#003F91] text-white rounded-full font-extrabold hover:bg-[#002d6e] transition-all hover:scale-105 shadow-2xl shadow-[#003F91]/30 text-base"
+                className="inline-flex items-center gap-2.5 rounded-full bg-[#003F91] px-10 py-4.5 text-base font-extrabold text-white shadow-2xl shadow-[#003F91]/30 transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-[#002d6e]"
               >
                 <MessageCircle size={20} />
                 Comprar ahora
@@ -159,8 +159,8 @@ const GelSection = memo(function GelSection({
               </h2>
               <p className="text-muted-foreground text-base max-w-2xl mx-auto leading-relaxed">
                 Estamos trabajando en una nueva línea de colorantes en gel de
-                alta concentración. Perfectos para betunes, fondants,
-                chocolates y decoración profesional.
+                alta concentración. Perfectos para betunes, fondants, chocolates
+                y decoración profesional.
               </p>
             </div>
 
@@ -179,7 +179,7 @@ const GelSection = memo(function GelSection({
                         <motion.div
                           initial={{ opacity: 0, y: 20 }}
                           whileInView={{ opacity: 1, y: 0 }}
-                          viewport={{ once: true }}
+                          viewport={{ once: false, amount: 0.2 }}
                           transition={{ delay: index * 0.05 }}
                           className="group relative aspect-square cursor-default overflow-hidden rounded-2xl shadow-xl"
                           style={{
@@ -235,7 +235,7 @@ const GelSection = memo(function GelSection({
                     key={color.name}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
+                    viewport={{ once: false, amount: 0.2 }}
                     transition={{ delay: index * 0.06 }}
                     className="group relative aspect-square cursor-default overflow-hidden rounded-2xl shadow-xl"
                     style={{
@@ -282,7 +282,7 @@ const GelSection = memo(function GelSection({
                 href="https://wa.me/525551146856?text=Hola%20me%20interesa%20el%20colorante%20en%20gel%20de%20Tropicolors"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 px-10 py-4.5 bg-[#003F91] text-white rounded-full font-extrabold hover:bg-[#002d6e] transition-all hover:scale-105 shadow-2xl shadow-[#003F91]/30 text-base"
+                className="inline-flex items-center gap-2.5 rounded-full bg-[#003F91] px-10 py-4.5 text-base font-extrabold text-white shadow-2xl shadow-[#003F91]/30 transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-[#002d6e]"
               >
                 <MessageCircle size={20} />
                 Notificarme cuando esté disponible

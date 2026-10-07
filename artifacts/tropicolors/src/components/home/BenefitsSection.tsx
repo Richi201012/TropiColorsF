@@ -67,8 +67,8 @@ export default function BenefitsSection() {
       id="beneficios"
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      viewport={{ once: false, amount: 0.16 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
       className="page-snap-section bg-gradient-to-br from-[#00A8B5] via-[#00A8B5] to-[#007B7F] text-white relative overflow-hidden"
     >
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3"></div>
@@ -90,13 +90,13 @@ export default function BenefitsSection() {
               key={benefit.title}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={{ once: false, amount: 0.2 }}
               transition={{ delay: index * 0.07 }}
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
-              className="group bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/15 hover:border-white/20 transition-all duration-300"
+              className="group rounded-2xl border border-white/10 bg-white/10 p-6 backdrop-blur-sm transition-[background-color,border-color,box-shadow] duration-300 hover:border-white/20 hover:bg-white/15"
             >
               <div
-                className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${benefit.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${benefit.color} shadow-lg transition-transform duration-300 group-hover:-translate-y-0.5`}
               >
                 <benefit.icon size={24} className="text-white" />
               </div>

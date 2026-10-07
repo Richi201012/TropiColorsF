@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,7 +12,9 @@ import { trackPageView } from "@/lib/analytics";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import HeroLanding from "@/components/HeroLanding";
+import { ScrollProgress } from "@/components/ScrollProgress";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MOTION_EASE_OUT } from "@/lib/motion";
 
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
@@ -103,6 +106,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       style={{ scrollSnapType: isMobile ? "none" : "y proximity" }}
     >
       <Navbar />
+      {isHomePage ? <ScrollProgress /> : null}
       <div>
         {isHomePage ? <HeroLanding /> : null}
         <main className="relative">{children}</main>
@@ -121,6 +125,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
+  const [location] = useLocation();
+
   return (
     <Suspense
       fallback={
@@ -129,14 +135,27 @@ function Router() {
         </div>
       }
     >
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/seguimiento_de_pedido" component={OrderTrackingSearch} />
-        <Route path="/pedido/:trackingToken" component={OrderTracking} />
-        <Route path="/login" component={Admin} />
-        <Route path="/inventario" component={Inventario} />
-        <Route component={NotFound} />
-      </Switch>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={location}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.24, ease: MOTION_EASE_OUT }}
+        >
+          <Switch location={location}>
+            <Route path="/" component={Home} />
+            <Route
+              path="/seguimiento_de_pedido"
+              component={OrderTrackingSearch}
+            />
+            <Route path="/pedido/:trackingToken" component={OrderTracking} />
+            <Route path="/login" component={Admin} />
+            <Route path="/inventario" component={Inventario} />
+            <Route component={NotFound} />
+          </Switch>
+        </motion.div>
+      </AnimatePresence>
     </Suspense>
   );
 }
@@ -198,19 +217,24 @@ function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <CartProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AnalyticsTracker />
-            <AppLayout>
-              <Router />
-            </AppLayout>
-          </WouterRouter>
-          <Toaster />
-        </CartProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <MotionConfig
+      reducedMotion="user"
+      transition={{ duration: 0.24, ease: MOTION_EASE_OUT }}
+    >
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <CartProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <AnalyticsTracker />
+              <AppLayout>
+                <Router />
+              </AppLayout>
+            </WouterRouter>
+            <Toaster />
+          </CartProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </MotionConfig>
   );
 }
 

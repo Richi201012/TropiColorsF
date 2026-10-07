@@ -1,16 +1,33 @@
-import { memo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
-import { PackageSearch, Search } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ChevronLeft, ChevronRight, PackageSearch, Search } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from "@/components/ui/pagination";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MOTION_EASE_OUT } from "@/lib/motion";
+import CompactProductCard from "./CompactProductCard";
 import ProductCard from "./ProductCard";
 import { CATEGORY_COLORS, CATEGORY_ORDER, STORE_HIGHLIGHTS } from "./data";
 import type { AddFlyingItemFn, AddToCartFn, Product } from "./types";
+
+const MotionCarouselItem = motion.create(CarouselItem);
+const CATALOG_PAGE_SIZE = 6;
 
 type CatalogSectionProps = {
   activeCategory: string;
@@ -35,6 +52,46 @@ const CatalogSection = memo(function CatalogSection({
 }: CatalogSectionProps) {
   const activeCategoryConfig = CATEGORY_COLORS[activeCategory];
   const isMobile = useIsMobile();
+  const prefersReducedMotion = useReducedMotion();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageDirection, setPageDirection] = useState(1);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleProducts.length / CATALOG_PAGE_SIZE),
+  );
+  const activePage = Math.min(currentPage, totalPages);
+  const paginatedProducts = useMemo(() => {
+    const start = (activePage - 1) * CATALOG_PAGE_SIZE;
+    return visibleProducts.slice(start, start + CATALOG_PAGE_SIZE);
+  }, [activePage, visibleProducts]);
+  const firstVisibleProduct =
+    filteredProductsCount > 0 ? (activePage - 1) * CATALOG_PAGE_SIZE + 1 : 0;
+  const lastVisibleProduct = Math.min(
+    activePage * CATALOG_PAGE_SIZE,
+    filteredProductsCount,
+  );
+
+  useEffect(() => {
+    setPageDirection(1);
+    setCurrentPage(1);
+  }, [activeCategory, searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const handlePageChange = (page: number) => {
+    const nextPage = Math.min(Math.max(page, 1), totalPages);
+    if (nextPage === activePage) {
+      return;
+    }
+
+    setPageDirection(nextPage > activePage ? 1 : -1);
+    setCurrentPage(nextPage);
+  };
 
   return (
     <section
@@ -52,7 +109,13 @@ const CatalogSection = memo(function CatalogSection({
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-3 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
-        <div className="mx-auto mb-10 max-w-6xl rounded-[28px] border border-white/70 bg-white/75 px-4 py-7 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-12 sm:rounded-[32px] sm:px-10 sm:py-10">
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.18 }}
+          transition={{ duration: 0.48, ease: MOTION_EASE_OUT }}
+          className="mx-auto mb-10 max-w-6xl rounded-[28px] border border-white/70 bg-white/75 px-4 py-7 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-12 sm:rounded-[32px] sm:px-10 sm:py-10"
+        >
           <h2 className="mt-4 px-2 text-4xl font-black tracking-tight text-[#003F91] sm:text-5xl lg:text-4xl">
             Color sin límites{" "}
             <span
@@ -115,9 +178,15 @@ const CatalogSection = memo(function CatalogSection({
               Seguir mi pedido
             </Link>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="relative mb-14 rounded-[28px] border border-white/70 bg-white/70 px-3 py-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-16 sm:rounded-[32px] sm:px-8 sm:py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 28 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.12 }}
+          transition={{ duration: 0.45, ease: MOTION_EASE_OUT }}
+          className="relative mb-14 rounded-[28px] border border-white/70 bg-white/70 px-3 py-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:mb-16 sm:rounded-[32px] sm:px-8 sm:py-8"
+        >
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute left-[8%] top-[-18%] h-28 w-40 rounded-full bg-[#003F91]/12 blur-3xl" />
             <div className="absolute left-1/2 top-[-10%] h-24 w-44 -translate-x-1/2 rounded-full bg-[#00A8B5]/12 blur-3xl" />
@@ -141,14 +210,14 @@ const CatalogSection = memo(function CatalogSection({
                           onClick={() => onCategoryChange(category)}
                           initial={{ opacity: 0, scale: 0.94 }}
                           whileInView={{ opacity: 1, scale: 1 }}
-                          viewport={{ once: true }}
+                          viewport={{ once: false, amount: 0.3 }}
                           transition={{
                             duration: 0.22,
                             delay: index * 0.03,
                             ease: "easeOut",
                           }}
                           whileTap={{ scale: 0.98 }}
-                          className="flex min-h-[50px] w-full items-center justify-center rounded-2xl px-3 py-3 text-center text-[13px] font-bold leading-tight transition-all duration-300"
+                          className="flex min-h-[50px] w-full items-center justify-center rounded-2xl px-3 py-3 text-center text-[13px] font-bold leading-tight transition-[background-color,color,border-color,box-shadow] duration-300"
                           style={{
                             backgroundColor: isActive
                               ? colors.bg
@@ -177,15 +246,14 @@ const CatalogSection = memo(function CatalogSection({
                           onClick={() => onCategoryChange(category)}
                           initial={{ opacity: 0, scale: 0.9 }}
                           whileInView={{ opacity: 1, scale: 1 }}
-                          viewport={{ once: true }}
+                          viewport={{ once: false, amount: 0.3 }}
                           transition={{
                             duration: 0.25,
                             delay: index * 0.04,
                             ease: "easeOut",
                           }}
-                          whileHover={{ scale: 1.03 }}
                           whileTap={{ scale: 0.97 }}
-                          className="flex-none whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300 sm:px-5 sm:py-2.5"
+                          className="flex-none whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-[background-color,color,border-color,box-shadow] duration-300 sm:px-5 sm:py-2.5"
                           style={{
                             backgroundColor: isActive
                               ? colors.bg
@@ -215,7 +283,7 @@ const CatalogSection = memo(function CatalogSection({
                     value={searchQuery}
                     onChange={(event) => onSearchChange(event.target.value)}
                     placeholder="Buscar color, familia o tono..."
-                    className="w-full border-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400"
+                    className="w-full rounded-sm border-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#003F91]/25"
                     aria-label={`Buscar color dentro de ${activeCategoryConfig ? activeCategory : "todos los productos"}`}
                   />
                   <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500 sm:inline-flex">
@@ -233,9 +301,18 @@ const CatalogSection = memo(function CatalogSection({
               <p className="relative text-[11px] font-extrabold uppercase tracking-[0.24em] text-cyan-100/80">
                 Selección activa
               </p>
-              <h3 className="relative mt-3 text-2xl font-black tracking-tight">
-                {activeCategory}
-              </h3>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.h3
+                  key={activeCategory}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2, ease: MOTION_EASE_OUT }}
+                  className="relative mt-3 text-2xl font-black tracking-tight"
+                >
+                  {activeCategory}
+                </motion.h3>
+              </AnimatePresence>
               <p className="relative mt-2 max-w-xs text-sm leading-relaxed text-slate-200">
                 Navega una colección más clara, encuentra más rápido el tono
                 ideal y cotiza sin salir del catálogo.
@@ -251,70 +328,302 @@ const CatalogSection = memo(function CatalogSection({
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
                     Curaduría
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-white">
-                    {filteredProductsCount} opciones visibles
-                  </p>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.p
+                      key={`${activeCategory}-${filteredProductsCount}`}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.18 }}
+                      className="mt-1 text-sm font-semibold text-white"
+                    >
+                      {filteredProductsCount} opciones visibles
+                    </motion.p>
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {filteredProductsCount > 0 ? (
-          isMobile ? (
-            <div className="space-y-4">
-              <Carousel
-                opts={{ align: "start", loop: visibleProducts.length > 1 }}
-                className="w-full"
-              >
-                <CarouselContent className="-ml-3">
-                  {visibleProducts.map((product) => (
-                    <CarouselItem
-                      key={product.id}
-                      className="basis-[86%] pl-3 min-[480px]:basis-[72%]"
-                    >
-                      <div className="mx-auto h-full w-full max-w-[440px]">
-                        <ProductCard
-                          product={product}
-                          addToCart={addToCart}
-                          addFlyingItem={addFlyingItem}
-                        />
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-              </Carousel>
-
-              {visibleProducts.length > 1 ? (
-                <p className="text-center text-xs font-medium tracking-[0.14em] text-slate-400 uppercase">
-                  Desliza para ver más productos
+        <div className="relative">
+          {filteredProductsCount > 0 ? (
+            <div className="mb-6 flex flex-col gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 p-3.5 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+                  Catálogo compacto
                 </p>
-              ) : null}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 min-[480px]:gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-3">
-              {visibleProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="mx-auto h-full w-full max-w-[440px]"
-                >
-                  <ProductCard
-                    product={product}
-                    addToCart={addToCart}
-                    addFlyingItem={addFlyingItem}
-                  />
-                </div>
-              ))}
-            </div>
-          )
-        ) : null}
+                <p className="mt-1 text-sm font-semibold text-slate-600">
+                  Mostrando {firstVisibleProduct}–{lastVisibleProduct} de{" "}
+                  {filteredProductsCount} productos
+                </p>
+              </div>
 
-        {filteredProductsCount === 0 ? (
-          <div className="text-center py-20 text-muted-foreground">
-            No hay productos disponibles con esos filtros.
-          </div>
-        ) : null}
+              {totalPages > 1 ? (
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <p className="px-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+                    Página {activePage} de {totalPages}
+                  </p>
+                  <Pagination
+                    aria-label="Páginas del catálogo"
+                    className="mx-0 w-auto justify-start sm:justify-end"
+                  >
+                    <PaginationContent className="gap-1">
+                      <PaginationItem>
+                        <button
+                          type="button"
+                          onClick={() => handlePageChange(activePage - 1)}
+                          disabled={activePage === 1}
+                          aria-label="Página anterior"
+                          className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2.5 text-sm font-bold text-slate-600 transition-[background-color,color,transform] hover:-translate-x-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-x-0"
+                        >
+                          <ChevronLeft size={17} />
+                          <span className="hidden lg:inline">Anterior</span>
+                        </button>
+                      </PaginationItem>
+
+                      {Array.from(
+                        { length: totalPages },
+                        (_, index) => index + 1,
+                      ).map((page) => {
+                        const isCurrentPage = activePage === page;
+
+                        return (
+                          <PaginationItem key={page}>
+                            <button
+                              type="button"
+                              onClick={() => handlePageChange(page)}
+                              aria-label={`Ir a la página ${page}`}
+                              aria-current={isCurrentPage ? "page" : undefined}
+                              className={`relative inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl text-sm font-extrabold transition-colors ${
+                                isCurrentPage
+                                  ? "text-white"
+                                  : "text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              {isCurrentPage ? (
+                                <motion.span
+                                  layoutId="catalog-active-page"
+                                  className="absolute inset-0 rounded-xl bg-[#003F91] shadow-[0_10px_22px_rgba(0,63,145,0.24)]"
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 420,
+                                    damping: 34,
+                                  }}
+                                />
+                              ) : null}
+                              <span className="relative z-10">{page}</span>
+                            </button>
+                          </PaginationItem>
+                        );
+                      })}
+
+                      <PaginationItem>
+                        <button
+                          type="button"
+                          onClick={() => handlePageChange(activePage + 1)}
+                          disabled={activePage === totalPages}
+                          aria-label="Página siguiente"
+                          className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2.5 text-sm font-bold text-slate-600 transition-[background-color,color,transform] hover:translate-x-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-x-0"
+                        >
+                          <span className="hidden lg:inline">Siguiente</span>
+                          <ChevronRight size={17} />
+                        </button>
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              ) : (
+                <p className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm">
+                  Selecciona un producto para comprarlo
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {filteredProductsCount > 0 ? (
+            <AnimatePresence mode="wait" initial={false} custom={pageDirection}>
+              {isMobile ? (
+                <motion.div
+                  key={`mobile-${activeCategory}-${searchQuery}-${activePage}`}
+                  custom={pageDirection}
+                  initial={
+                    prefersReducedMotion
+                      ? false
+                      : {
+                          opacity: 0,
+                          x: pageDirection * 28,
+                          filter: "blur(5px)",
+                        }
+                  }
+                  animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                  exit={
+                    prefersReducedMotion
+                      ? undefined
+                      : {
+                          opacity: 0,
+                          x: pageDirection * -20,
+                          filter: "blur(4px)",
+                        }
+                  }
+                  transition={{
+                    duration: prefersReducedMotion ? 0 : 0.3,
+                    ease: MOTION_EASE_OUT,
+                  }}
+                  className="space-y-4"
+                >
+                  <Carousel
+                    opts={{
+                      align: "start",
+                      loop: paginatedProducts.length > 1,
+                    }}
+                    className="w-full"
+                  >
+                    <CarouselContent className="-ml-3">
+                      {paginatedProducts.map((product, index) => (
+                        <MotionCarouselItem
+                          key={product.id}
+                          initial={
+                            prefersReducedMotion
+                              ? false
+                              : { opacity: 0, y: 16, scale: 0.985 }
+                          }
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{
+                            duration: prefersReducedMotion ? 0 : 0.34,
+                            delay: prefersReducedMotion ? 0 : index * 0.045,
+                            ease: MOTION_EASE_OUT,
+                          }}
+                          className="basis-[88%] pl-3 min-[480px]:basis-[72%]"
+                        >
+                          <div className="mx-auto h-full w-full max-w-[440px]">
+                            <CompactProductCard
+                              product={product}
+                              onConfigure={setSelectedProduct}
+                            />
+                          </div>
+                        </MotionCarouselItem>
+                      ))}
+                    </CarouselContent>
+                  </Carousel>
+
+                  {paginatedProducts.length > 1 ? (
+                    <p className="text-center text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+                      Desliza para explorar esta página
+                    </p>
+                  ) : null}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={`desktop-${activeCategory}-${searchQuery}-${activePage}`}
+                  custom={pageDirection}
+                  initial={
+                    prefersReducedMotion
+                      ? false
+                      : {
+                          opacity: 0,
+                          x: pageDirection * 34,
+                          scale: 0.992,
+                          filter: "blur(6px)",
+                        }
+                  }
+                  animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+                  exit={
+                    prefersReducedMotion
+                      ? undefined
+                      : {
+                          opacity: 0,
+                          x: pageDirection * -26,
+                          scale: 0.995,
+                          filter: "blur(4px)",
+                        }
+                  }
+                  transition={{
+                    duration: prefersReducedMotion ? 0 : 0.3,
+                    ease: MOTION_EASE_OUT,
+                  }}
+                  className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+                >
+                  {paginatedProducts.map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      initial={
+                        prefersReducedMotion
+                          ? false
+                          : { opacity: 0, y: 20, scale: 0.975 }
+                      }
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{
+                        duration: prefersReducedMotion ? 0 : 0.4,
+                        delay: prefersReducedMotion ? 0 : index * 0.055,
+                        ease: MOTION_EASE_OUT,
+                      }}
+                      className="mx-auto h-full w-full max-w-[440px]"
+                    >
+                      <CompactProductCard
+                        product={product}
+                        onConfigure={setSelectedProduct}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="py-20 text-center text-muted-foreground"
+            >
+              No hay productos disponibles con esos filtros.
+            </motion.div>
+          )}
+        </div>
       </div>
+
+      <Dialog
+        open={selectedProduct !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedProduct(null);
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[80dvh] w-[calc(100%-1.5rem)] max-w-[520px] flex-col gap-0 overflow-hidden rounded-[28px] border border-white/80 bg-slate-50 p-0 shadow-[0_30px_90px_rgba(15,23,42,0.28)] sm:max-h-[78dvh] sm:rounded-[30px]">
+          {selectedProduct ? (
+            <>
+              <DialogHeader className="border-b border-slate-200/80 bg-white px-4 py-4 pr-16 text-left sm:px-5">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-10 w-10 shrink-0 rounded-xl border-2 border-white shadow-md"
+                    style={{
+                      background: `linear-gradient(135deg, ${selectedProduct.hex}, ${selectedProduct.hex2 ?? selectedProduct.hex})`,
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <DialogTitle className="line-clamp-2 text-lg font-black leading-tight text-[#0b2d6b]">
+                      Comprar {selectedProduct.name}
+                    </DialogTitle>
+                    <DialogDescription className="mt-1 text-xs sm:text-sm">
+                      Elige presentación, tipo de compra y cantidad.
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2.5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4">
+                <ProductCard
+                  key={selectedProduct.id}
+                  product={selectedProduct}
+                  addToCart={addToCart}
+                  addFlyingItem={addFlyingItem}
+                  displayMode="panel"
+                  onAddedToCart={() => setSelectedProduct(null)}
+                />
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 });

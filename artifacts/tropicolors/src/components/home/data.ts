@@ -7,12 +7,6 @@ import type {
   ReferenceFormData,
 } from "./types";
 
-export const INITIAL_CATALOG_ITEMS = {
-  mobile: 6,
-  desktop: 9,
-} as const;
-
-export const DEFERRED_CATALOG_DELAY_MS = 450;
 export const DEFERRED_SECTIONS_DELAY_MS = 700;
 export const DEFERRED_FIREBASE_DELAY_MS = 1100;
 

@@ -14,8 +14,8 @@ export default function AboutSection() {
       id="nosotros"
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      viewport={{ once: false, amount: 0.16 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
       className="page-snap-section bg-slate-50 overflow-hidden"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,7 +23,7 @@ export default function AboutSection() {
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: false, amount: 0.2 }}
             className="lg:w-1/2"
           >
             <span className="inline-block py-1.5 px-5 rounded-full bg-[#003F91]/8 text-[#003F91] text-[11px] font-bold uppercase tracking-widest mb-7 border border-[#003F91]/15">
@@ -45,11 +45,11 @@ export default function AboutSection() {
             <p className="text-base text-muted-foreground mb-10 leading-relaxed">
               Contamos con dos tipos de concentración para adaptarnos mejor a
               cada uso: opciones orientadas a aplicaciones de grado alimenticio
-              para panadería, confitería, bebidas y lácteos, de igual forma contamos con opciones para
-              uso industrial en productos de limpieza y otras preparaciones
-              técnicas. Todos nuestros productos son 100% solubles en agua y
-              están pensados para ofrecer rendimiento, estabilidad y color
-              uniforme en cada mezcla.
+              para panadería, confitería, bebidas y lácteos, de igual forma
+              contamos con opciones para uso industrial en productos de limpieza
+              y otras preparaciones técnicas. Todos nuestros productos son 100%
+              solubles en agua y están pensados para ofrecer rendimiento,
+              estabilidad y color uniforme en cada mezcla.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {ABOUT_ITEMS.map((item) => (
@@ -71,7 +71,7 @@ export default function AboutSection() {
           <motion.div
             initial={{ opacity: 0, scale: 0.93 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
+            viewport={{ once: false, amount: 0.2 }}
             className="lg:w-1/2 relative"
           >
             <div className="rounded-3xl overflow-hidden shadow-2xl aspect-[4/3]">

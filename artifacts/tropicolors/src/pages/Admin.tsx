@@ -102,6 +102,7 @@ import {
 } from "@/hooks/useClientesFromOrders";
 import { buildFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
 import {
+  createOrder as createOrderDB,
   deleteOrderAndTracking,
   updateOrderStatus as updateOrderStatusDB,
 } from "@/services/order-service";
@@ -125,8 +126,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { isInventoryUserEmail } from "@/lib/auth-access";
 import { TROPICOLORS_COMPANY_INFO } from "@/lib/company-info";
 import {
+  ORDER_TRACKING_COLLECTION,
   ORDER_TRACKING_LOOKUP_COLLECTION,
   buildOrderTrackingUrl,
+  getTrackingStatusDescription,
+  getTrackingStatusLabel,
   normalizeOrderNumberForLookup,
 } from "@/lib/order-tracking";
 
@@ -1048,6 +1052,12 @@ function formatTimeOnly(dateString?: string): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function getOrderDisplayNumber(
+  order: Pick<AdminOrder, "id" | "orderNumber">,
+): string {
+  return order.orderNumber?.trim() || order.id;
+}
+
 function exportOrdersToCSV(orders: AdminOrder[]) {
   const headers = [
     "ID",
@@ -1295,7 +1305,7 @@ function SummaryView({
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const snapshot = await getDocs(collection(db, "products"));
+        const snapshot = await getDocs(collection(db, "productos"));
         const prods = snapshot.docs.map((doc) => ({
           stock: doc.data().stock || 0,
         }));
@@ -1310,8 +1320,6 @@ function SummaryView({
   }, []);
 
   const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
-  const productsWithStock = products.filter((p) => (p.stock || 0) > 0).length;
-
   const recentOrders = orders.slice(0, 5);
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
@@ -1607,7 +1615,11 @@ function OrdersView({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm">
             <Search size={16} className="text-muted-foreground shrink-0" />
+            <label htmlFor="orders-search" className="sr-only">
+              Buscar pedidos
+            </label>
             <input
+              id="orders-search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por cliente, ID o correo..."
@@ -1617,6 +1629,7 @@ function OrdersView({
               <button
                 type="button"
                 onClick={() => setSearchTerm("")}
+                aria-label="Limpiar búsqueda de pedidos"
                 className="text-muted-foreground hover:text-slate-900 transition-colors"
               >
                 <X size={14} />
@@ -1625,7 +1638,11 @@ function OrdersView({
           </div>
           <div className="flex items-center gap-2">
             <Filter size={14} className="text-muted-foreground" />
+            <label htmlFor="orders-status-filter" className="sr-only">
+              Filtrar pedidos por estado
+            </label>
             <select
+              id="orders-status-filter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
@@ -1661,7 +1678,7 @@ function OrdersView({
                       Pedido
                     </p>
                     <p className="mt-1 truncate text-sm font-semibold text-slate-950">
-                      {order.orderNumber || order.id.slice(0, 12)}
+                      {getOrderDisplayNumber(order)}
                     </p>
                   </div>
                   <p className="text-right text-xs text-muted-foreground">
@@ -1700,6 +1717,7 @@ function OrdersView({
                       Estado
                     </p>
                     <select
+                      aria-label={`Cambiar estado del pedido ${getOrderDisplayNumber(order)}`}
                       value={order.status}
                       onChange={(event) =>
                         onStatusChange(
@@ -1738,6 +1756,7 @@ function OrdersView({
                   <button
                     type="button"
                     onClick={() => onDeleteOrder(order.id, order.customer)}
+                    aria-label={`Eliminar pedido ${getOrderDisplayNumber(order)}`}
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                     title="Eliminar pedido"
                   >
@@ -1764,7 +1783,7 @@ function OrdersView({
                 className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-slate-50"
               >
                 <span className="truncate font-semibold text-slate-950">
-                  {order.orderNumber || order.id.slice(0, 10)}
+                  {getOrderDisplayNumber(order)}
                 </span>
                 <div className="min-w-0">
                   <span className="block truncate text-slate-600">
@@ -1783,6 +1802,7 @@ function OrdersView({
                   ${order.total.toLocaleString("es-MX")}
                 </span>
                 <select
+                  aria-label={`Cambiar estado del pedido ${getOrderDisplayNumber(order)}`}
                   value={order.status}
                   onChange={(event) =>
                     onStatusChange(order.id, event.target.value as OrderStatus)
@@ -1817,6 +1837,7 @@ function OrdersView({
                   <button
                     type="button"
                     onClick={() => onDeleteOrder(order.id, order.customer)}
+                    aria-label={`Eliminar pedido ${getOrderDisplayNumber(order)}`}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                     title="Eliminar pedido"
                   >
@@ -5043,26 +5064,66 @@ function Dashboard({
     isLoading: isLoadingOrders,
     error: errorOrders,
   } = useOrders();
-  const indexedTrackingAliasesRef = useRef<Set<string>>(new Set());
+  const repairedTrackingOrdersRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const lookupWrites = orders.flatMap((order) => {
+    const repairWrites = orders.map((order) => {
       if (!order.trackingToken) {
-        return [];
+        return null;
       }
 
-      const aliases = Array.from(
-        new Set([order.orderNumber, order.id].filter(Boolean)),
-      ) as string[];
+      const repairKey = `${order.id}:${order.trackingToken}`;
+      if (repairedTrackingOrdersRef.current.has(repairKey)) {
+        return null;
+      }
 
-      return aliases
-        .map((alias) => {
+      repairedTrackingOrdersRef.current.add(repairKey);
+      const orderNumber = getOrderDisplayNumber(order);
+      const aliases = Array.from(new Set([orderNumber, order.id]));
+      const history = (order.historial || []).map((entry) => ({
+        estado: entry.estado,
+        label: getTrackingStatusLabel(entry.estado),
+        description: getTrackingStatusDescription(entry.estado),
+        fecha: entry.fecha,
+        ...(entry.motivo ? { motivo: entry.motivo } : {}),
+      }));
+
+      const trackingPayload = {
+        orderId: order.id,
+        orderNumber,
+        trackingToken: order.trackingToken,
+        status: order.status,
+        statusLabel: getTrackingStatusLabel(order.status),
+        description: getTrackingStatusDescription(order.status),
+        subtotal: order.subtotal,
+        shippingFee: order.shippingFee,
+        total: order.total,
+        currency: "MXN",
+        paymentMethod: order.paymentMethod || order.metodoPago || "",
+        items: order.items.map((item) => ({
+          productName: item.name,
+          quantity: item.quantity,
+          subtotal: item.subtotal ?? item.price * item.quantity,
+        })),
+        historial: history,
+        createdAt: order.createdAtRaw || order.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        ...(order.paqueteria ? { paqueteria: order.paqueteria } : {}),
+        ...(order.tipoEnvio ? { tipoEnvio: order.tipoEnvio } : {}),
+        ...(order.guia ? { guia: order.guia } : {}),
+        ...(order.cancellationReason
+          ? { cancellationReason: order.cancellationReason }
+          : {}),
+      };
+
+      return Promise.all([
+        setDoc(
+          doc(db, ORDER_TRACKING_COLLECTION, order.trackingToken),
+          trackingPayload,
+          { merge: true },
+        ),
+        ...aliases.map((alias) => {
           const lookupId = normalizeOrderNumberForLookup(alias);
-          if (!lookupId || indexedTrackingAliasesRef.current.has(lookupId)) {
-            return null;
-          }
-
-          indexedTrackingAliasesRef.current.add(lookupId);
           return setDoc(
             doc(db, ORDER_TRACKING_LOOKUP_COLLECTION, lookupId),
             {
@@ -5073,20 +5134,21 @@ function Dashboard({
               updatedAt: serverTimestamp(),
             },
             { merge: true },
-          ).catch((error) => {
-            indexedTrackingAliasesRef.current.delete(lookupId);
-            console.warn(
-              "[Admin] No se pudo indexar seguimiento de pedido:",
-              alias,
-              error,
-            );
-          });
-        })
-        .filter(Boolean);
+          );
+        }),
+      ]).catch((error) => {
+        repairedTrackingOrdersRef.current.delete(repairKey);
+        console.warn(
+          "[Admin] No se pudo reparar el seguimiento del pedido:",
+          orderNumber,
+          error,
+        );
+      });
     });
 
-    if (lookupWrites.length > 0) {
-      void Promise.all(lookupWrites);
+    const pendingRepairs = repairWrites.filter(Boolean);
+    if (pendingRepairs.length > 0) {
+      void Promise.all(pendingRepairs);
     }
   }, [orders]);
 
@@ -5097,7 +5159,7 @@ function Dashboard({
   useEffect(() => {
     const loadStock = async () => {
       try {
-        const snapshot = await getDocs(collection(db, "products"));
+        const snapshot = await getDocs(collection(db, "productos"));
         const prods = snapshot.docs.map((doc) => ({
           stock: doc.data().stock || 0,
         }));
@@ -5116,8 +5178,6 @@ function Dashboard({
   }, []);
 
   const totalStock = productosStock.reduce((sum, p) => sum + p.stock, 0);
-  const productosConStock = productosStock.filter((p) => p.stock > 0).length;
-
   // Hook para notificaciones en tiempo real
   const { notifications, unreadCount, newNotification, clearNewNotification } =
     useNotifications();
@@ -5264,7 +5324,6 @@ function Dashboard({
       icon: DollarSign,
       label: "Ingresos Totales",
       value: `${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString("es-MX")}`,
-      trend: { value: 12.5, isPositive: true },
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
@@ -5272,7 +5331,6 @@ function Dashboard({
       icon: ShoppingBag,
       label: "Pedidos Totales",
       value: String(orders.length),
-      trend: { value: 8.2, isPositive: true },
       color: "text-secondary",
       bgColor: "bg-secondary/10",
     },
@@ -5280,7 +5338,6 @@ function Dashboard({
       icon: Warehouse,
       label: "Stock Total",
       value: loadingStock ? "..." : String(totalStock),
-      trend: { value: 0, isPositive: true },
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
@@ -5288,7 +5345,6 @@ function Dashboard({
       icon: Users,
       label: "Clientes Nuevos",
       value: String(clientes.length),
-      trend: { value: 15.3, isPositive: true },
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
@@ -5680,37 +5736,47 @@ function Dashboard({
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
-    const averagePrice = Math.round(total / Math.max(1, productNames.length));
+    const averagePrice = total / Math.max(1, productNames.length);
 
     try {
-      // Guardar el pedido en Firestore con el método de pago
-      const orderData = {
+      const manualItems = productNames.map((name, index) => ({
+        productId: `manual-${index + 1}`,
+        productName: name,
+        size: "Captura manual",
+        price: averagePrice,
+        quantity: 1,
+        purchaseType: "pieza" as const,
+        priceBase: averagePrice,
+        unitPrice: averagePrice,
+        subtotal: averagePrice,
+      }));
+
+      const createdOrder = await createOrderDB({
         customerName: newOrderForm.customer.trim(),
         customerEmail: newOrderForm.email.trim() || "sin-correo@cliente.com",
         customerPhone: newOrderForm.phone?.trim() || "",
-        customerAddress:
+        shippingAddress:
           newOrderForm.address.trim() || "Dirección pendiente de captura",
+        shippingExteriorNumber: "",
+        shippingInteriorNumber: "",
+        shippingPostalCode: "",
+        shippingNeighborhood: "",
+        shippingMunicipality: "",
+        shippingState: "",
         subtotal: total,
         shippingFee: 0,
         total,
-        status: "pendiente",
-        metodoPago: newOrderForm.metodoPago || "efectivo",
-        items: productNames.map((name) => ({
-          name,
-          quantity: 1,
-          price: averagePrice,
-        })),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      const orderDocRef = await addDoc(collection(db, "orders"), orderData);
-      console.log("Pedido guardado en Firestore:", orderData);
+        paymentMethod: newOrderForm.metodoPago || "efectivo",
+        paymentStatus: "pending",
+        orderStatus: "pending",
+        items: manualItems,
+      });
+      console.log("Pedido guardado en Firestore:", createdOrder.orderId);
 
       // Crear notificación del pedido
       try {
         await createNotification({
-          orderId: orderDocRef.id,
+          orderId: createdOrder.orderId,
           customerName: newOrderForm.customer.trim(),
           total,
         });
@@ -5720,7 +5786,9 @@ function Dashboard({
 
       // También actualizar el estado local
       const nextOrder: AdminOrder = {
-        id: orderDocRef.id,
+        id: createdOrder.orderId,
+        orderNumber: createdOrder.displayOrderId,
+        trackingToken: createdOrder.trackingToken,
         customer: newOrderForm.customer.trim(),
         email: newOrderForm.email.trim() || "sin-correo@cliente.com",
         address:
@@ -5729,10 +5797,11 @@ function Dashboard({
         shippingFee: 0,
         total,
         status: "pendiente",
-        items: productNames.map((name) => ({
-          name,
-          quantity: 1,
-          price: averagePrice,
+        items: manualItems.map((item) => ({
+          name: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal: item.subtotal,
         })),
         phone: newOrderForm.phone?.trim() || "",
         paymentMethod: newOrderForm.metodoPago || "efectivo",
@@ -5899,12 +5968,14 @@ function Dashboard({
   > = {
     resumen: {
       label: "Panel central",
-      description: "Vista ejecutiva del negocio con métricas y accesos rápidos.",
+      description:
+        "Vista ejecutiva del negocio con métricas y accesos rápidos.",
       icon: LayoutDashboard,
     },
     pedidos: {
       label: "Pedidos",
-      description: "Revisa estados, seguimiento y detalle comercial en un solo flujo.",
+      description:
+        "Revisa estados, seguimiento y detalle comercial en un solo flujo.",
       icon: Package,
     },
     facturas: {
@@ -6310,7 +6381,9 @@ function Dashboard({
           >
             <div
               className={`relative mx-auto max-w-[21.5rem] rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.56)_0%,rgba(15,23,42,0.72)_100%)] p-1.5 shadow-[0_22px_60px_rgba(2,8,23,0.32)] ring-1 ring-white/6 backdrop-blur-2xl ${
-                isMobileDockVisible ? "pointer-events-auto" : "pointer-events-none"
+                isMobileDockVisible
+                  ? "pointer-events-auto"
+                  : "pointer-events-none"
               }`}
             >
               <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.45),rgba(255,255,255,0))]" />
@@ -6365,10 +6438,10 @@ function Dashboard({
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                  ID del pedido
+                  Número de pedido
                 </p>
-                <p className="mt-2 text-lg font-display font-bold text-slate-950">
-                  {selectedOrder.id.slice(0, 12)}
+                <p className="mt-2 break-all text-lg font-display font-bold text-slate-950">
+                  {getOrderDisplayNumber(selectedOrder)}
                 </p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
@@ -6924,7 +6997,11 @@ function Dashboard({
                     Pedido
                   </p>
                   <p className="text-sm font-semibold text-slate-950">
-                    {pendingStatusUpdate.orderId.slice(0, 12)}
+                    {getOrderDisplayNumber(
+                      orders.find(
+                        (order) => order.id === pendingStatusUpdate.orderId,
+                      ) || { id: pendingStatusUpdate.orderId },
+                    )}
                   </p>
                 </div>
                 <div className="ml-auto">
@@ -7100,10 +7177,10 @@ function Dashboard({
             <div className="rounded-2xl border border-border/50 bg-muted/20 p-4 space-y-2">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                  ID del pedido
+                  Número de pedido
                 </p>
-                <p className="text-sm font-semibold text-slate-950">
-                  {pendingDeleteOrder.orderId.slice(0, 12)}
+                <p className="break-all text-sm font-semibold text-slate-950">
+                  {pendingDeleteOrder.orderNumber || pendingDeleteOrder.orderId}
                 </p>
               </div>
               <div>

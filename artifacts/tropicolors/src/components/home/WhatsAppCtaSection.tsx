@@ -1,8 +1,15 @@
 import { MessageCircle } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function WhatsAppCtaSection() {
   return (
-    <section className="page-snap-section relative overflow-hidden bg-[linear-gradient(135deg,#082f49_0%,#003F91_48%,#00A8B5_100%)] text-white">
+    <motion.section
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: false, amount: 0.16 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      className="page-snap-section relative overflow-hidden bg-[linear-gradient(135deg,#082f49_0%,#003F91_48%,#00A8B5_100%)] text-white"
+    >
       <div className="absolute top-0 right-0 h-[500px] w-[500px] translate-x-1/3 -translate-y-1/3 rounded-full bg-white/10 blur-3xl"></div>
       <div className="absolute bottom-0 left-0 h-[400px] w-[400px] -translate-x-1/3 translate-y-1/3 rounded-full bg-[#FFCD00]/20 blur-3xl"></div>
       <div className="absolute top-1/2 left-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/5 blur-3xl"></div>
@@ -19,15 +26,17 @@ export default function WhatsAppCtaSection() {
             Contáctanos directamente para precios de mayoreo, envíos a todo
             México y asesoría especializada.
           </p>
-          <a
+          <motion.a
             href="https://wa.me/525551146856?text=Hola%2C%20quiero%20cotizar%20colorantes%20Tropicolors"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-8 inline-flex items-center gap-3 rounded-full bg-white px-10 py-4.5 text-base font-bold text-[#003F91] transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-white/30"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            className="mt-8 inline-flex items-center gap-3 rounded-full bg-white px-10 py-4.5 text-base font-bold text-[#003F91] transition-shadow duration-300 hover:shadow-2xl hover:shadow-white/30"
           >
             <MessageCircle size={22} />
             Escríbenos por WhatsApp
-          </a>
+          </motion.a>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-white/70">
             <span className="rounded-full bg-white/10 px-3 py-1.5">
               +52 55 5114 6856
@@ -38,6 +47,6 @@ export default function WhatsAppCtaSection() {
           </div>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

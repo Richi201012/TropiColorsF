@@ -46,6 +46,8 @@ interface CartContextType {
   setTriggerCartBounce: (value: boolean) => void;
   recentlyAddedItem: CartItem | null;
   recentlyAddedToken: number;
+  isCartAddNoticeOpen: boolean;
+  setIsCartAddNoticeOpen: (isOpen: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -60,6 +62,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [recentlyAddedToken, setRecentlyAddedToken] = useState(0);
+  const [isCartAddNoticeOpen, setIsCartAddNoticeOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -144,6 +147,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     setRecentlyAddedItem(normalizedItem);
     setRecentlyAddedToken((current) => current + 1);
+    setIsCartAddNoticeOpen(true);
   }, []);
 
   const addFlyingItem = useCallback((item: Omit<FlyingItem, "id">) => {
@@ -162,9 +166,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const removeFromCart = useCallback((cartKey: string) => {
-    setItems((current) =>
-      current.filter((item) => item.cartKey !== cartKey),
-    );
+    setItems((current) => current.filter((item) => item.cartKey !== cartKey));
   }, []);
 
   const updateQuantity = useCallback(
@@ -241,6 +243,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setTriggerCartBounce,
         recentlyAddedItem,
         recentlyAddedToken,
+        isCartAddNoticeOpen,
+        setIsCartAddNoticeOpen,
       }}
     >
       {children}

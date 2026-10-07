@@ -34,6 +34,7 @@ import {
   formatCartItemPurchaseType,
   formatCartItemQuantity,
 } from "@/lib/commerce";
+import { MOTION_EASE_OUT, PANEL_SPRING } from "@/lib/motion";
 
 const WHATSAPP_NUMBER = "525551146856";
 const TRANSFER_ACCOUNT = {
@@ -1458,7 +1459,6 @@ const CheckoutModal = React.memo(function CheckoutModal({
                             <div className="mt-2 space-y-1 text-xs text-slate-500">
                               <p>Subtotal: ${formatAmount(cartSubtotal)} MXN</p>
                               <p>Envio: ${formatAmount(shippingFee)} MXN</p>
-                             
                             </div>
                           </div>
                           <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right">
@@ -1483,7 +1483,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                         <button
                           type="submit"
                           disabled={isProcessing || isPostalCodeLoading}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition-[box-shadow,filter] duration-200 hover:brightness-105 hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
                         >
                           {isProcessing ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1564,7 +1564,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                       <button
                         type="button"
                         onClick={onFinalize}
-                        className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80"
+                        className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition-[box-shadow,filter] duration-200 hover:brightness-105 hover:shadow-xl hover:shadow-cyan-200/80"
                       >
                         Finalizar
                         <ArrowRight className="h-4 w-4" />
@@ -1716,7 +1716,7 @@ const CheckoutModal = React.memo(function CheckoutModal({
                           type="button"
                           onClick={handlePaymentSubmit}
                           disabled={isProcessing}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition duration-200 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200 transition-[box-shadow,filter] duration-200 hover:brightness-105 hover:shadow-xl hover:shadow-cyan-200/80 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
                         >
                           {isProcessing ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1975,7 +1975,7 @@ export function CartDrawer() {
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
+            transition={PANEL_SPRING}
             className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-none flex-col rounded-none bg-white shadow-2xl sm:max-w-[380px] sm:rounded-l-2xl"
             onWheel={(e) => e.stopPropagation()}
           >
@@ -1991,93 +1991,126 @@ export function CartDrawer() {
               </div>
               <button
                 onClick={() => setIsCartOpen(false)}
-                className="rounded-full p-2 transition-colors hover:bg-gray-200"
+                aria-label="Cerrar carrito"
+                className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-gray-200"
               >
                 <X className="h-5 w-5 text-gray-600" />
               </button>
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto p-4 pb-5">
-              {items.length === 0 ? (
-                <div className="flex flex-1 flex-col items-center justify-center py-16 text-gray-400">
-                  <ShoppingBag className="mb-4 h-20 w-20 text-gray-300" />
-                  <p className="mb-2 font-medium text-gray-500">
-                    Tu carrito esta vacio
-                  </p>
-                  <p className="mb-6 text-sm text-gray-400">
-                    Agrega productos para comenzar
-                  </p>
-                  <button
-                    onClick={() => setIsCartOpen(false)}
-                    className="rounded-xl bg-blue-600 px-6 py-2.5 font-medium text-white transition-colors active:scale-95 hover:bg-blue-700"
-                  >
-                    Explorar productos
-                  </button>
-                </div>
-              ) : (
-                items.map((item, index) => (
+              <AnimatePresence mode="popLayout" initial={false}>
+                {items.length === 0 ? (
                   <motion.div
-                    key={item.cartKey}
-                    initial={{ opacity: 0, y: 20 }}
+                    key="empty-cart"
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="group flex items-center gap-4 rounded-xl p-3 transition-colors hover:bg-gray-50"
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    className="flex flex-1 flex-col items-center justify-center py-16 text-gray-400"
                   >
-                    <div
-                      className="h-16 w-16 flex-shrink-0 rounded-xl shadow-md"
-                      style={{ backgroundColor: item.hexCode || "#003F91" }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="truncate text-sm font-semibold text-gray-800">
-                        {item.productName}
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        {formatCartItemPurchaseType(item.purchaseType)}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {formatCartItemQuantity(item)}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.cartKey, item.quantity - 1)
-                            }
-                            className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
-                          >
-                            <Minus className="h-3 w-3 text-gray-600" />
-                          </button>
-                          <span className="w-6 text-center text-sm font-medium">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.cartKey, item.quantity + 1)
-                            }
-                            className="flex h-7 w-7 items-center justify-center rounded transition-all hover:bg-white hover:shadow-sm"
-                          >
-                            <Plus className="h-3 w-3 text-gray-600" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-gray-800">
-                            $
-                            {calculateCartItemSubtotal(item).toLocaleString(
-                              "es-MX",
-                            )}
-                          </span>
-                          <button
-                            onClick={() => removeFromCart(item.cartKey)}
-                            className="rounded-lg p-1.5 text-red-500 opacity-100 transition-all hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                    <ShoppingBag className="mb-4 h-20 w-20 text-gray-300" />
+                    <p className="mb-2 font-medium text-gray-500">
+                      Tu carrito esta vacio
+                    </p>
+                    <p className="mb-6 text-sm text-gray-400">
+                      Agrega productos para comenzar
+                    </p>
+                    <button
+                      onClick={() => setIsCartOpen(false)}
+                      className="rounded-xl bg-blue-600 px-6 py-2.5 font-medium text-white transition-colors active:scale-95 hover:bg-blue-700"
+                    >
+                      Explorar productos
+                    </button>
+                  </motion.div>
+                ) : (
+                  items.map((item) => (
+                    <motion.div
+                      layout
+                      key={item.cartKey}
+                      initial={{ opacity: 0, x: 18, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 18, scale: 0.96 }}
+                      transition={PANEL_SPRING}
+                      className="group flex items-center gap-4 rounded-xl p-3 transition-colors hover:bg-gray-50"
+                    >
+                      <div
+                        className="h-16 w-16 flex-shrink-0 rounded-xl shadow-md"
+                        style={{ backgroundColor: item.hexCode || "#003F91" }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="truncate text-sm font-semibold text-gray-800">
+                          {item.productName}
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          {formatCartItemPurchaseType(item.purchaseType)}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {formatCartItemQuantity(item)}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.cartKey, item.quantity - 1)
+                              }
+                              aria-label={`Restar una unidad de ${item.productName}`}
+                              className="flex h-11 w-11 items-center justify-center rounded-lg transition-[background-color,box-shadow] hover:bg-white hover:shadow-sm"
+                            >
+                              <Minus className="h-3 w-3 text-gray-600" />
+                            </button>
+                            <span className="relative w-6 overflow-hidden text-center text-sm font-medium tabular-nums">
+                              <AnimatePresence mode="popLayout" initial={false}>
+                                <motion.span
+                                  key={item.quantity}
+                                  initial={{ opacity: 0, y: 6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -6 }}
+                                  transition={{
+                                    duration: 0.15,
+                                    ease: MOTION_EASE_OUT,
+                                  }}
+                                  className="inline-block"
+                                >
+                                  {item.quantity}
+                                </motion.span>
+                              </AnimatePresence>
+                            </span>
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.cartKey, item.quantity + 1)
+                              }
+                              aria-label={`Agregar una unidad de ${item.productName}`}
+                              className="flex h-11 w-11 items-center justify-center rounded-lg transition-[background-color,box-shadow] hover:bg-white hover:shadow-sm"
+                            >
+                              <Plus className="h-3 w-3 text-gray-600" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <motion.span
+                              key={calculateCartItemSubtotal(item)}
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="text-sm font-bold tabular-nums text-gray-800"
+                            >
+                              $
+                              {calculateCartItemSubtotal(item).toLocaleString(
+                                "es-MX",
+                              )}
+                            </motion.span>
+                            <button
+                              onClick={() => removeFromCart(item.cartKey)}
+                              aria-label={`Eliminar ${item.productName} del carrito`}
+                              className="flex h-11 w-11 items-center justify-center rounded-lg text-red-500 opacity-100 transition-[background-color,opacity] hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))
-              )}
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
             </div>
 
             {items.length > 0 && (
@@ -2088,9 +2121,17 @@ export function CartDrawer() {
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-semibold">
-                    ${formatAmount(cartSubtotal)}
-                  </span>
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={cartSubtotal}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="font-semibold tabular-nums"
+                    >
+                      ${formatAmount(cartSubtotal)}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>Envio</span>
@@ -2098,9 +2139,17 @@ export function CartDrawer() {
                 </div>
                 <div className="flex items-center justify-between border-t pt-2">
                   <span className="text-lg font-bold">Total</span>
-                  <span className="text-xl font-bold text-blue-600">
-                    ${formatAmount(cartTotal)}
-                  </span>
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={cartTotal}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      className="text-xl font-bold tabular-nums text-blue-600"
+                    >
+                      ${formatAmount(cartTotal)}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
                 <button
                   onClick={() => setIsCheckoutModalOpen(true)}

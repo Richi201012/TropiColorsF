@@ -1,26 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: 'DM Sans', sans-serif;
-  --font-display: 'Outfit', sans-serif;
+  --font-sans: "DM Sans", sans-serif;
+  --font-display: "Outfit", sans-serif;
 
   /* TropicColors Brand Palette */
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
-  
+
   /* Primary: Blue #003F91 */
   --color-primary: 214 100% 28%;
   --color-primary-foreground: 0 0% 100%;
-  
+
   /* Secondary: Turquoise #00A8B5 */
   --color-secondary: 184 100% 35%;
   --color-secondary-foreground: 0 0% 100%;
-  
+
   /* Accent: Yellow #FFCD00 */
   --color-accent: 48 100% 50%;
   --color-accent-foreground: 214 100% 28%;
-  
+
   /* Destructive/Alert: Magenta #FF2E63 */
   --color-destructive: 345 100% 59%;
   --color-destructive-foreground: 0 0% 100%;
@@ -72,7 +72,12 @@
     overflow-x: hidden;
     min-height: 100dvh;
   }
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
     font-weight: 700;
     letter-spacing: -0.025em;
@@ -97,7 +102,12 @@
 @utility text-gradient {
   background-clip: text;
   color: transparent;
-  background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)));
+  background-image: linear-gradient(
+    to right,
+    hsl(var(--primary)),
+    hsl(var(--secondary)),
+    hsl(var(--primary))
+  );
 }
 
 @utility animate-float {
@@ -105,16 +115,36 @@
 }
 
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
 }
 
 /* Animación de shake para errores */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-  20%, 40%, 60%, 80% { transform: translateX(4px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
 }
 
 .animate-shake {
@@ -123,8 +153,12 @@
 
 /* Barra de progreso para alert */
 @keyframes progress {
-  from { width: 100%; }
-  to { width: 0%; }
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
 }
 
 .animate-progress {
@@ -224,7 +258,8 @@
 }
 
 @keyframes float-gentle {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -234,7 +269,8 @@
 
 /* Particle float animation */
 @keyframes particle-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
     opacity: 0;
   }
@@ -252,7 +288,8 @@
 
 /* Gradient shift animation */
 @keyframes gradient-shift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -262,7 +299,8 @@
 
 /* Glow pulse animation */
 @keyframes glow-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.4;
     transform: scale(1);
   }
@@ -273,7 +311,8 @@
 }
 
 @keyframes powder-drift {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate3d(0, 0, 0) scale(1);
     opacity: 0.48;
   }
@@ -300,7 +339,8 @@
 }
 
 @keyframes ambient-blob {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate3d(0, 0, 0) scale(1);
     opacity: 0.95;
   }
@@ -387,11 +427,21 @@
 }
 
 /* Staggered animation delays */
-.stagger-1 { animation-delay: 0.1s; }
-.stagger-2 { animation-delay: 0.2s; }
-.stagger-3 { animation-delay: 0.3s; }
-.stagger-4 { animation-delay: 0.4s; }
-.stagger-5 { animation-delay: 0.5s; }
+.stagger-1 {
+  animation-delay: 0.1s;
+}
+.stagger-2 {
+  animation-delay: 0.2s;
+}
+.stagger-3 {
+  animation-delay: 0.3s;
+}
+.stagger-4 {
+  animation-delay: 0.4s;
+}
+.stagger-5 {
+  animation-delay: 0.5s;
+}
 
 /* Card hover effects */
 .card-premium {
@@ -444,6 +494,15 @@
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
   .animate-particle,

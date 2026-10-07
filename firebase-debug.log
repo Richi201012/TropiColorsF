@@ -1,0 +1,84 @@
+[debug] [2026-10-07T20:34:29.075Z] ----------------------------------------------------------------------
+[debug] [2026-10-07T20:34:29.080Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Richi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js projects:list --json
+[debug] [2026-10-07T20:34:29.080Z] CLI Version:   15.18.0
+[debug] [2026-10-07T20:34:29.080Z] Platform:      win32
+[debug] [2026-10-07T20:34:29.080Z] Node Version:  v24.14.0
+[debug] [2026-10-07T20:34:29.080Z] Time:          Wed Oct 07 2026 14:34:29 GMT-0600 (hora estándar central)
+[debug] [2026-10-07T20:34:29.080Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-07T20:34:29.085Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-10-07T20:34:29.400Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-07T20:34:29.400Z] > authorizing via signed-in user (ricardocm5889@gmail.com)
+[debug] [2026-10-07T20:34:29.404Z] Checked if tokens are valid: false, expires at: 1791399641222
+[debug] [2026-10-07T20:34:29.405Z] Checked if tokens are valid: false, expires at: 1791399641222
+[debug] [2026-10-07T20:34:29.405Z] > refreshing access token with scopes: []
+[debug] [2026-10-07T20:34:29.407Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-10-07T20:34:29.407Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-07T20:34:29.579Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-10-07T20:34:29.579Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-10-07T20:34:29.591Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-10-07T20:34:29.592Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-07T20:34:29.604Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-10-07T20:34:30.045Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-10-07T20:34:43.173Z] ----------------------------------------------------------------------
+[debug] [2026-10-07T20:34:43.178Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Richi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --project tropicolors2-67b4a
+[debug] [2026-10-07T20:34:43.179Z] CLI Version:   15.18.0
+[debug] [2026-10-07T20:34:43.179Z] Platform:      win32
+[debug] [2026-10-07T20:34:43.179Z] Node Version:  v24.14.0
+[debug] [2026-10-07T20:34:43.180Z] Time:          Wed Oct 07 2026 14:34:43 GMT-0600 (hora estándar central)
+[debug] [2026-10-07T20:34:43.180Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-07T20:35:34.380Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-07T20:35:34.381Z] > authorizing via signed-in user (ricardocm5889@gmail.com)
+[debug] [2026-10-07T20:35:34.382Z] [iam] checking project tropicolors2-67b4a for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-07T20:35:34.384Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:34.385Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:34.387Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/tropicolors2-67b4a:testIamPermissions [none]
+[debug] [2026-10-07T20:35:34.388Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/tropicolors2-67b4a:testIamPermissions  x-goog-user-project=tropicolors2-67b4a
+[debug] [2026-10-07T20:35:34.388Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/tropicolors2-67b4a:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-07T20:35:34.846Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/tropicolors2-67b4a:testIamPermissions 200
+[debug] [2026-10-07T20:35:34.846Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/tropicolors2-67b4a:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'tropicolors2-67b4a'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-07T20:35:34.856Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:34.856Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:34.857Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/tropicolors2-67b4a/databases/(default) [none]
+[debug] [2026-10-07T20:35:35.299Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/tropicolors2-67b4a/databases/(default) 200
+[debug] [2026-10-07T20:35:35.299Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/tropicolors2-67b4a/databases/(default) {"name":"projects/tropicolors2-67b4a/databases/(default)","uid":"77e0b4e0-57f6-4666-ad32-1c4037c35af7","createTime":"2026-03-23T21:45:10.383006Z","updateTime":"2026-03-23T21:45:10.383006Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-07T19:35:34.171890Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IKqa3vTgqJcDMPKMyLSAt5MD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-07T20:35:35.304Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.304Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.304Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a:test [none]
+[debug] [2026-10-07T20:35:35.304Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a:test [omitted]
+[debug] [2026-10-07T20:35:35.640Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a:test 200
+[debug] [2026-10-07T20:35:35.640Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-07T20:35:35.642Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.642Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.643Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/releases pageSize=10&pageToken=
+[debug] [2026-10-07T20:35:35.794Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/releases 200
+[debug] [2026-10-07T20:35:35.794Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/releases {"releases":[{"name":"projects/tropicolors2-67b4a/releases/cloud.firestore","rulesetName":"projects/tropicolors2-67b4a/rulesets/3683f61a-71d6-498c-b0a6-0683288cfa9d","createTime":"2026-03-23T21:45:10.926700Z","updateTime":"2026-04-26T00:05:31.386192Z"}]}
+[debug] [2026-10-07T20:35:35.795Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.795Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.795Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/rulesets/3683f61a-71d6-498c-b0a6-0683288cfa9d [none]
+[debug] [2026-10-07T20:35:35.911Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/rulesets/3683f61a-71d6-498c-b0a6-0683288cfa9d 200
+[debug] [2026-10-07T20:35:35.911Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/rulesets/3683f61a-71d6-498c-b0a6-0683288cfa9d [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-10-07T20:35:35.912Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.913Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:35.913Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/rulesets [none]
+[debug] [2026-10-07T20:35:35.913Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/rulesets [omitted]
+[debug] [2026-10-07T20:35:36.091Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/rulesets 200
+[debug] [2026-10-07T20:35:36.092Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/rulesets {"name":"projects/tropicolors2-67b4a/rulesets/b5f8ec1b-d756-4dcb-bd32-03ef17ec769a","source":{"files":[{"content":"rules_version = '2';\r\n\r\nservice cloud.firestore {\r\n  match /databases/{database}/documents {\r\n    function signedIn() {\r\n      return request.auth != null;\r\n    }\r\n\r\n    function isInventoryUser() {\r\n      return signedIn() &&\r\n        request.auth.token.email == \"m_tropicolorsinv@hotmail.com\";\r\n    }\r\n\r\n    function isAdminUser() {\r\n      return signedIn() &&\r\n        request.auth.token.email != \"m_tropicolorsinv@hotmail.com\";\r\n    }\r\n\r\n    function isOwnUser(uid) {\r\n      return signedIn() && request.auth.uid == uid;\r\n    }\r\n\r\n    function isTrackingStatus(status) {\r\n      return status in [\r\n        \"pendiente\",\r\n        \"pagado\",\r\n        \"enviado\",\r\n        \"entregado\",\r\n        \"cancelado\",\r\n      ];\r\n    }\r\n\r\n    function isPublicTrackingCreate(trackingToken) {\r\n      return request.resource.data.keys().hasOnly([\r\n        \"orderId\",\r\n        \"orderNumber\",\r\n        \"trackingToken\",\r\n        \"status\",\r\n        \"statusLabel\",\r\n        \"description\",\r\n        \"subtotal\",\r\n        \"shippingFee\",\r\n        \"total\",\r\n        \"currency\",\r\n        \"paymentMethod\",\r\n        \"paymentStatus\",\r\n        \"items\",\r\n        \"historial\",\r\n        \"createdAt\",\r\n        \"updatedAt\",\r\n      ]) &&\r\n        request.resource.data.orderId is string &&\r\n        request.resource.data.trackingToken == trackingToken &&\r\n        isTrackingStatus(request.resource.data.status);\r\n    }\r\n\r\n    function isPublicTrackingLookupCreate(lookupId) {\r\n      return request.resource.data.keys().hasOnly([\r\n        \"orderId\",\r\n        \"orderNumber\",\r\n        \"orderNumberLookup\",\r\n        \"trackingToken\",\r\n        \"createdAt\",\r\n        \"updatedAt\",\r\n      ]) &&\r\n        request.resource.data.orderId is string &&\r\n        request.resource.data.orderNumber is string &&\r\n        request.resource.data.orderNumberLookup == lookupId &&\r\n        request.resource.data.trackingToken is string;\r\n    }\r\n\r\n    match /products/{productId} {\r\n      allow read: if true;\r\n      allow create, update, delete: if isAdminUser();\r\n    }\r\n\r\n    match /references/{referenceId} {\r\n      allow read: if true;\r\n      allow create: if true;\r\n      allow update, delete: if isAdminUser();\r\n    }\r\n\r\n    match /orders/{orderId} {\r\n      allow create: if true;\r\n      allow read, update, delete: if isAdminUser();\r\n    }\r\n\r\n    match /order_tracking/{trackingToken} {\r\n      allow get: if true;\r\n      allow list: if false;\r\n      allow create: if isAdminUser() || isPublicTrackingCreate(trackingToken);\r\n      allow update, delete: if isAdminUser();\r\n    }\r\n\r\n    match /order_tracking_lookup/{lookupId} {\r\n      allow get: if true;\r\n      allow list: if false;\r\n      allow create: if isAdminUser() || isPublicTrackingLookupCreate(lookupId);\r\n      allow update, delete: if isAdminUser();\r\n    }\r\n\r\n    match /notifications/{notificationId} {\r\n      allow create: if true;\r\n      allow read, update, delete: if isAdminUser();\r\n    }\r\n\r\n    match /settings/home {\r\n      allow read: if true;\r\n      allow write: if isAdminUser();\r\n    }\r\n\r\n    match /users/{uid} {\r\n      allow read, create, update: if isOwnUser(uid) || isAdminUser();\r\n    }\r\n\r\n    match /runtime/admin-panel-session {\r\n      allow read, write: if isAdminUser();\r\n    }\r\n\r\n    match /productos/{productId} {\r\n      allow read, write: if isInventoryUser() || isAdminUser();\r\n    }\r\n\r\n    match /movimientos/{movementId} {\r\n      allow read, write: if isInventoryUser() || isAdminUser();\r\n    }\r\n\r\n    match /activity_logs/{logId} {\r\n      allow create, read: if isAdminUser();\r\n    }\r\n\r\n    match /pedidos/{orderId} {\r\n      allow read, write: if isAdminUser();\r\n    }\r\n\r\n    match /{document=**} {\r\n      allow read, write: if false;\r\n    }\r\n  }\r\n}\r\n","name":"firestore.rules"}]},"createTime":"2026-10-07T20:35:34.953535Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-10-07T20:35:36.092Z] [rules] created ruleset projects/tropicolors2-67b4a/rulesets/b5f8ec1b-d756-4dcb-bd32-03ef17ec769a
+[debug] [2026-10-07T20:35:36.093Z] [rules] releasing cloud.firestore with ruleset projects/tropicolors2-67b4a/rulesets/b5f8ec1b-d756-4dcb-bd32-03ef17ec769a
+[debug] [2026-10-07T20:35:36.094Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:36.094Z] Checked if tokens are valid: true, expires at: 1791408868592
+[debug] [2026-10-07T20:35:36.094Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/releases/cloud.firestore [none]
+[debug] [2026-10-07T20:35:36.094Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/releases/cloud.firestore {"release":{"name":"projects/tropicolors2-67b4a/releases/cloud.firestore","rulesetName":"projects/tropicolors2-67b4a/rulesets/b5f8ec1b-d756-4dcb-bd32-03ef17ec769a"}}
+[debug] [2026-10-07T20:35:36.280Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/tropicolors2-67b4a/releases/cloud.firestore 200

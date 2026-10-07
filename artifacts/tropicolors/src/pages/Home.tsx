@@ -13,11 +13,9 @@ import { useCart } from "@/context/CartContext";
 import CatalogSection from "@/components/home/CatalogSection";
 import HomeBackground from "@/components/home/HomeBackground";
 import {
-  DEFERRED_CATALOG_DELAY_MS,
   DEFERRED_FIREBASE_DELAY_MS,
   DEFERRED_SECTIONS_DELAY_MS,
   HOME_BLOBS,
-  INITIAL_CATALOG_ITEMS,
   NARANJA_850_NOTE,
   PRODUCTS,
   initialContactForm,
@@ -55,10 +53,10 @@ export default function Home() {
   const isMobile = useIsMobile();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchQuery, setSearchQuery] = useState("");
-  const [catalogReady, setCatalogReady] = useState(false);
   const [secondarySectionsReady, setSecondarySectionsReady] = useState(false);
   const [contactSent, setContactSent] = useState(false);
-  const [contactForm, setContactForm] = useState<ContactForm>(initialContactForm);
+  const [contactForm, setContactForm] =
+    useState<ContactForm>(initialContactForm);
   const [contactErrors, setContactErrors] = useState<ContactFormErrors>({});
   const [isSubmittingContact, setIsSubmittingContact] = useState(false);
   const [referenceSent, setReferenceSent] = useState(false);
@@ -72,11 +70,6 @@ export default function Home() {
   const { references } = useReferences(secondarySectionsReady);
 
   useEffect(() => {
-    const catalogTimerId = window.setTimeout(() => {
-      startTransition(() => {
-        setCatalogReady(true);
-      });
-    }, DEFERRED_CATALOG_DELAY_MS);
     const sectionsTimerId = window.setTimeout(() => {
       startTransition(() => {
         setSecondarySectionsReady(true);
@@ -84,7 +77,6 @@ export default function Home() {
     }, DEFERRED_SECTIONS_DELAY_MS);
 
     return () => {
-      window.clearTimeout(catalogTimerId);
       window.clearTimeout(sectionsTimerId);
     };
   }, []);
@@ -288,8 +280,10 @@ export default function Home() {
                     note: data.note || undefined,
                     purchaseWarning: data.purchaseWarning || undefined,
                     onlyWholesale: Boolean(data.onlyWholesale),
-                    presentationOverrides: data.presentationOverrides || undefined,
-                    specialWholesaleBoxes: data.specialWholesaleBoxes || undefined,
+                    presentationOverrides:
+                      data.presentationOverrides || undefined,
+                    specialWholesaleBoxes:
+                      data.specialWholesaleBoxes || undefined,
                     specialWholesaleBoxPrices:
                       data.specialWholesaleBoxPrices || undefined,
                   };
@@ -305,7 +299,10 @@ export default function Home() {
             }
           } catch (error) {
             if (!isCancelled) {
-              console.error("[Home] Error loading products from Firebase:", error);
+              console.error(
+                "[Home] Error loading products from Firebase:",
+                error,
+              );
               startTransition(() => {
                 setFirebaseProducts(null);
               });
@@ -360,7 +357,10 @@ export default function Home() {
           );
         } catch (error) {
           if (!isCancelled) {
-            console.error("[Home] No se pudo inicializar Firebase en Home:", error);
+            console.error(
+              "[Home] No se pudo inicializar Firebase en Home:",
+              error,
+            );
             startTransition(() => {
               setFirebaseProducts(null);
               setGelVisible(false);
@@ -389,7 +389,10 @@ export default function Home() {
     );
     const normalizedProducts = hasNaranja850
       ? sourceProducts
-      : [...sourceProducts, PRODUCTS.find((product) => product.id === "naranja-850")!];
+      : [
+          ...sourceProducts,
+          PRODUCTS.find((product) => product.id === "naranja-850")!,
+        ];
 
     return normalizedProducts
       .map((product) =>
@@ -415,18 +418,6 @@ export default function Home() {
         return matchesCategory && matchesSearch;
       }),
     [activeCategory, normalizedSearch, products],
-  );
-  const initialCatalogItems = isMobile
-    ? INITIAL_CATALOG_ITEMS.mobile
-    : INITIAL_CATALOG_ITEMS.desktop;
-  const shouldRenderFullCatalog =
-    catalogReady || normalizedSearch.length > 0 || activeCategory !== "Todos";
-  const visibleProducts = useMemo(
-    () =>
-      shouldRenderFullCatalog
-        ? filteredProducts
-        : filteredProducts.slice(0, initialCatalogItems),
-    [filteredProducts, initialCatalogItems, shouldRenderFullCatalog],
   );
   const visibleHomeBlobs = useMemo(
     () => (isMobile ? HOME_BLOBS.slice(0, 3) : HOME_BLOBS),
@@ -456,7 +447,7 @@ export default function Home() {
         activeCategory={activeCategory}
         filteredProductsCount={filteredProducts.length}
         searchQuery={searchQuery}
-        visibleProducts={visibleProducts}
+        visibleProducts={filteredProducts}
         onCategoryChange={handleCategoryChange}
         onSearchChange={handleSearchChange}
         addToCart={addToCart}

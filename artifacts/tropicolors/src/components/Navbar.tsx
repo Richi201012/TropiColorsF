@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { ShoppingBag, Menu, X, MessageCircle, PackageSearch } from "lucide-react";
+import {
+  ShoppingBag,
+  Menu,
+  X,
+  MessageCircle,
+  PackageSearch,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/context/CartContext";
 
@@ -54,7 +60,9 @@ export function Navbar() {
     };
 
     queueNavbarStateUpdate();
-    window.addEventListener("scroll", queueNavbarStateUpdate, { passive: true });
+    window.addEventListener("scroll", queueNavbarStateUpdate, {
+      passive: true,
+    });
     window.addEventListener("resize", queueNavbarStateUpdate);
 
     return () => {
@@ -95,6 +103,7 @@ export function Navbar() {
     <>
       <motion.button
         type="button"
+        aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
         initial={{ x: -24, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         onClick={() => setMenuOpen((current) => !current)}
@@ -111,6 +120,8 @@ export function Navbar() {
 
       <motion.button
         type="button"
+        aria-label="Abrir carrito"
+        data-cart-target="true"
         initial={{ x: 24, opacity: 0, scale: 1 }}
         animate={{
           x: 0,
@@ -161,7 +172,7 @@ export function Navbar() {
         className="pointer-events-none fixed left-0 top-0 z-50 h-[100dvh] w-[304px] max-w-[calc(100vw-0.75rem)] px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:max-w-[calc(100vw-1rem)] sm:p-5"
       >
         <div
-          className={`relative flex h-full flex-col overflow-hidden rounded-[34px] border transition-all duration-500 ${
+          className={`relative flex h-full flex-col overflow-hidden rounded-[34px] border transition-[background-color,border-color,box-shadow,backdrop-filter] duration-500 ${
             isScrolled
               ? "border-white/70 bg-white/88 shadow-[0_24px_70px_rgba(0,63,145,0.14)] backdrop-blur-2xl"
               : "border-white/60 bg-white/82 shadow-[0_18px_56px_rgba(0,63,145,0.10)] backdrop-blur-xl"
@@ -216,7 +227,11 @@ export function Navbar() {
                     <motion.div
                       layoutId="activeSidebarPill"
                       className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(0,63,145,0.12),rgba(0,168,181,0.08),rgba(255,205,0,0.14))] shadow-[0_10px_28px_rgba(0,63,145,0.10)]"
-                      transition={{ type: "spring", stiffness: 360, damping: 30 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 360,
+                        damping: 30,
+                      }}
                     />
                   ) : null}
                   <span className="relative z-10 text-sm font-semibold">
@@ -251,7 +266,11 @@ export function Navbar() {
                     <motion.div
                       layoutId="activeSidebarPill"
                       className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(0,63,145,0.12),rgba(0,168,181,0.08),rgba(255,205,0,0.14))] shadow-[0_10px_28px_rgba(0,63,145,0.10)]"
-                      transition={{ type: "spring", stiffness: 360, damping: 30 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 360,
+                        damping: 30,
+                      }}
                     />
                   ) : null}
                   <span className="relative z-10 flex items-center gap-2 text-sm font-semibold">
@@ -287,6 +306,8 @@ export function Navbar() {
 
               <motion.button
                 type="button"
+                aria-label="Abrir carrito"
+                data-cart-target="true"
                 onClick={() => setIsCartOpen(true)}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
