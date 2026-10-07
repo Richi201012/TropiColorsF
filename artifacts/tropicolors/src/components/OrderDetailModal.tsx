@@ -31,6 +31,7 @@ type HistorialEntry = {
 
 type OrderDetail = {
   id: string;
+  orderNumber: string;
   customer: string;
   email: string;
   phone: string;
@@ -47,6 +48,7 @@ type OrderDetail = {
 };
 
 type FirestoreOrderData = {
+  orderNumber?: string;
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -171,8 +173,10 @@ function buildAddress(data: FirestoreOrderData): string {
   const parts: string[] = [];
   if (data.shippingAddress) parts.push(data.shippingAddress);
   else if (data.customerAddress) parts.push(data.customerAddress);
-  if (data.shippingExteriorNumber) parts.push(`Ext. ${data.shippingExteriorNumber}`);
-  if (data.shippingInteriorNumber) parts.push(`Int. ${data.shippingInteriorNumber}`);
+  if (data.shippingExteriorNumber)
+    parts.push(`Ext. ${data.shippingExteriorNumber}`);
+  if (data.shippingInteriorNumber)
+    parts.push(`Int. ${data.shippingInteriorNumber}`);
   if (data.shippingNeighborhood) parts.push(data.shippingNeighborhood);
   if (data.shippingMunicipality) parts.push(data.shippingMunicipality);
   if (data.shippingState) parts.push(data.shippingState);
@@ -251,9 +255,7 @@ export function OrderDetailModal({
         const calculatedSubtotal =
           subtotalFromData > 0 ? subtotalFromData : subtotalFromItems;
         const calculatedTotal =
-          totalFromData > 0
-            ? totalFromData
-            : calculatedSubtotal + shippingFee;
+          totalFromData > 0 ? totalFromData : calculatedSubtotal + shippingFee;
         console.log("[OrderDetailModal] total:", calculatedTotal);
 
         if (!cancelled) {
@@ -267,6 +269,7 @@ export function OrderDetailModal({
 
           setOrder({
             id: snapshot.id,
+            orderNumber: data.orderNumber || snapshot.id,
             customer: data.customerName || data.customerEmail || "Cliente",
             email: data.customerEmail || "",
             phone: data.customerPhone || "",
@@ -348,13 +351,14 @@ export function OrderDetailModal({
                 Detalle del pedido
               </h3>
               <p className="text-xs text-white/60">
-                #{orderId.slice(0, 8).toUpperCase()}
+                {order?.orderNumber || orderId}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
+            aria-label="Cerrar detalle del pedido"
             className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/20"
           >
             <X size={18} />
@@ -516,7 +520,10 @@ export function OrderDetailModal({
                         ${item.price.toLocaleString("es-MX")}
                       </span>
                       <span className="text-right font-semibold text-slate-950">
-                        ${calculateCartItemSubtotal(item).toLocaleString("es-MX")}
+                        $
+                        {calculateCartItemSubtotal(item).toLocaleString(
+                          "es-MX",
+                        )}
                       </span>
                     </div>
                   ))}
@@ -579,12 +586,14 @@ export function OrderDetailModal({
                     {order.shippingFee > 0 ? (
                       <div className="flex items-center justify-between text-sm text-slate-600">
                         <span>Envio</span>
-                        <span>${order.shippingFee.toLocaleString("es-MX")}</span>
+                        <span>
+                          ${order.shippingFee.toLocaleString("es-MX")}
+                        </span>
                       </div>
                     ) : null}
                     <div className="flex items-center justify-between border-t border-border/50 pt-3">
                       <span className="text-base font-bold text-slate-950">
-                      Total del pedido
+                        Total del pedido
                       </span>
                       <span className="text-2xl font-display font-bold text-primary">
                         ${order.total.toLocaleString("es-MX")}

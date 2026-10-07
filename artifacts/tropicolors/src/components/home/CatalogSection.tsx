@@ -1,11 +1,6 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import {
-  AnimatePresence,
-  LayoutGroup,
-  motion,
-  useReducedMotion,
-} from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, PackageSearch, Search } from "lucide-react";
 import {
   Carousel,
@@ -25,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { FADE_UP_VARIANTS, MOTION_EASE_OUT, MOTION_SPRING } from "@/lib/motion";
+import { MOTION_EASE_OUT } from "@/lib/motion";
 import CompactProductCard from "./CompactProductCard";
 import ProductCard from "./ProductCard";
 import { CATEGORY_COLORS, CATEGORY_ORDER, STORE_HIGHLIGHTS } from "./data";
@@ -58,8 +53,8 @@ const CatalogSection = memo(function CatalogSection({
   const activeCategoryConfig = CATEGORY_COLORS[activeCategory];
   const isMobile = useIsMobile();
   const prefersReducedMotion = useReducedMotion();
-  const resultsRef = useRef<HTMLDivElement | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageDirection, setPageDirection] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const totalPages = Math.max(
     1,
@@ -78,6 +73,7 @@ const CatalogSection = memo(function CatalogSection({
   );
 
   useEffect(() => {
+    setPageDirection(1);
     setCurrentPage(1);
   }, [activeCategory, searchQuery]);
 
@@ -93,13 +89,8 @@ const CatalogSection = memo(function CatalogSection({
       return;
     }
 
+    setPageDirection(nextPage > activePage ? 1 : -1);
     setCurrentPage(nextPage);
-    window.requestAnimationFrame(() => {
-      resultsRef.current?.scrollIntoView({
-        behavior: prefersReducedMotion ? "auto" : "smooth",
-        block: "start",
-      });
-    });
   };
 
   return (
@@ -355,10 +346,10 @@ const CatalogSection = memo(function CatalogSection({
           </div>
         </motion.div>
 
-        <div ref={resultsRef} className="scroll-mt-24">
+        <div className="relative">
           {filteredProductsCount > 0 ? (
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <div>
+            <div className="mb-6 flex flex-col gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 p-3.5 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+              <div className="min-w-0">
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
                   Catálogo compacto
                 </p>
@@ -367,18 +358,121 @@ const CatalogSection = memo(function CatalogSection({
                   {filteredProductsCount} productos
                 </p>
               </div>
-              <p className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm">
-                Selecciona un producto para configurarlo
-              </p>
+
+              {totalPages > 1 ? (
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <p className="px-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+                    Página {activePage} de {totalPages}
+                  </p>
+                  <Pagination
+                    aria-label="Páginas del catálogo"
+                    className="mx-0 w-auto justify-start sm:justify-end"
+                  >
+                    <PaginationContent className="gap-1">
+                      <PaginationItem>
+                        <button
+                          type="button"
+                          onClick={() => handlePageChange(activePage - 1)}
+                          disabled={activePage === 1}
+                          aria-label="Página anterior"
+                          className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2.5 text-sm font-bold text-slate-600 transition-[background-color,color,transform] hover:-translate-x-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-x-0"
+                        >
+                          <ChevronLeft size={17} />
+                          <span className="hidden lg:inline">Anterior</span>
+                        </button>
+                      </PaginationItem>
+
+                      {Array.from(
+                        { length: totalPages },
+                        (_, index) => index + 1,
+                      ).map((page) => {
+                        const isCurrentPage = activePage === page;
+
+                        return (
+                          <PaginationItem key={page}>
+                            <button
+                              type="button"
+                              onClick={() => handlePageChange(page)}
+                              aria-label={`Ir a la página ${page}`}
+                              aria-current={isCurrentPage ? "page" : undefined}
+                              className={`relative inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl text-sm font-extrabold transition-colors ${
+                                isCurrentPage
+                                  ? "text-white"
+                                  : "text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              {isCurrentPage ? (
+                                <motion.span
+                                  layoutId="catalog-active-page"
+                                  className="absolute inset-0 rounded-xl bg-[#003F91] shadow-[0_10px_22px_rgba(0,63,145,0.24)]"
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 420,
+                                    damping: 34,
+                                  }}
+                                />
+                              ) : null}
+                              <span className="relative z-10">{page}</span>
+                            </button>
+                          </PaginationItem>
+                        );
+                      })}
+
+                      <PaginationItem>
+                        <button
+                          type="button"
+                          onClick={() => handlePageChange(activePage + 1)}
+                          disabled={activePage === totalPages}
+                          aria-label="Página siguiente"
+                          className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2.5 text-sm font-bold text-slate-600 transition-[background-color,color,transform] hover:translate-x-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-x-0"
+                        >
+                          <span className="hidden lg:inline">Siguiente</span>
+                          <ChevronRight size={17} />
+                        </button>
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              ) : (
+                <p className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm">
+                  Selecciona un producto para comprarlo
+                </p>
+              )}
             </div>
           ) : null}
 
           {filteredProductsCount > 0 ? (
-            isMobile ? (
-              <LayoutGroup id="catalog-mobile">
-                <motion.div layout className="space-y-4">
+            <AnimatePresence mode="wait" initial={false} custom={pageDirection}>
+              {isMobile ? (
+                <motion.div
+                  key={`mobile-${activeCategory}-${searchQuery}-${activePage}`}
+                  custom={pageDirection}
+                  initial={
+                    prefersReducedMotion
+                      ? false
+                      : {
+                          opacity: 0,
+                          x: pageDirection * 28,
+                          filter: "blur(5px)",
+                        }
+                  }
+                  animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                  exit={
+                    prefersReducedMotion
+                      ? undefined
+                      : {
+                          opacity: 0,
+                          x: pageDirection * -20,
+                          filter: "blur(4px)",
+                        }
+                  }
+                  transition={{
+                    duration: prefersReducedMotion ? 0 : 0.3,
+                    ease: MOTION_EASE_OUT,
+                  }}
+                  className="space-y-4"
+                >
                   <Carousel
-                    key={`${activeCategory}-${searchQuery}-${activePage}`}
                     opts={{
                       align: "start",
                       loop: paginatedProducts.length > 1,
@@ -386,28 +480,30 @@ const CatalogSection = memo(function CatalogSection({
                     className="w-full"
                   >
                     <CarouselContent className="-ml-3">
-                      <AnimatePresence mode="popLayout">
-                        {paginatedProducts.map((product) => (
-                          <MotionCarouselItem
-                            layout
-                            key={product.id}
-                            variants={FADE_UP_VARIANTS}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: false, amount: 0.15 }}
-                            exit="exit"
-                            transition={MOTION_SPRING}
-                            className="basis-[88%] pl-3 min-[480px]:basis-[72%]"
-                          >
-                            <div className="mx-auto h-full w-full max-w-[440px]">
-                              <CompactProductCard
-                                product={product}
-                                onConfigure={setSelectedProduct}
-                              />
-                            </div>
-                          </MotionCarouselItem>
-                        ))}
-                      </AnimatePresence>
+                      {paginatedProducts.map((product, index) => (
+                        <MotionCarouselItem
+                          key={product.id}
+                          initial={
+                            prefersReducedMotion
+                              ? false
+                              : { opacity: 0, y: 16, scale: 0.985 }
+                          }
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{
+                            duration: prefersReducedMotion ? 0 : 0.34,
+                            delay: prefersReducedMotion ? 0 : index * 0.045,
+                            ease: MOTION_EASE_OUT,
+                          }}
+                          className="basis-[88%] pl-3 min-[480px]:basis-[72%]"
+                        >
+                          <div className="mx-auto h-full w-full max-w-[440px]">
+                            <CompactProductCard
+                              product={product}
+                              onConfigure={setSelectedProduct}
+                            />
+                          </div>
+                        </MotionCarouselItem>
+                      ))}
                     </CarouselContent>
                   </Carousel>
 
@@ -417,36 +513,62 @@ const CatalogSection = memo(function CatalogSection({
                     </p>
                   ) : null}
                 </motion.div>
-              </LayoutGroup>
-            ) : (
-              <LayoutGroup id="catalog-desktop">
+              ) : (
                 <motion.div
-                  layout
+                  key={`desktop-${activeCategory}-${searchQuery}-${activePage}`}
+                  custom={pageDirection}
+                  initial={
+                    prefersReducedMotion
+                      ? false
+                      : {
+                          opacity: 0,
+                          x: pageDirection * 34,
+                          scale: 0.992,
+                          filter: "blur(6px)",
+                        }
+                  }
+                  animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+                  exit={
+                    prefersReducedMotion
+                      ? undefined
+                      : {
+                          opacity: 0,
+                          x: pageDirection * -26,
+                          scale: 0.995,
+                          filter: "blur(4px)",
+                        }
+                  }
+                  transition={{
+                    duration: prefersReducedMotion ? 0 : 0.3,
+                    ease: MOTION_EASE_OUT,
+                  }}
                   className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
                 >
-                  <AnimatePresence mode="popLayout">
-                    {paginatedProducts.map((product) => (
-                      <motion.div
-                        layout
-                        key={product.id}
-                        variants={FADE_UP_VARIANTS}
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: false, amount: 0.15 }}
-                        exit="exit"
-                        transition={MOTION_SPRING}
-                        className="mx-auto h-full w-full max-w-[440px]"
-                      >
-                        <CompactProductCard
-                          product={product}
-                          onConfigure={setSelectedProduct}
-                        />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                  {paginatedProducts.map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      initial={
+                        prefersReducedMotion
+                          ? false
+                          : { opacity: 0, y: 20, scale: 0.975 }
+                      }
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{
+                        duration: prefersReducedMotion ? 0 : 0.4,
+                        delay: prefersReducedMotion ? 0 : index * 0.055,
+                        ease: MOTION_EASE_OUT,
+                      }}
+                      className="mx-auto h-full w-full max-w-[440px]"
+                    >
+                      <CompactProductCard
+                        product={product}
+                        onConfigure={setSelectedProduct}
+                      />
+                    </motion.div>
+                  ))}
                 </motion.div>
-              </LayoutGroup>
-            )
+              )}
+            </AnimatePresence>
           ) : (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -456,62 +578,6 @@ const CatalogSection = memo(function CatalogSection({
               No hay productos disponibles con esos filtros.
             </motion.div>
           )}
-
-          {filteredProductsCount > 0 && totalPages > 1 ? (
-            <Pagination
-              aria-label="Páginas del catálogo"
-              className="mt-8 rounded-[24px] border border-slate-200/80 bg-white/90 px-3 py-3 shadow-sm"
-            >
-              <PaginationContent className="flex-wrap justify-center gap-1.5">
-                <PaginationItem>
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(activePage - 1)}
-                    disabled={activePage === 1}
-                    aria-label="Página anterior"
-                    className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <ChevronLeft size={17} />
-                    <span className="hidden sm:inline">Anterior</span>
-                  </button>
-                </PaginationItem>
-
-                {Array.from(
-                  { length: totalPages },
-                  (_, index) => index + 1,
-                ).map((page) => (
-                  <PaginationItem key={page}>
-                    <button
-                      type="button"
-                      onClick={() => handlePageChange(page)}
-                      aria-label={`Ir a la página ${page}`}
-                      aria-current={activePage === page ? "page" : undefined}
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl text-sm font-extrabold transition-[background-color,color,box-shadow] ${
-                        activePage === page
-                          ? "bg-[#003F91] text-white shadow-[0_10px_22px_rgba(0,63,145,0.24)]"
-                          : "text-slate-600 hover:bg-slate-100"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  </PaginationItem>
-                ))}
-
-                <PaginationItem>
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(activePage + 1)}
-                    disabled={activePage === totalPages}
-                    aria-label="Página siguiente"
-                    className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <span className="hidden sm:inline">Siguiente</span>
-                    <ChevronRight size={17} />
-                  </button>
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          ) : null}
         </div>
       </div>
 
@@ -551,6 +617,7 @@ const CatalogSection = memo(function CatalogSection({
                   addToCart={addToCart}
                   addFlyingItem={addFlyingItem}
                   displayMode="panel"
+                  onAddedToCart={() => setSelectedProduct(null)}
                 />
               </div>
             </>

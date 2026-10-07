@@ -38,6 +38,8 @@ service cloud.firestore {
         "status",
         "statusLabel",
         "description",
+        "subtotal",
+        "shippingFee",
         "total",
         "currency",
         "paymentMethod",

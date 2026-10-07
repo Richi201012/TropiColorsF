@@ -1,8 +1,15 @@
 import React from "react";
 import { MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { useCart } from "@/context/CartContext";
 
 export function FloatingWhatsApp() {
+  const { isCartOpen, isCartAddNoticeOpen } = useCart();
+
+  if (isCartOpen || isCartAddNoticeOpen) {
+    return null;
+  }
+
   return (
     <motion.a
       href="https://wa.me/525551146856?text=Hola%20quiero%20cotizar%20colorantes%20Tropicolors"

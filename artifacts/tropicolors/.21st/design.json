@@ -212,6 +212,16 @@
       "choice": "Open product purchase controls in a compact centered dialog with an internally scrollable body on desktop and mobile",
       "reason": "The user preferred a smaller, more elegant focal interaction instead of a side or bottom sheet",
       "date": "2026-10-07"
+    },
+    {
+      "choice": "Replace the static promotional hero with a split editorial hero using semantic copy, real CTAs, an interactive color-family selector, responsive motion, and a transparent TropiColors product composition",
+      "reason": "The user selected a more professional and interactive presentation that preserves the brand's pigment colors without presenting the entire first screen as a single poster image",
+      "date": "2026-10-07"
+    },
+    {
+      "choice": "Place catalog pagination above the product results and animate page changes directionally without forced scrolling",
+      "reason": "Keep the pagination control visually stable when the last page contains fewer products and avoid disruptive upward page movement",
+      "date": "2026-10-07"
     }
   ],
   "evidence": [

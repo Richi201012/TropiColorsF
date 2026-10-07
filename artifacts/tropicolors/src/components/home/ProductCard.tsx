@@ -46,6 +46,7 @@ type ProductCardProps = {
   addToCart: AddToCartFn;
   addFlyingItem: AddFlyingItemFn;
   displayMode?: "card" | "panel";
+  onAddedToCart?: () => void;
 };
 
 const ProductCard = React.memo(function ProductCard({
@@ -53,6 +54,7 @@ const ProductCard = React.memo(function ProductCard({
   addToCart,
   addFlyingItem,
   displayMode = "card",
+  onAddedToCart,
 }: ProductCardProps) {
   const { toast } = useToast();
   const availableConcentrations = useMemo(
@@ -284,6 +286,8 @@ const ProductCard = React.memo(function ProductCard({
         warningMessage: product.purchaseWarning,
       });
 
+      onAddedToCart?.();
+
       setJustAdded(true);
       if (confirmationTimerRef.current) {
         clearTimeout(confirmationTimerRef.current);
@@ -310,6 +314,7 @@ const ProductCard = React.memo(function ProductCard({
       toast,
       wholesaleQuantity,
       wholesaleUnitTotal,
+      onAddedToCart,
     ],
   );
 
