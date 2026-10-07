@@ -1,0 +1,248 @@
+{
+  "version": 1,
+  "project": {
+    "name": "@workspace/tropicolors",
+    "productType": null,
+    "stack": ["react", "shadcn", "tailwind-v3", "vite"]
+  },
+  "sources": {
+    "tokens": ["src/index.css"],
+    "components": ["src/components/ui"],
+    "assets": ["public/images"],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "light-and-dark",
+    "colors": {
+      "--color-background": {
+        "value": "hsl(var(--background))",
+        "source": "src/index.css"
+      },
+      "--color-foreground": {
+        "value": "hsl(var(--foreground))",
+        "source": "src/index.css"
+      },
+      "--color-primary": {
+        "value": "214 100% 28%",
+        "source": "src/index.css"
+      },
+      "--color-primary-foreground": {
+        "value": "0 0% 100%",
+        "source": "src/index.css"
+      },
+      "--color-secondary": {
+        "value": "184 100% 35%",
+        "source": "src/index.css"
+      },
+      "--color-secondary-foreground": {
+        "value": "0 0% 100%",
+        "source": "src/index.css"
+      },
+      "--color-accent": {
+        "value": "48 100% 50%",
+        "source": "src/index.css"
+      },
+      "--color-accent-foreground": {
+        "value": "214 100% 28%",
+        "source": "src/index.css"
+      },
+      "--color-destructive": {
+        "value": "345 100% 59%",
+        "source": "src/index.css"
+      },
+      "--color-destructive-foreground": {
+        "value": "0 0% 100%",
+        "source": "src/index.css"
+      },
+      "--color-muted": {
+        "value": "210 40% 96%",
+        "source": "src/index.css"
+      },
+      "--color-muted-foreground": {
+        "value": "215 16% 47%",
+        "source": "src/index.css"
+      },
+      "--color-border": {
+        "value": "214 32% 91%",
+        "source": "src/index.css"
+      },
+      "--color-input": {
+        "value": "214 32% 91%",
+        "source": "src/index.css"
+      },
+      "--color-ring": {
+        "value": "214 100% 28%",
+        "source": "src/index.css"
+      },
+      "--color-card": {
+        "value": "0 0% 100%",
+        "source": "src/index.css"
+      },
+      "--color-card-foreground": {
+        "value": "222 47% 11%",
+        "source": "src/index.css"
+      },
+      "--background": {
+        "value": "222 47% 11%",
+        "source": "src/index.css"
+      },
+      "--foreground": {
+        "value": "0 0% 100%",
+        "source": "src/index.css"
+      }
+    },
+    "typography": {
+      "--font-sans": {
+        "value": "'DM Sans', sans-serif",
+        "source": "src/index.css"
+      },
+      "--font-display": {
+        "value": "'Outfit', sans-serif",
+        "source": "src/index.css"
+      }
+    },
+    "spacing": {},
+    "radius": {
+      "--radius-sm": {
+        "value": "0.25rem",
+        "source": "src/index.css"
+      },
+      "--radius-md": {
+        "value": "0.5rem",
+        "source": "src/index.css"
+      },
+      "--radius-lg": {
+        "value": "1rem",
+        "source": "src/index.css"
+      },
+      "--radius-xl": {
+        "value": "1.5rem",
+        "source": "src/index.css"
+      }
+    },
+    "shadows": {},
+    "motion": {},
+    "density": "unknown"
+  },
+  "components": {
+    "installed": [
+      "accordion",
+      "alert",
+      "alert-dialog",
+      "aspect-ratio",
+      "avatar",
+      "badge",
+      "breadcrumb",
+      "button",
+      "button-group",
+      "calendar",
+      "card",
+      "carousel",
+      "chart",
+      "checkbox",
+      "collapsible",
+      "command",
+      "context-menu",
+      "dialog",
+      "drawer",
+      "dropdown-menu",
+      "empty",
+      "field",
+      "form",
+      "hover-card",
+      "input",
+      "input-group",
+      "input-otp",
+      "item",
+      "kbd",
+      "label",
+      "menubar",
+      "navigation-menu",
+      "pagination",
+      "popover",
+      "progress",
+      "radio-group",
+      "resizable",
+      "scroll-area",
+      "select",
+      "separator",
+      "sheet",
+      "sidebar",
+      "skeleton",
+      "slider",
+      "sonner",
+      "spinner",
+      "switch",
+      "table",
+      "tabs",
+      "textarea",
+      "toast",
+      "toaster",
+      "toggle",
+      "toggle-group",
+      "tooltip"
+    ],
+    "preferredPrimitives": ["radix-ui"],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [
+      "Motion must work from 360px mobile widths through desktop layouts",
+      "Respect prefers-reduced-motion and keep all actions usable without animation",
+      "Prefer transform and opacity for animated movement"
+    ],
+    "avoid": [
+      "Decorative infinite motion on mobile",
+      "Scroll-jacking or motion that blocks interaction",
+      "Broad transition-all rules and large hover scaling"
+    ]
+  },
+  "decisions": [
+    {
+      "choice": "Use moderate, functional motion for catalog filtering, pricing feedback, cart continuity, section reveals, route changes, and scroll progress",
+      "reason": "The user selected a more interactive and fluid presentation that must remain comfortable and performant on mobile",
+      "date": "2026-10-07"
+    },
+    {
+      "choice": "Use compact product summary cards with six-item pagination and move the full purchase configuration into a right-side sheet on desktop and a bottom sheet on mobile",
+      "reason": "Reduce the catalog page height while preserving every purchase option and keeping configuration comfortable on small screens",
+      "date": "2026-10-07"
+    },
+    {
+      "choice": "Open product purchase controls in a compact centered dialog with an internally scrollable body on desktop and mobile",
+      "reason": "The user preferred a smaller, more elegant focal interaction instead of a side or bottom sheet",
+      "date": "2026-10-07"
+    }
+  ],
+  "evidence": [
+    {
+      "fact": "components.installed",
+      "source": "src/components/ui"
+    },
+    {
+      "fact": "design.colorMode:light-and-dark",
+      "source": "src/index.css"
+    },
+    {
+      "fact": "design.tokens",
+      "source": "src/index.css"
+    },
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:shadcn",
+      "source": "components.json"
+    },
+    {
+      "fact": "project.stack:tailwind-v3",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:vite",
+      "source": "package.json"
+    }
+  ],
+  "generatedAt": "2026-10-07T18:34:16.684Z"
+}

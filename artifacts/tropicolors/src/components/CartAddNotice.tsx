@@ -8,12 +8,8 @@ import {
 } from "@/lib/commerce";
 
 export function CartAddNotice() {
-  const {
-    recentlyAddedItem,
-    recentlyAddedToken,
-    setIsCartOpen,
-    cartCount,
-  } = useCart();
+  const { recentlyAddedItem, recentlyAddedToken, setIsCartOpen, cartCount } =
+    useCart();
   const [isVisible, setIsVisible] = useState(false);
   const handledTokenRef = useRef(recentlyAddedToken);
 
@@ -85,7 +81,7 @@ export function CartAddNotice() {
                       setIsVisible(false);
                       setIsCartOpen(true);
                     }}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#003F91_0%,#0059c7_45%,#00A8B5_100%)] px-4 py-2.5 text-xs font-bold text-white shadow-[0_14px_28px_rgba(0,63,145,0.22)] transition hover:scale-[1.02]"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#003F91_0%,#0059c7_45%,#00A8B5_100%)] px-4 py-2.5 text-xs font-bold text-white shadow-[0_14px_28px_rgba(0,63,145,0.22)] transition-[box-shadow,filter] hover:brightness-105"
                   >
                     <ShoppingBag size={14} />
                     Ir al carrito

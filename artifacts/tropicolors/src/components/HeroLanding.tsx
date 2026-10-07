@@ -7,6 +7,7 @@ import {
   useTransform,
 } from "framer-motion";
 import desktopHeroImage from "@assets/fondochido.png";
+import { MOTION_EASE_OUT } from "@/lib/motion";
 
 interface HeroLandingProps {
   onComplete?: () => void;
@@ -27,11 +28,7 @@ export default function HeroLanding({ onComplete }: HeroLandingProps) {
     mass: 0.24,
   });
 
-  const imageY = useTransform(
-    smoothProgress,
-    [0, 1],
-    [0, 18],
-  );
+  const imageY = useTransform(smoothProgress, [0, 1], [0, 18]);
   const imageMotionStyle = prefersReducedMotion ? undefined : { y: imageY };
 
   useEffect(() => {
@@ -55,6 +52,9 @@ export default function HeroLanding({ onComplete }: HeroLandingProps) {
         fetchPriority="high"
         decoding="async"
         className="block h-auto w-full object-contain lg:w-auto lg:max-h-screen lg:max-w-full"
+        initial={prefersReducedMotion ? false : { opacity: 0.35, scale: 1.045 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.85, ease: MOTION_EASE_OUT }}
         style={imageMotionStyle}
       />
       <h1 className="sr-only">TropiColors</h1>

@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import {
-  CheckCircle,
-  Loader2,
-  MessageCircle,
-  Star,
-} from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { CheckCircle, Loader2, MessageCircle, Star } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
@@ -39,10 +34,15 @@ export default function ReferencesSection({
 }: ReferencesSectionProps) {
   const [referencesCarouselApi, setReferencesCarouselApi] =
     useState<CarouselApi>();
+  const prefersReducedMotion = useReducedMotion();
   const activeReferences = useMemo(() => references.slice(0, 6), [references]);
 
   useEffect(() => {
-    if (!referencesCarouselApi || activeReferences.length <= 1) {
+    if (
+      prefersReducedMotion ||
+      !referencesCarouselApi ||
+      activeReferences.length <= 1
+    ) {
       return;
     }
 
@@ -51,15 +51,15 @@ export default function ReferencesSection({
     }, 5500);
 
     return () => window.clearInterval(intervalId);
-  }, [activeReferences.length, referencesCarouselApi]);
+  }, [activeReferences.length, prefersReducedMotion, referencesCarouselApi]);
 
   return (
     <motion.section
       id="referencias"
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      viewport={{ once: false, amount: 0.16 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
       className="page-snap-section bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)]"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -114,17 +114,19 @@ export default function ReferencesSection({
                                 <MessageCircle size={18} />
                               </div>
                               <div className="flex items-center gap-1 text-amber-400">
-                                {Array.from({ length: 5 }).map((_, ratingIndex) => (
-                                  <Star
-                                    key={`${reference.id}-rating-${ratingIndex}`}
-                                    size={14}
-                                    className={
-                                      ratingIndex < reference.rating
-                                        ? "fill-current"
-                                        : "text-slate-200"
-                                    }
-                                  />
-                                ))}
+                                {Array.from({ length: 5 }).map(
+                                  (_, ratingIndex) => (
+                                    <Star
+                                      key={`${reference.id}-rating-${ratingIndex}`}
+                                      size={14}
+                                      className={
+                                        ratingIndex < reference.rating
+                                          ? "fill-current"
+                                          : "text-slate-200"
+                                      }
+                                    />
+                                  ),
+                                )}
                               </div>
                             </div>
 
@@ -214,7 +216,7 @@ export default function ReferencesSection({
                     onChange={(event) =>
                       onReferenceFieldChange("name", event.target.value)
                     }
-                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#003F91] focus:ring-2 focus:ring-[#003F91]/15"
+                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/15"
                     placeholder="Tu nombre"
                   />
                 </div>
@@ -227,7 +229,7 @@ export default function ReferencesSection({
                     onChange={(event) =>
                       onReferenceFieldChange("company", event.target.value)
                     }
-                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#003F91] focus:ring-2 focus:ring-[#003F91]/15"
+                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/15"
                     placeholder="Nombre de tu negocio"
                   />
                 </div>
@@ -243,7 +245,7 @@ export default function ReferencesSection({
                     onChange={(event) =>
                       onReferenceFieldChange("role", event.target.value)
                     }
-                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#003F91] focus:ring-2 focus:ring-[#003F91]/15"
+                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/15"
                     placeholder="Pastelería, distribuidor, repostera..."
                   />
                 </div>
@@ -256,7 +258,7 @@ export default function ReferencesSection({
                     onChange={(event) =>
                       onReferenceFieldChange("location", event.target.value)
                     }
-                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#003F91] focus:ring-2 focus:ring-[#003F91]/15"
+                    className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/15"
                     placeholder="Ciudad o estado"
                   />
                 </div>
@@ -272,7 +274,7 @@ export default function ReferencesSection({
                   onChange={(event) =>
                     onReferenceFieldChange("message", event.target.value)
                   }
-                  className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#003F91] focus:ring-2 focus:ring-[#003F91]/15"
+                  className="w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus-visible:border-[#003F91] focus-visible:ring-2 focus-visible:ring-[#003F91]/15"
                   placeholder="Cuéntanos cómo te ayudó Tropicolors en tu negocio o producción."
                 />
               </div>
@@ -289,7 +291,7 @@ export default function ReferencesSection({
                         key={`reference-form-rating-${value}`}
                         type="button"
                         onClick={() => onReferenceFieldChange("rating", value)}
-                        className="transition-transform hover:scale-110"
+                        className="transition-opacity hover:opacity-75"
                       >
                         <Star
                           size={18}
