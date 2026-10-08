@@ -13,7 +13,8 @@ service cloud.firestore {
 
     function isAdminUser() {
       return signedIn() &&
-        request.auth.token.email != "m_tropicolorsinv@hotmail.com";
+        (request.auth.token.admin == true ||
+          request.auth.token.email == "m_tropicolors1@hotmail.com");
     }
 
     function isOwnUser(uid) {
@@ -28,6 +29,72 @@ service cloud.firestore {
         "entregado",
         "cancelado",
       ];
+    }
+
+    function isValidPublicOrderCreate() {
+      return request.resource.data.customerName is string &&
+        request.resource.data.customerName.size() > 1 &&
+        request.resource.data.customerName.size() <= 120 &&
+        request.resource.data.customerEmail is string &&
+        request.resource.data.customerEmail.size() <= 180 &&
+        request.resource.data.total is number &&
+        request.resource.data.total > 0 &&
+        request.resource.data.subtotal is number &&
+        request.resource.data.subtotal >= 0 &&
+        request.resource.data.shippingFee is number &&
+        request.resource.data.shippingFee >= 0 &&
+        request.resource.data.items is list &&
+        request.resource.data.items.size() > 0 &&
+        request.resource.data.items.size() <= 60 &&
+        request.resource.data.status == "pendiente" &&
+        request.resource.data.orderStatus == "pending" &&
+        request.resource.data.paymentStatus in ["pending", "paid"];
+    }
+
+    function isValidPublicNotificationCreate() {
+      return request.resource.data.keys().hasOnly([
+        "orderId",
+        "customerName",
+        "total",
+        "requiresInvoice",
+        "customerRfc",
+        "estado",
+        "createdAt",
+      ]) &&
+        request.resource.data.orderId is string &&
+        request.resource.data.orderId.size() > 0 &&
+        request.resource.data.customerName is string &&
+        request.resource.data.customerName.size() <= 120 &&
+        request.resource.data.total is number &&
+        request.resource.data.total > 0 &&
+        request.resource.data.requiresInvoice is bool &&
+        request.resource.data.estado == "no_leida";
+    }
+
+    function isValidPublicReferenceCreate() {
+      return request.resource.data.keys().hasOnly([
+        "name",
+        "company",
+        "role",
+        "location",
+        "message",
+        "rating",
+        "status",
+        "createdAt",
+        "updatedAt",
+      ]) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() >= 2 &&
+        request.resource.data.name.size() <= 100 &&
+        request.resource.data.company is string &&
+        request.resource.data.company.size() <= 120 &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() >= 24 &&
+        request.resource.data.message.size() <= 1200 &&
+        request.resource.data.rating is number &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5 &&
+        request.resource.data.status == "draft";
     }
 
     function isPublicTrackingCreate(trackingToken) {
@@ -75,13 +142,13 @@ service cloud.firestore {
     }
 
     match /references/{referenceId} {
-      allow read: if true;
-      allow create: if true;
+      allow read: if isAdminUser() || resource.data.status == "active";
+      allow create: if isValidPublicReferenceCreate();
       allow update, delete: if isAdminUser();
     }
 
     match /orders/{orderId} {
-      allow create: if true;
+      allow create: if isValidPublicOrderCreate();
       allow read, update, delete: if isAdminUser();
     }
 
@@ -100,8 +167,16 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow create: if true;
+      allow create: if isValidPublicNotificationCreate();
       allow read, update, delete: if isAdminUser();
+    }
+
+    match /clients/{clientId} {
+      allow read, create, update, delete: if isAdminUser();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read, create, update, delete: if isAdminUser();
     }
 
     match /settings/home {

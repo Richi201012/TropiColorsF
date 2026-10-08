@@ -70,7 +70,7 @@ export function NotificationItem({
         }
       }}
       className={`
-        group relative cursor-pointer rounded-2xl border p-4 transition-all duration-200
+        group relative cursor-pointer rounded-2xl border p-4 transition-[border-color,box-shadow,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
         ${
           isUnread
             ? "border-primary/20 bg-primary/5 shadow-sm"
@@ -142,7 +142,7 @@ export function NotificationItem({
         </div>
 
         {isUnread && (
-          <div className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+          <div className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-primary motion-safe:animate-pulse" />
         )}
 
         {onDelete && (
@@ -152,7 +152,8 @@ export function NotificationItem({
               e.stopPropagation();
               onDelete(notification.id);
             }}
-            className="absolute right-3 bottom-3 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-all duration-200 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
+            aria-label={`Eliminar notificación de ${notification.customerName}`}
+            className="absolute bottom-2 right-2 flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:bottom-3 sm:right-3 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
             title="Eliminar notificación"
           >
             <Trash2 size={14} />

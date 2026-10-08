@@ -210,14 +210,14 @@ export default function Home() {
         location: referenceForm.location,
         message: referenceForm.message,
         rating: referenceForm.rating,
-        status: "active",
+        status: "draft",
       });
 
       setReferenceForm(initialReferenceForm);
       setReferenceSent(true);
       toast({
         title: "Referencia enviada",
-        description: "Gracias. Ya quedó publicada en el sitio.",
+        description: "Gracias. La revisaremos antes de publicarla en el sitio.",
       });
     } catch (error) {
       console.error("[Home] Error al enviar referencia:", error);

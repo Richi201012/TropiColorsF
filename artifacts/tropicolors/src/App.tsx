@@ -81,7 +81,8 @@ function scheduleDeferredUi(callback: () => void) {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const isAdminPage = location === "/login" || location === "/inventario";
+  const isAdminPage =
+    location === "/login" || location === "/admin" || location === "/inventario";
   const isTrackingPage =
     location === "/seguimiento_de_pedido" || location.startsWith("/pedido/");
   const [deferredUiReady, setDeferredUiReady] = useState(false);
@@ -150,6 +151,7 @@ function Router() {
               component={OrderTrackingSearch}
             />
             <Route path="/pedido/:trackingToken" component={OrderTracking} />
+            <Route path="/admin" component={Admin} />
             <Route path="/login" component={Admin} />
             <Route path="/inventario" component={Inventario} />
             <Route component={NotFound} />

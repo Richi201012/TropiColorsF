@@ -89,13 +89,10 @@ export async function enviarCorreoConfirmacion(
   datosPedido: DatosPedidoCorreo,
 ): Promise<CorreoRespuesta> {
   try {
-    console.log(
-      "[Email Service] Enviando correo de confirmación...",
-      datosPedido,
-    );
+    console.log("[Email Service] Enviando correo de confirmación...");
 
     if (!datosPedido.email || !datosPedido.nombre) {
-      console.error("[Email Service] Datos inválidos:", datosPedido);
+      console.error("[Email Service] Datos de confirmación incompletos");
       return {
         success: false,
         error: "El email y nombre son requeridos",
@@ -125,7 +122,7 @@ export async function enviarCorreoConfirmacion(
       };
     }
 
-    console.log("[Email Service] Respuesta:", data);
+    console.log("[Email Service] Respuesta recibida");
 
     if (!response.ok) {
       console.error("[Email Service] Error del servidor:", data);
@@ -161,10 +158,10 @@ export async function enviarCorreoEstadoPedido(
   datosEstado: DatosEstadoPedidoCorreo,
 ): Promise<CorreoRespuesta> {
   try {
-    console.log("[Email Estado] Enviando correo de estado...", datosEstado);
+    console.log("[Email Estado] Enviando correo de estado...");
 
     if (!datosEstado.email || !datosEstado.nombre || !datosEstado.estado) {
-      console.error("[Email Estado] Datos inválidos:", datosEstado);
+      console.error("[Email Estado] Datos de estado incompletos");
       return {
         success: false,
         error: "El email, nombre y estado son requeridos",
@@ -194,7 +191,7 @@ export async function enviarCorreoEstadoPedido(
       };
     }
 
-    console.log("[Email Estado] Respuesta:", data);
+    console.log("[Email Estado] Respuesta recibida");
 
     if (!response.ok) {
       console.error("[Email Estado] Error del servidor:", data);
@@ -228,7 +225,7 @@ export async function enviarCorreoEstadoPedidoEnSegundoPlano(
 ): Promise<AsyncCorreoRespuesta> {
   try {
     const startedAt = performance.now();
-    console.log("[Email Estado Async] Encolando correo...", datosEstado);
+    console.log("[Email Estado Async] Encolando correo...");
 
     if (!datosEstado.email || !datosEstado.nombre || !datosEstado.estado) {
       return {
@@ -359,14 +356,14 @@ export async function enviarFacturaCorreo(
   datosFactura: DatosFacturaCorreo,
 ): Promise<CorreoRespuesta> {
   try {
-    console.log("[Email Factura] Enviando factura...", datosFactura);
+    console.log("[Email Factura] Enviando factura...");
 
     if (
       !datosFactura.email ||
       !datosFactura.nombre ||
       !datosFactura.numeroFactura
     ) {
-      console.error("[Email Factura] Datos inválidos:", datosFactura);
+      console.error("[Email Factura] Datos de factura incompletos");
       return {
         success: false,
         error: "El email, nombre y número de factura son requeridos",
@@ -396,7 +393,7 @@ export async function enviarFacturaCorreo(
       };
     }
 
-    console.log("[Email Factura] Respuesta:", data);
+    console.log("[Email Factura] Respuesta recibida");
 
     if (!response.ok) {
       console.error("[Email Factura] Error del servidor:", data);
@@ -429,7 +426,7 @@ export async function enviarMensajeContacto(
   datosContacto: DatosContactoCorreo,
 ): Promise<CorreoRespuesta> {
   try {
-    console.log("[Email Contacto] Enviando mensaje...", datosContacto);
+    console.log("[Email Contacto] Enviando mensaje...");
 
     if (!datosContacto.email || !datosContacto.nombre || !datosContacto.mensaje) {
       return {

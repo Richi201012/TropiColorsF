@@ -10,7 +10,10 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useReferences } from "@/hooks/useReferences";
-import { deleteReference } from "@/services/reference-service";
+import {
+  deleteReference,
+  setReferenceStatus,
+} from "@/services/reference-service";
 import type { SiteReference } from "@/types/reference";
 
 function formatReferenceDate(value: string): string {
@@ -25,11 +28,14 @@ function formatReferenceDate(value: string): string {
 }
 
 export function ReferencesView() {
-  const { references, isLoading, error } = useReferences();
+  const { references, isLoading, error } = useReferences(true, true);
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<SiteReference | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [updatingReferenceId, setUpdatingReferenceId] = useState<string | null>(
+    null,
+  );
 
   const filteredReferences = useMemo(() => {
     const searchValue = searchTerm.trim().toLowerCase();
@@ -88,6 +94,32 @@ export function ReferencesView() {
     }
   };
 
+  const handleStatusChange = async (reference: SiteReference) => {
+    if (updatingReferenceId) return;
+
+    const nextStatus = reference.status === "active" ? "draft" : "active";
+    setUpdatingReferenceId(reference.id);
+    try {
+      await setReferenceStatus(reference.id, nextStatus);
+      toast({
+        title: nextStatus === "active" ? "Referencia publicada" : "Referencia oculta",
+        description:
+          nextStatus === "active"
+            ? "La referencia ya aparece en el sitio."
+            : "La referencia quedó en revisión y ya no es pública.",
+      });
+    } catch (statusError) {
+      console.error("[ReferencesView] Error al cambiar estado:", statusError);
+      toast({
+        title: "No se pudo actualizar",
+        description: "Intenta nuevamente en unos momentos.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingReferenceId(null);
+    }
+  };
+
   return (
     <div className="p-6 sm:p-8">
       <div className="mb-6">
@@ -95,8 +127,7 @@ export function ReferencesView() {
           Referencias
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Las referencias enviadas desde el sitio se publican automáticamente.
-          Desde aquí solo las monitoreas y, si hace falta, las eliminas.
+          Revisa, publica u oculta los testimonios antes de mostrarlos en el sitio.
         </p>
       </div>
 
@@ -125,13 +156,15 @@ export function ReferencesView() {
           <input
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
+            aria-label="Buscar referencias"
             placeholder="Buscar por nombre, empresa, ubicación o texto..."
-            className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
+            className="w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           />
           {searchTerm ? (
             <button
               type="button"
               onClick={() => setSearchTerm("")}
+              aria-label="Limpiar búsqueda de referencias"
               className="text-muted-foreground transition-colors hover:text-slate-900"
             >
               <X size={14} />
@@ -172,8 +205,14 @@ export function ReferencesView() {
                       <h3 className="text-lg font-display font-bold text-slate-950">
                         {reference.name}
                       </h3>
-                      <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700 ring-1 ring-emerald-200">
-                        Visible en sitio
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ring-1 ${
+                          reference.status === "active"
+                            ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                            : "bg-amber-50 text-amber-700 ring-amber-200"
+                        }`}
+                      >
+                        {reference.status === "active" ? "Visible en sitio" : "En revisión"}
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
@@ -211,14 +250,29 @@ export function ReferencesView() {
                   Creada el {formatReferenceDate(reference.createdAt)}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setPendingDelete(reference)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                >
-                  <Trash2 size={14} />
-                  Eliminar
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleStatusChange(reference)}
+                    disabled={updatingReferenceId === reference.id}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {updatingReferenceId === reference.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Star size={14} />
+                    )}
+                    {reference.status === "active" ? "Ocultar" : "Publicar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(reference)}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
+                  >
+                    <Trash2 size={14} />
+                    Eliminar
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -232,10 +286,18 @@ export function ReferencesView() {
               className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
               onClick={() => !isDeleting && setPendingDelete(null)}
             />
-            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20">
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-reference-title"
+              className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20"
+            >
               <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
                 <div>
-                  <h3 className="text-xl font-display font-bold text-slate-950">
+                  <h3
+                    id="delete-reference-title"
+                    className="text-xl font-display font-bold text-slate-950"
+                  >
                     Eliminar referencia
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -246,6 +308,7 @@ export function ReferencesView() {
                   type="button"
                   onClick={() => !isDeleting && setPendingDelete(null)}
                   disabled={isDeleting}
+                  aria-label="Cerrar confirmación"
                   className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950 disabled:opacity-50"
                 >
                   <X size={18} />

@@ -13,7 +13,9 @@ export function buildFacturasFromOrders(orders: AdminOrder[]): InvoiceData[] {
     return [];
   }
 
-  return orders.map((order, index) => mapOrderToInvoice(order, index));
+  return orders
+    .filter((order) => order.requiresInvoice)
+    .map((order) => mapOrderToInvoice(order));
 }
 
 /**
@@ -34,7 +36,22 @@ export function useFacturasFromOrders() {
   };
 }
 
-function mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
+function buildStableInvoiceSequence(order: AdminOrder): number {
+  const source = order.orderNumber || order.id;
+  let hash = 0;
+
+  for (let index = 0; index < source.length; index += 1) {
+    hash = (hash * 31 + source.charCodeAt(index)) >>> 0;
+  }
+
+  return (hash % 99999) + 1;
+}
+
+export function buildInvoiceNumberForOrder(order: AdminOrder): string {
+  return buildInvoiceNumber(buildStableInvoiceSequence(order), order.createdAt);
+}
+
+function mapOrderToInvoice(order: AdminOrder): InvoiceData {
   const calculatedSubtotal = order.items.reduce(
     (sum: number, item: OrderProduct) => {
       return sum + calculateCartItemSubtotal(item);
@@ -54,7 +71,7 @@ function mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
     description: item.description,
   }));
 
-  const invoiceNumber = buildInvoiceNumber(index + 1, order.createdAt);
+  const invoiceNumber = buildInvoiceNumberForOrder(order);
   const paymentMethod = mapPaymentMethod(
     order.paymentMethod || order.metodoPago || "efectivo",
   );
@@ -119,6 +136,8 @@ function mapInvoiceStatus(status: string): InvoiceData["status"] {
     pending: "pending",
     enviado: "pending",
     shipped: "pending",
+    cancelado: "cancelled",
+    cancelled: "cancelled",
   };
 
   return statusMap[status?.toLowerCase() || ""] || "pending";
@@ -126,11 +145,11 @@ function mapInvoiceStatus(status: string): InvoiceData["status"] {
 
 export function crearFacturaDesdePedido(order: AdminOrder): InvoiceData {
   const mapper = new InvoiceMapper();
-  return mapper.mapOrderToInvoice(order, 0);
+  return mapper.mapOrderToInvoice(order);
 }
 
 class InvoiceMapper {
-  mapOrderToInvoice(order: AdminOrder, index: number): InvoiceData {
+  mapOrderToInvoice(order: AdminOrder): InvoiceData {
     const calculatedSubtotal = order.items.reduce((sum, item) => {
       return sum + calculateCartItemSubtotal(item);
     }, 0);
@@ -147,7 +166,7 @@ class InvoiceMapper {
       description: item.description,
     }));
 
-    const invoiceNumber = buildInvoiceNumber(index + 1, order.createdAt);
+    const invoiceNumber = buildInvoiceNumberForOrder(order);
     const paymentMethod = mapPaymentMethod(
       order.paymentMethod || order.metodoPago,
     );

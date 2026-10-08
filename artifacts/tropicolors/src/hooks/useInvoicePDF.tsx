@@ -1,10 +1,9 @@
 import { useState, useCallback } from 'react';
 import { buildInvoiceNumber, type InvoiceData } from '../types/invoice';
 
-// FunciÃ³n para convertir URL a base64
+// Convierte recursos públicos a data URL para que React PDF los incruste.
 const urlToBase64 = async (url: string): Promise<string> => {
   try {
-    console.log('[PDF] Intentando convertir URL del logo:', url);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -13,19 +12,23 @@ const urlToBase64 = async (url: string): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        console.log('[PDF] Logo convertido a base64 exitosamente');
         resolve(reader.result as string);
       };
       reader.onerror = () => {
-        console.warn('[PDF] Error al leer el archivo del logo');
         resolve('');
       };
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.warn('[PDF] Logo no disponible, generando PDF sin logo:', error);
+    console.warn('[PDF] No se pudo cargar un recurso visual:', error);
     return '';
   }
+};
+
+const getMascotUrl = (status: InvoiceData['status']): string => {
+  if (status === 'paid') return '/email/order-status/paid.png';
+  if (status === 'cancelled') return '/email/order-status/cancelled.png';
+  return '/email/order-status/pending.png';
 };
 
 export const useInvoicePDF = () => {
@@ -55,26 +58,10 @@ export const useInvoicePDF = () => {
         })),
       };
 
-      let logoBase64 = '';
-      const logoUrl = invoiceData.company?.logo;
-      console.log('[PDF] Logo URL encontrado:', logoUrl);
-
-      if (logoUrl) {
-        try {
-          logoBase64 = await urlToBase64(logoUrl);
-        } catch (e) {
-          console.warn('[PDF] Error al convertir logo:', e);
-        }
-      } else {
-        console.log('[PDF] No hay logo en company, usando logo estÃ¡tico');
-        try {
-          logoBase64 = await urlToBase64('/logo-tropicolors.png');
-        } catch (e) {
-          console.warn('[PDF] No se pudo usar logo estÃ¡tico:', e);
-        }
-      }
-
-      console.log('[PDF] Generando PDF con logoBase64:', logoBase64 ? 'sÃ­' : 'no');
+      const [logoBase64, mascotBase64] = await Promise.all([
+        urlToBase64(invoiceData.company?.logo || '/logo-tropicolors.png'),
+        urlToBase64(getMascotUrl(invoiceData.status)),
+      ]);
 
       const [{ pdf }, { InvoicePDFDocument }] = await Promise.all([
         import('@react-pdf/renderer'),
@@ -82,7 +69,11 @@ export const useInvoicePDF = () => {
       ]);
 
       const blob = await pdf(
-        <InvoicePDFDocument data={validData} logoBase64={logoBase64} />,
+        <InvoicePDFDocument
+          data={validData}
+          logoBase64={logoBase64}
+          mascotBase64={mascotBase64}
+        />,
       ).toBlob();
 
       const url = URL.createObjectURL(blob);
