@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, ordersTable } from "@workspace/db";
-import { eq, desc, sum } from "drizzle-orm";
+import { db, ordersTable, type Order } from "@workspace/db";
+import { desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -9,14 +9,14 @@ router.get("/admin/stats", async (req, res) => {
     const allOrders = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
 
     const totalRevenue = allOrders
-      .filter((o) => o.status === "paid" || o.status === "sent" || o.status === "delivered")
-      .reduce((acc, o) => acc + o.amount / 100, 0);
+      .filter((o: Order) => o.status === "paid" || o.status === "sent" || o.status === "delivered")
+      .reduce((acc: number, o: Order) => acc + o.amount / 100, 0);
 
     const totalOrders = allOrders.length;
-    const pendingOrders = allOrders.filter((o) => o.status === "pending").length;
-    const completedOrders = allOrders.filter((o) => o.status === "delivered").length;
+    const pendingOrders = allOrders.filter((o: Order) => o.status === "pending").length;
+    const completedOrders = allOrders.filter((o: Order) => o.status === "delivered").length;
 
-    const recentOrders = allOrders.slice(0, 10).map((o) => ({
+    const recentOrders = allOrders.slice(0, 10).map((o: Order) => ({
       ...o,
       amount: o.amount / 100,
       createdAt: o.createdAt.toISOString(),
@@ -31,7 +31,7 @@ router.get("/admin/stats", async (req, res) => {
       monthlySalesMap[key] = { revenue: 0, orders: 0 };
     }
 
-    allOrders.forEach((order) => {
+    allOrders.forEach((order: Order) => {
       const d = new Date(order.createdAt);
       const key = d.toLocaleDateString("es-MX", { month: "short", year: "2-digit" });
       if (monthlySalesMap[key]) {

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, invoicesTable } from "@workspace/db";
+import { db, invoicesTable, type Invoice } from "@workspace/db";
 import { desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -15,7 +15,7 @@ function generateInvoiceNumber(): string {
 router.get("/invoices", async (req, res) => {
   try {
     const invoices = await db.select().from(invoicesTable).orderBy(desc(invoicesTable.createdAt));
-    const formatted = invoices.map((inv) => ({
+    const formatted = invoices.map((inv: Invoice) => ({
       ...inv,
       amount: inv.amount / 100,
       createdAt: inv.createdAt.toISOString(),

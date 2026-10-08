@@ -10,12 +10,14 @@ export async function createRouter(): Promise<IRouter> {
     { default: ordersRouter },
     { default: postalCodesRouter },
     { default: emailRouter },
+    { default: inventorySourceRouter },
   ] = await Promise.all([
     import("./health"),
     import("./products"),
     import("./orders"),
     import("./postal-codes"),
     import("./email"),
+    import("./inventory-source"),
   ]);
 
   router.use(healthRouter);
@@ -23,6 +25,7 @@ export async function createRouter(): Promise<IRouter> {
   router.use(ordersRouter);
   router.use(postalCodesRouter);
   router.use(emailRouter);
+  router.use(inventorySourceRouter);
 
   if (process.env.DATABASE_URL) {
     const [

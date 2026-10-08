@@ -125,6 +125,7 @@ import { NotificationItem } from "@/components/NotificationItem";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OrderDetailModal } from "@/components/OrderDetailModal";
 import { ReferencesView } from "@/components/ReferencesView";
+import { InventorySourceView } from "@/components/InventorySourceView";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { isInventoryUserEmail } from "@/lib/auth-access";
@@ -3388,6 +3389,9 @@ function Naranja850PricingEditor({
 }
 
 function ProductsView() {
+  const [productSource, setProductSource] = useState<"inventory" | "store">(
+    "inventory",
+  );
   const [products, setProducts] = useState<EditableProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -3786,6 +3790,49 @@ function ProductsView() {
     return matchesSearch && matchesCategory;
   });
 
+  const sourceSelector = (
+    <div className="mb-6 inline-flex w-full rounded-2xl border border-slate-200 bg-slate-100 p-1 sm:w-auto">
+      <button
+        type="button"
+        onClick={() => setProductSource("inventory")}
+        aria-pressed={productSource === "inventory"}
+        className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 sm:flex-none ${
+          productSource === "inventory"
+            ? "bg-white text-sky-800 shadow-sm"
+            : "text-slate-500 hover:text-slate-800"
+        }`}
+      >
+        <Warehouse size={16} aria-hidden="true" />
+        Inventario conectado
+      </button>
+      <button
+        type="button"
+        onClick={() => setProductSource("store")}
+        aria-pressed={productSource === "store"}
+        className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 sm:flex-none ${
+          productSource === "store"
+            ? "bg-white text-sky-800 shadow-sm"
+            : "text-slate-500 hover:text-slate-800"
+        }`}
+      >
+        <Package size={16} aria-hidden="true" />
+        Catálogo de la tienda
+      </button>
+    </div>
+  );
+
+  if (productSource === "inventory") {
+    return (
+      <DashboardSection
+        title="Productos e inventario"
+        subtitle="Consulta existencias, presentaciones, precios y códigos del inventario central."
+      >
+        {sourceSelector}
+        <InventorySourceView />
+      </DashboardSection>
+    );
+  }
+
   return (
     <DashboardSection
       title="Gestión de Productos"
@@ -3794,13 +3841,14 @@ function ProductsView() {
         <button
           type="button"
           onClick={handleAddProductClick}
-          className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+          className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
         >
           <Package size={16} />
           Agregar producto
         </button>
       }
     >
+      {sourceSelector}
       <div className="mb-7 grid gap-5 md:grid-cols-[1fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fbff_100%)] px-7 py-9 shadow-sm">
           <p className="text-[15px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
