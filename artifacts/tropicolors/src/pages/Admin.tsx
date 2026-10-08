@@ -28,6 +28,7 @@ import {
   Mail,
   AlertCircle,
   ChevronRight,
+  ChevronDown,
   DollarSign,
   Users,
   Star,
@@ -50,6 +51,9 @@ import {
   CreditCard,
   Trash2,
   Warehouse,
+  ChevronLeft,
+  Pencil,
+  Plus,
 } from "lucide-react";
 import {
   BarChart,
@@ -3397,6 +3401,7 @@ function ProductsView() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todos");
+  const [catalogPage, setCatalogPage] = useState(1);
   const [hasChanges, setHasChanges] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -3790,6 +3795,21 @@ function ProductsView() {
     return matchesSearch && matchesCategory;
   });
 
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [searchTerm, categoryFilter]);
+
+  const catalogPageSize = 10;
+  const catalogPageCount = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / catalogPageSize),
+  );
+  const safeCatalogPage = Math.min(catalogPage, catalogPageCount);
+  const visibleCatalogProducts = filteredProducts.slice(
+    (safeCatalogPage - 1) * catalogPageSize,
+    safeCatalogPage * catalogPageSize,
+  );
+
   const sourceSelector = (
     <div className="mb-6 inline-flex w-full rounded-2xl border border-slate-200 bg-slate-100 p-1 sm:w-auto">
       <button
@@ -3824,8 +3844,8 @@ function ProductsView() {
   if (productSource === "inventory") {
     return (
       <DashboardSection
-        title="Productos e inventario"
-        subtitle="Consulta existencias, presentaciones, precios y códigos del inventario central."
+        title="Productos"
+        subtitle="Consulta existencias y despliega los detalles solo cuando los necesites."
       >
         {sourceSelector}
         <InventorySourceView />
@@ -3835,194 +3855,258 @@ function ProductsView() {
 
   return (
     <DashboardSection
-      title="Gestión de Productos"
-      subtitle="Edita precios, colores y disponibilidad de productos desde Firebase."
+      title="Catálogo de la tienda"
+      subtitle="Administra los colores y precios que aparecen en la página de venta."
       action={
         <button
           type="button"
           onClick={handleAddProductClick}
-          className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
+          className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
         >
-          <Package size={16} />
-          Agregar producto
+          <Plus size={16} />
+          Nuevo producto
         </button>
       }
     >
       {sourceSelector}
-      <div className="mb-7 grid gap-5 md:grid-cols-[1fr_0.8fr]">
-        <div className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fbff_100%)] px-7 py-9 shadow-sm">
-          <p className="text-[15px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
-            Control de productos
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
-              Visibles
-            </p>
-            <p className="mt-2 text-2xl font-display font-bold text-slate-950">
-              {filteredProducts.length}
-            </p>
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-slate-950">
+                Productos publicados
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {filteredProducts.length} de {products.length} productos
+              </p>
+            </div>
+            <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-700 ring-1 ring-sky-200">
+              Tienda en línea
+            </span>
           </div>
-          <div className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 text-center shadow-sm">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
-              Total
-            </p>
-            <p className="mt-2 text-2xl font-display font-bold text-slate-950">
-              {products.length}
-            </p>
-          </div>
-        </div>
-      </div>
 
-      <div className="mb-4 rounded-3xl border border-slate-200/80 bg-white/90 p-3 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex flex-1 items-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 shadow-sm">
-            <Search size={16} className="text-muted-foreground shrink-0" />
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              aria-label="Buscar productos"
-              placeholder="Buscar por nombre..."
-              className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="text-muted-foreground hover:text-slate-900 transition-colors"
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                aria-label="Buscar productos"
+                placeholder="Buscar color o producto..."
+                className="min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 text-sm text-slate-900 transition placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="relative sm:w-56">
+              <Filter
+                size={14}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <select
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                aria-label="Filtrar productos por categoría"
+                className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-xs font-semibold text-slate-700 transition focus-visible:border-sky-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
               >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-muted-foreground" />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-            >
-              <option value="todos">Todas las categorías</option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+                <option value="todos">Todas las categorías</option>
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {loading ? (
-        <div className="rounded-3xl border border-border/50 bg-white p-12 text-center">
-          <Loader2 size={32} className="mx-auto animate-spin text-primary" />
-          <p className="mt-4 text-sm text-muted-foreground">
-            Cargando productos...
-          </p>
-        </div>
-      ) : filteredProducts.length === 0 ? (
-        <div className="rounded-3xl border border-border/50 bg-white px-5 py-12 text-center text-sm text-muted-foreground">
-          {searchTerm || categoryFilter !== "todos"
-            ? "No se encontraron productos con los filtros aplicados."
-            : "No hay productos en Firebase. Agrega uno nuevo."}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredProducts.map((product) => (
+        {loading ? (
+          <div className="grid min-h-64 place-items-center">
+            <div className="text-center">
+              <Loader2 size={28} className="mx-auto animate-spin text-sky-600" />
+              <p className="mt-3 text-sm font-semibold text-slate-500">
+                Cargando catálogo...
+              </p>
+            </div>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <Search className="mx-auto text-slate-300" size={28} />
+            <p className="mt-3 font-bold text-slate-900">
+              No encontramos productos
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {searchTerm || categoryFilter !== "todos"
+                ? "Prueba otra búsqueda o cambia la categoría."
+                : "Agrega el primer producto al catálogo."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden grid-cols-[minmax(0,1.5fr)_0.75fr_0.7fr_auto] gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 md:grid">
+              <span>Producto</span>
+              <span>Categoría</span>
+              <span>Precio inicial</span>
+              <span className="text-right">Acciones</span>
+            </div>
             <div
-              key={product.id}
-              className="group relative overflow-hidden rounded-[24px] border border-border/60 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)]"
+              key={`${safeCatalogPage}-${searchTerm}-${categoryFilter}`}
+              className="animate-in divide-y divide-slate-100 fade-in slide-in-from-bottom-1 duration-200"
             >
-              {/* Color Header */}
-              <div
-                className="relative h-28 w-full overflow-hidden"
-                style={{ backgroundColor: product.hex || "#f1f5f9" }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent mix-blend-overlay" />
-                <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.2)_0%,transparent_100%)]" />
-                <div className="absolute right-3 top-3 flex gap-2">
-                  {product.industrial && (
-                    <span className="rounded-full bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
-                      Industrial
-                    </span>
-                  )}
-                  <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-800 shadow-sm backdrop-blur-md">
-                    {product.category}
-                  </span>
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-5">
-                <div className="mb-4">
-                  <h3 className="font-display text-lg font-bold text-slate-950 truncate transition-colors group-hover:text-primary">
-                    {product.name}
-                  </h3>
-                  <div className="mt-1.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border border-slate-200 shadow-sm"
-                        style={{ backgroundColor: product.hex || "#f1f5f9" }}
-                      />
-                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                        {product.hex || "N/A"}
-                      </span>
-                    </div>
-                    <div
-                      className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                        (product.stock || 0) > 10
-                          ? "bg-green-100 text-green-700"
-                          : (product.stock || 0) > 0
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      Stock: {product.stock || 0}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-5 rounded-2xl bg-slate-50/80 p-3 border border-slate-100">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    Precio desde
-                  </p>
-                  <p className="text-lg font-extrabold text-slate-900">
-                    $
-                    {Math.min(...getEditableProductDisplayPrices(product)) ||
-                      "0"}
-                    <span className="text-sm font-semibold text-slate-500">
-                      {" "}
-                      MXN
-                    </span>
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 mt-auto">
-                  <button
-                    type="button"
-                    onClick={() => handleEditClick(product)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary"
+              {visibleCatalogProducts.map((product) => {
+                const initialPrice =
+                  Math.min(...getEditableProductDisplayPrices(product)) || 0;
+                return (
+                  <article
+                    key={product.id}
+                    className="group px-4 py-3.5 transition hover:bg-sky-50/40 sm:px-5"
                   >
-                    Editar
-                  </button>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[minmax(0,1.5fr)_0.75fr_0.7fr_auto] md:gap-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-black/10 shadow-sm"
+                          style={{ backgroundColor: product.hex || "#f1f5f9" }}
+                        >
+                          <span className="absolute inset-0 bg-[linear-gradient(145deg,rgba(255,255,255,0.35),transparent_60%)]" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="truncate text-sm font-bold text-slate-950">
+                              {product.name}
+                            </h3>
+                            {product.industrial && (
+                              <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-slate-600 sm:inline-flex">
+                                Industrial
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 font-mono text-[10px] font-semibold uppercase text-slate-400">
+                            {product.hex || "Sin color"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="hidden md:block">
+                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                          {product.category}
+                        </span>
+                      </div>
+
+                      <div className="hidden md:block">
+                        <p className="text-sm font-bold text-slate-950">
+                          ${initialPrice.toLocaleString("es-MX")}
+                        </p>
+                        <p className="text-[10px] text-slate-400">MXN</p>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleEditClick(product)}
+                          aria-label={`Editar ${product.name}`}
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
+                        >
+                          <Pencil size={14} />
+                          <span className="hidden sm:inline">Editar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDeleteProduct(product.id, product.name)
+                          }
+                          aria-label={`Eliminar ${product.name}`}
+                          className="grid h-10 w-10 place-items-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-600 hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-100"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 md:hidden">
+                      <div className="rounded-xl bg-slate-50 px-3 py-2">
+                        <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                          Categoría
+                        </p>
+                        <p className="mt-1 truncate text-xs font-bold text-slate-700">
+                          {product.category}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2">
+                        <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                          Precio desde
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-950">
+                          ${initialPrice.toLocaleString("es-MX")} MXN
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 sm:px-5">
+              <p className="text-xs font-semibold text-slate-500">
+                {(safeCatalogPage - 1) * catalogPageSize + 1}–
+                {Math.min(
+                  safeCatalogPage * catalogPageSize,
+                  filteredProducts.length,
+                )}{" "}
+                de {filteredProducts.length}
+              </p>
+              {catalogPageCount > 1 && (
+                <nav
+                  className="flex items-center gap-1.5"
+                  aria-label="Paginación del catálogo"
+                >
                   <button
                     type="button"
                     onClick={() =>
-                      handleDeleteProduct(product.id, product.name)
+                      setCatalogPage(Math.max(1, safeCatalogPage - 1))
                     }
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
-                    title="Eliminar producto"
+                    disabled={safeCatalogPage === 1}
+                    aria-label="Página anterior"
+                    className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50 disabled:opacity-35 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
                   >
-                    <Trash2 size={16} />
+                    <ChevronLeft size={16} />
                   </button>
-                </div>
-              </div>
+                  <span className="min-w-14 text-center text-[11px] font-bold text-slate-600">
+                    {safeCatalogPage}/{catalogPageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCatalogPage(
+                        Math.min(catalogPageCount, safeCatalogPage + 1),
+                      )
+                    }
+                    disabled={safeCatalogPage === catalogPageCount}
+                    aria-label="Página siguiente"
+                    className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50 disabled:opacity-35 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </nav>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+          </>
+        )}
+      </section>
 
       {/* Add Product Modal */}
       {showAddModal &&
