@@ -167,8 +167,6 @@ export function useOrders() {
         const ordersData: AdminOrder[] = snapshot.docs.map((doc) => {
           const data = doc.data() as FirestoreOrder;
 
-          console.log(`[useOrders] 📄 Procesando documento: ${doc.id}`, data);
-
           const calculatedSubtotal = calcularSubtotalItems(data.items);
           const storedSubtotal = Number(data.subtotal);
           const shippingFee = Number(data.shippingFee) || 0;
@@ -344,7 +342,6 @@ export function useOrders() {
           );
         });
 
-        console.log("[useOrders] 📊 Pedidos procesados:", ordersData);
         setOrders(ordersData);
         setIsLoading(false);
         setError(null);

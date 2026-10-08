@@ -25,6 +25,47 @@ const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || "Tropicolors";
 // Correo del administrador
 const ADMIN_EMAIL = "contacto@tropicolors.mx";
 
+const EMAIL_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const EMAIL_RATE_LIMIT_MAX = 20;
+const emailRateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+router.use((req, res, next) => {
+  if (req.method !== "POST") {
+    next();
+    return;
+  }
+
+  const now = Date.now();
+  if (emailRateBuckets.size > 1000) {
+    for (const [key, value] of emailRateBuckets) {
+      if (value.resetAt <= now) emailRateBuckets.delete(key);
+    }
+  }
+  const bucketKey = `${req.ip || "unknown"}:${req.path}`;
+  const currentBucket = emailRateBuckets.get(bucketKey);
+  const bucket =
+    !currentBucket || currentBucket.resetAt <= now
+      ? { count: 0, resetAt: now + EMAIL_RATE_LIMIT_WINDOW_MS }
+      : currentBucket;
+
+  bucket.count += 1;
+  emailRateBuckets.set(bucketKey, bucket);
+  res.setHeader(
+    "X-RateLimit-Remaining",
+    String(Math.max(0, EMAIL_RATE_LIMIT_MAX - bucket.count)),
+  );
+
+  if (bucket.count > EMAIL_RATE_LIMIT_MAX) {
+    res.status(429).json({
+      success: false,
+      message: "Demasiados intentos de envío. Espera unos minutos.",
+    });
+    return;
+  }
+
+  next();
+});
+
 function normalizeBrevoError(message?: string): {
   publicMessage: string;
   statusCode: number;

@@ -5,7 +5,7 @@ import {
   type SiteReference,
 } from "@/types/reference";
 
-export function useReferences(enabled = true) {
+export function useReferences(enabled = true, includeDrafts = false) {
   const [references, setReferences] = useState<SiteReference[]>([]);
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export function useReferences(enabled = true) {
 
     void (async () => {
       try {
-        const [{ collection, onSnapshot, query }, { db }] = await Promise.all([
+        const [{ collection, onSnapshot, query, where }, { db }] = await Promise.all([
           import("firebase/firestore"),
           import("@/lib/firebase"),
         ]);
@@ -32,7 +32,12 @@ export function useReferences(enabled = true) {
           return;
         }
 
-        const referencesQuery = query(collection(db, "references"));
+        const referencesQuery = includeDrafts
+          ? query(collection(db, "references"))
+          : query(
+              collection(db, "references"),
+              where("status", "==", "active"),
+            );
 
         unsubscribe = onSnapshot(
           referencesQuery,
@@ -48,6 +53,7 @@ export function useReferences(enabled = true) {
                   docSnap.data() as FirestoreReference,
                 ),
               )
+              .filter((reference) => includeDrafts || reference.status === "active")
               .sort((a, b) => {
                 if (!a.createdAt && !b.createdAt) return 0;
                 if (!a.createdAt) return 1;
@@ -86,7 +92,7 @@ export function useReferences(enabled = true) {
       isCancelled = true;
       unsubscribe?.();
     };
-  }, [enabled]);
+  }, [enabled, includeDrafts]);
 
   return {
     references,

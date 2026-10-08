@@ -40,6 +40,7 @@ export async function createApp(): Promise<Express> {
   const frontendPublicDir = resolveFrontendPublicDir();
 
   app.disable("x-powered-by");
+  app.set("trust proxy", 1);
 
   app.use(
     pinoHttp({

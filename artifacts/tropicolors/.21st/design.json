@@ -227,6 +227,16 @@
       "choice": "Use responsive table-based transactional emails with status-specific mascot artwork, brand colors, progress, order details, and accessible text fallbacks",
       "reason": "Give customers a clear, recognizable update for every order state while preserving compatibility across desktop and mobile email clients",
       "date": "2026-10-07"
+    },
+    {
+      "choice": "Use a status-driven order tracking hero with matching mascot artwork, semantic color, responsive progress layouts, and restrained transition motion",
+      "reason": "Connect the public tracking experience to the transactional emails while making the current status and next action immediately understandable on desktop and mobile",
+      "date": "2026-10-07"
+    },
+    {
+      "choice": "Use a grouped sticky sidebar for desktop administration, a five-action bottom dock on mobile, compact transactional cards, and persisted operational data",
+      "reason": "Make frequent backoffice tasks easier to scan and reach without crowding small screens, while keeping the TropiColors gradients and rounded visual language",
+      "date": "2026-10-07"
     }
   ],
   "evidence": [

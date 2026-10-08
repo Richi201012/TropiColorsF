@@ -5,6 +5,7 @@ import {
   doc,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ReferenceStatus } from "@/types/reference";
@@ -50,4 +51,14 @@ export async function updateReference(referenceId: string, input: ReferenceInput
 
 export async function deleteReference(referenceId: string) {
   await deleteDoc(doc(db, "references", referenceId));
+}
+
+export async function setReferenceStatus(
+  referenceId: string,
+  status: ReferenceStatus,
+) {
+  await updateDoc(doc(db, "references", referenceId), {
+    status,
+    updatedAt: serverTimestamp(),
+  });
 }

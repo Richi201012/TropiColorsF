@@ -6,6 +6,7 @@
   useRef,
   useCallback,
   useMemo,
+  useId,
 } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
@@ -64,7 +65,7 @@ import {
   Legend,
 } from "recharts";
 import { Invoice } from "@/components/Invoice";
-import { buildInvoiceNumber, type InvoiceData } from "@/types/invoice";
+import { type InvoiceData } from "@/types/invoice";
 import { useInvoicePDF } from "@/hooks/useInvoicePDF";
 import type { User as FirebaseUser } from "firebase/auth";
 import {
@@ -100,7 +101,10 @@ import {
   buildClientesFromOrders,
   filtrarClientes,
 } from "@/hooks/useClientesFromOrders";
-import { buildFacturasFromOrders } from "@/hooks/useFacturasFromOrders";
+import {
+  buildFacturasFromOrders,
+  buildInvoiceNumberForOrder,
+} from "@/hooks/useFacturasFromOrders";
 import {
   createOrder as createOrderDB,
   deleteOrderAndTracking,
@@ -364,6 +368,8 @@ function PremiumInput({
   showToggle,
   onToggle,
   disabled,
+  label,
+  autoComplete,
 }: {
   icon: React.ElementType;
   type: string;
@@ -374,13 +380,20 @@ function PremiumInput({
   showToggle?: boolean;
   onToggle?: () => void;
   disabled?: boolean;
+  label?: string;
+  autoComplete?: string;
 }) {
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === "password";
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
 
   return (
     <div className="relative">
+      <label htmlFor={inputId} className="sr-only">
+        {label || placeholder}
+      </label>
       <div
         className={`relative transition-all duration-200 ${isFocused ? "transform -translate-y-0.5" : ""}`}
       >
@@ -390,11 +403,15 @@ function PremiumInput({
           <Icon size={18} strokeWidth={1.5} />
         </div>
         <input
+          id={inputId}
           type={isPassword && showPassword ? "text" : type}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
           disabled={disabled}
+          autoComplete={autoComplete}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={`
@@ -414,14 +431,19 @@ function PremiumInput({
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-slate-100 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         )}
       </div>
       {error && (
-        <p className="mt-2 text-xs text-destructive flex items-center gap-1 animate-slide-in-right">
+        <p
+          id={errorId}
+          role="alert"
+          className="mt-2 text-xs text-destructive flex items-center gap-1 animate-slide-in-right"
+        >
           <AlertCircle size={12} />
           {error}
         </p>
@@ -714,6 +736,8 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
                     icon={Mail}
                     type="email"
                     placeholder="Correo electrónico"
+                    label="Correo electrónico"
+                    autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     error={error && !email ? error : undefined}
@@ -729,6 +753,8 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
                     icon={Lock}
                     type="password"
                     placeholder="Contraseña"
+                    label="Contraseña"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     error={error && !password ? error : undefined}
@@ -774,7 +800,7 @@ function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
             className="text-center text-white/30 text-xs mt-8 animate-fade-in-up"
             style={{ animationDelay: "0.6s" }}
           >
-            © 2024 TropicColors. Todos los derechos reservados.
+            © {new Date().getFullYear()} TropicColors. Todos los derechos reservados.
           </p>
         </div>
       </div>
@@ -1006,6 +1032,10 @@ function statusLabel(status: OrderStatus) {
   }[status];
 }
 
+function isRevenueOrder(order: Pick<AdminOrder, "status">): boolean {
+  return ["pagado", "enviado", "entregado"].includes(order.status);
+}
+
 function orderStatusClasses(status: OrderStatus) {
   return {
     pendiente: "bg-amber-50 text-amber-700 border-amber-200",
@@ -1016,10 +1046,20 @@ function orderStatusClasses(status: OrderStatus) {
   }[status];
 }
 
-function invoiceStatusClasses(status: "pagada" | "pendiente") {
-  return status === "pagada"
-    ? "bg-emerald-50 text-emerald-700"
-    : "bg-amber-50 text-amber-700";
+function invoiceStatusClasses(status: InvoiceData["status"]) {
+  if (status === "paid") return "bg-emerald-50 text-emerald-700";
+  if (status === "cancelled") return "bg-red-50 text-red-700";
+  if (status === "overdue") return "bg-rose-50 text-rose-700";
+  return "bg-amber-50 text-amber-700";
+}
+
+function invoiceStatusLabel(status: InvoiceData["status"]) {
+  return {
+    paid: "Pagada",
+    pending: "Pendiente",
+    cancelled: "Cancelada",
+    overdue: "Vencida",
+  }[status];
 }
 
 function formatDateShort(dateString?: string): string {
@@ -1118,22 +1158,86 @@ function ModalShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const titleId = useId();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const getFocusableElements = () =>
+      Array.from(
+        dialog?.querySelectorAll<HTMLElement>(focusableSelector) || [],
+      );
+
+    window.requestAnimationFrame(() => {
+      const firstFocusable = getFocusableElements()[0];
+      (firstFocusable || dialog)?.focus();
+    });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
+        aria-hidden="true"
         className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl shadow-slate-900/20 animate-fade-in-scale"
         onClick={(event) => event.stopPropagation()}
         onWheel={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
           <div>
-            <h3 className="text-xl font-display font-bold text-slate-950">
+            <h3
+              id={titleId}
+              className="text-xl font-display font-bold text-slate-950"
+            >
               {title}
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
@@ -1141,6 +1245,7 @@ function ModalShell({
           <button
             type="button"
             onClick={onClose}
+            aria-label={`Cerrar ${title}`}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-white text-slate-600 transition hover:bg-muted/30 hover:text-slate-950"
           >
             <X size={18} />
@@ -1305,7 +1410,7 @@ function SummaryView({
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const snapshot = await getDocs(collection(db, "productos"));
+        const snapshot = await getDocs(collection(db, "products"));
         const prods = snapshot.docs.map((doc) => ({
           stock: doc.data().stock || 0,
         }));
@@ -1322,23 +1427,29 @@ function SummaryView({
   const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
   const recentOrders = orders.slice(0, 5);
 
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const revenueOrders = orders.filter(isRevenueOrder);
+  const totalRevenue = revenueOrders.reduce(
+    (sum, order) => sum + order.total,
+    0,
+  );
   const pendingCount = orders.filter((o) => o.status === "pendiente").length;
   const paidCount = orders.filter((o) => o.status === "pagado").length;
   const shippedCount = orders.filter((o) => o.status === "enviado").length;
   const deliveredCount = orders.filter((o) => o.status === "entregado").length;
+  const cancelledCount = orders.filter((o) => o.status === "cancelado").length;
 
   const orderStatusData = [
     { name: "Pendiente", value: pendingCount, color: "#f59e0b" },
     { name: "Pagado", value: paidCount, color: "#0ea5e9" },
     { name: "Enviado", value: shippedCount, color: "#3b82f6" },
     { name: "Entregado", value: deliveredCount, color: "#10b981" },
+    { name: "Cancelado", value: cancelledCount, color: "#ef4444" },
   ].filter((item) => item.value > 0);
 
   const salesByDay = (() => {
     const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
     const totals = days.map((day) => ({ day, ventas: 0, pedidos: 0 }));
-    orders.forEach((order) => {
+    revenueOrders.forEach((order) => {
       const ts = (order as any).createdAt;
       if (!ts) return;
       const d = new Date(ts);
@@ -1370,7 +1481,7 @@ function SummaryView({
                 Ventas por día de la semana
               </h3>
               <p className="text-xs text-muted-foreground">
-                Basado en pedidos registrados
+                Sólo pedidos pagados, enviados y entregados
               </p>
             </div>
           </div>
@@ -1529,6 +1640,8 @@ function OrdersView({
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 10;
 
   const handleOpenTracking = (trackingToken?: string) => {
     if (!trackingToken) return;
@@ -1554,6 +1667,22 @@ function OrdersView({
 
     return matchesSearch && matchesStatus;
   });
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredOrders.length / ordersPerPage),
+  );
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * ordersPerPage,
+    currentPage * ordersPerPage,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   return (
     <DashboardSection
@@ -1563,7 +1692,7 @@ function OrdersView({
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <button
             type="button"
-            onClick={() => exportOrdersToCSV(orders)}
+            onClick={() => exportOrdersToCSV(filteredOrders)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/5 hover:text-primary hover:shadow-md sm:w-auto"
             title="Exportar pedidos a CSV"
           >
@@ -1622,6 +1751,7 @@ function OrdersView({
               id="orders-search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Buscar pedidos"
               placeholder="Buscar por cliente, ID o correo..."
               className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
             />
@@ -1667,7 +1797,7 @@ function OrdersView({
       ) : (
         <>
           <div className="grid gap-3 md:hidden">
-            {filteredOrders.map((order) => (
+            {paginatedOrders.map((order) => (
               <div
                 key={order.id}
                 className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_16px_35px_rgba(15,23,42,0.06)]"
@@ -1777,7 +1907,7 @@ function OrdersView({
               <span>Acción</span>
               <span></span>
             </div>
-            {filteredOrders.map((order) => (
+            {paginatedOrders.map((order) => (
               <div
                 key={order.id}
                 className="grid grid-cols-[0.9fr_1.2fr_1fr_0.8fr_0.95fr_0.7fr_0.4fr] items-center gap-4 border-t border-border/40 bg-white px-5 py-4 text-sm transition-colors hover:bg-slate-50"
@@ -1850,9 +1980,38 @@ function OrdersView({
         </>
       )}
       {filteredOrders.length > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Mostrando {filteredOrders.length} de {orders.length} pedidos
-        </p>
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            Mostrando {(currentPage - 1) * ordersPerPage + 1}–
+            {Math.min(currentPage * ordersPerPage, filteredOrders.length)} de{" "}
+            {filteredOrders.length} pedidos
+          </p>
+          {totalPages > 1 ? (
+            <div className="flex items-center gap-2" aria-label="Paginación de pedidos">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+                className="min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Anterior
+              </button>
+              <span className="min-w-20 text-center text-xs font-semibold text-slate-600">
+                {currentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((page) => Math.min(totalPages, page + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Siguiente
+              </button>
+            </div>
+          ) : null}
+        </div>
       )}
     </DashboardSection>
   );
@@ -1884,8 +2043,19 @@ function InvoicesView({
         </button>
       }
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {invoices.map((invoice) => (
+      {invoices.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-12 text-center">
+          <Receipt size={28} className="mx-auto text-slate-400" />
+          <h3 className="mt-3 font-display text-lg font-bold text-slate-950">
+            No hay solicitudes de factura
+          </h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+            Aquí aparecerán los pedidos que solicitaron factura y las facturas creadas manualmente.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {invoices.map((invoice) => (
           <div
             key={invoice.invoiceNumber}
             className="rounded-3xl border border-border/50 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
@@ -1902,9 +2072,9 @@ function InvoicesView({
                 </h3>
               </div>
               <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusClasses(invoice.status === "paid" ? "pagada" : "pendiente")}`}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusClasses(invoice.status)}`}
               >
-                {invoice.status === "paid" ? "Pagada" : "Pendiente"}
+                {invoiceStatusLabel(invoice.status)}
               </span>
             </div>
             <p className="mt-4 text-3xl font-display font-bold text-slate-950">
@@ -1927,8 +2097,9 @@ function InvoicesView({
               </button>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </DashboardSection>
   );
 }
@@ -1967,6 +2138,7 @@ function ClientsView({
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
+          aria-label="Buscar clientes"
           placeholder="Buscar cliente por nombre o correo"
           className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
         />
@@ -2010,10 +2182,11 @@ function StatisticsView({
   orders: AdminOrder[];
   onBack: () => void;
 }) {
+  const revenueOrders = orders.filter(isRevenueOrder);
   const salesByDay = (() => {
     const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
     const totals = days.map((day) => ({ day, ventas: 0, pedidos: 0 }));
-    orders.forEach((order) => {
+    revenueOrders.forEach((order) => {
       const ts = (order as any).createdAt;
       if (!ts) return;
       const d = new Date(ts);
@@ -2046,10 +2219,16 @@ function StatisticsView({
       value: orders.filter((o) => o.status === "entregado").length,
       color: "#10b981",
     },
+    {
+      name: "Cancelado",
+      value: orders.filter((o) => o.status === "cancelado").length,
+      color: "#ef4444",
+    },
   ].filter((item) => item.value > 0);
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const avgOrder = orders.length > 0 ? totalRevenue / orders.length : 0;
+  const totalRevenue = revenueOrders.reduce((sum, o) => sum + o.total, 0);
+  const avgOrder =
+    revenueOrders.length > 0 ? totalRevenue / revenueOrders.length : 0;
 
   return (
     <DashboardSection
@@ -2106,7 +2285,7 @@ function StatisticsView({
                 Ventas por día
               </h3>
               <p className="text-sm text-muted-foreground">
-                Monto acumulado por día de la semana
+                Pedidos pagados, enviados y entregados
               </p>
             </div>
           </div>
@@ -2459,6 +2638,8 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               icon={Lock}
               type="password"
               placeholder="Nueva contraseña"
+              label="Nueva contraseña"
+              autoComplete="new-password"
               value={passwordForm.password}
               onChange={(event) =>
                 setPasswordForm((current) => ({
@@ -2472,6 +2653,8 @@ function SettingsView({ onLogout }: { onLogout: () => Promise<void> }) {
               icon={Lock}
               type="password"
               placeholder="Confirmar contraseña"
+              label="Confirmar nueva contraseña"
+              autoComplete="new-password"
               value={passwordForm.confirmPassword}
               onChange={(event) =>
                 setPasswordForm((current) => ({
@@ -3651,6 +3834,7 @@ function ProductsView() {
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Buscar productos"
               placeholder="Buscar por nombre..."
               className="w-full border-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-muted-foreground"
             />
@@ -4868,6 +5052,9 @@ function Dashboard({
   const [isHeaderElevated, setIsHeaderElevated] = useState(false);
   const [isMobileDockVisible, setIsMobileDockVisible] = useState(true);
   const lastMobileScrollYRef = useRef(0);
+  const viewTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Estado para modal de detalle de pedido desde notificaciones
   const [notificationOrderId, setNotificationOrderId] = useState<string | null>(
@@ -5152,29 +5339,28 @@ function Dashboard({
     }
   }, [orders]);
 
-  // Estado para inventario en tiempo real
+  // Estado del catálogo e inventario en tiempo real.
   const [productosStock, setProductosStock] = useState<{ stock: number }[]>([]);
   const [loadingStock, setLoadingStock] = useState(true);
 
   useEffect(() => {
-    const loadStock = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "productos"));
-        const prods = snapshot.docs.map((doc) => ({
-          stock: doc.data().stock || 0,
-        }));
-        setProductosStock(prods);
-      } catch (err) {
-        console.error("Error loading stock:", err);
-      } finally {
+    const unsubscribe = onSnapshot(
+      collection(db, "products"),
+      (snapshot) => {
+        setProductosStock(
+          snapshot.docs.map((productDoc) => ({
+            stock: Number(productDoc.data().stock) || 0,
+          })),
+        );
         setLoadingStock(false);
-      }
-    };
-    loadStock();
+      },
+      (error) => {
+        console.error("[Admin] Error loading stock:", error);
+        setLoadingStock(false);
+      },
+    );
 
-    // Actualizar cada 10 segundos
-    const interval = setInterval(loadStock, 10000);
-    return () => clearInterval(interval);
+    return () => unsubscribe();
   }, []);
 
   const totalStock = productosStock.reduce((sum, p) => sum + p.stock, 0);
@@ -5198,35 +5384,98 @@ function Dashboard({
     clearNewNotification();
   }, [newNotification, clearNewNotification, playNotificationSound]);
 
-  const facturasData = useMemo(() => buildFacturasFromOrders(orders), [orders]);
-  const [facturas, setFacturas] = useState<InvoiceData[]>(facturasData);
+  const facturasDesdePedidos = useMemo(
+    () => buildFacturasFromOrders(orders),
+    [orders],
+  );
+  const [facturasGuardadas, setFacturasGuardadas] = useState<InvoiceData[]>([]);
 
   useEffect(() => {
-    setFacturas(facturasData);
-  }, [facturasData]);
+    const unsubscribe = onSnapshot(
+      collection(db, "invoices"),
+      (snapshot) => {
+        setFacturasGuardadas(
+          snapshot.docs.map((invoiceDoc) => invoiceDoc.data() as InvoiceData),
+        );
+      },
+      (error) => {
+        console.error("[Admin] Error loading invoices:", error);
+        toast({
+          title: "No se pudieron cargar las facturas",
+          description: "Revisa la conexión y los permisos de Firebase.",
+          variant: "destructive",
+        });
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const facturas = useMemo(() => {
+    const invoicesByOrder = new Map<string, InvoiceData>();
+
+    facturasDesdePedidos.forEach((invoice) => {
+      invoicesByOrder.set(invoice.orderId || invoice.invoiceNumber, invoice);
+    });
+    facturasGuardadas.forEach((invoice) => {
+      invoicesByOrder.set(invoice.orderId || invoice.invoiceNumber, invoice);
+    });
+
+    return Array.from(invoicesByOrder.values()).sort(
+      (first, second) =>
+        new Date(second.issueDate).getTime() - new Date(first.issueDate).getTime(),
+    );
+  }, [facturasDesdePedidos, facturasGuardadas]);
 
   const clientesRaw = useMemo(() => buildClientesFromOrders(orders), [orders]);
 
-  // Mapear ClienteAgrupado a AdminClient para compatibilidad con el componente
-  const clientesDesdePedidos: AdminClient[] = clientesRaw.map((c) => ({
-    id: c.id,
-    name: c.nombre,
-    email: c.email,
-    orders: c.pedidos,
-  }));
-
-  const [clientes, setClientes] = useState<AdminClient[]>(clientesDesdePedidos);
+  const [clientesGuardados, setClientesGuardados] = useState<AdminClient[]>([]);
 
   useEffect(() => {
-    setClientes(
-      clientesRaw.map((c) => ({
-        id: c.id,
-        name: c.nombre,
-        email: c.email,
-        orders: c.pedidos,
-      })),
+    const unsubscribe = onSnapshot(
+      collection(db, "clients"),
+      (snapshot) => {
+        setClientesGuardados(
+          snapshot.docs.map((clientDoc) => {
+            const data = clientDoc.data();
+            return {
+              id: clientDoc.id,
+              name: String(data.name || "Cliente sin nombre"),
+              email: String(data.email || ""),
+              orders: Number(data.orders) || 0,
+            };
+          }),
+        );
+      },
+      (error) => {
+        console.error("[Admin] Error loading clients:", error);
+      },
     );
-  }, [clientesRaw]);
+
+    return () => unsubscribe();
+  }, []);
+
+  const clientes = useMemo(() => {
+    const clientsByEmail = new Map<string, AdminClient>();
+
+    clientesGuardados.forEach((client) => {
+      clientsByEmail.set(client.email.trim().toLowerCase(), client);
+    });
+    clientesRaw.forEach((client) => {
+      const emailKey = client.email.trim().toLowerCase();
+      const savedClient = clientsByEmail.get(emailKey);
+      clientsByEmail.set(emailKey, {
+        id: savedClient?.id || client.id,
+        name: savedClient?.name || client.nombre,
+        email: savedClient?.email || client.email,
+        orders: client.pedidos,
+      });
+    });
+
+    return Array.from(clientsByEmail.values()).sort(
+      (first, second) => second.orders - first.orders,
+    );
+  }, [clientesGuardados, clientesRaw]);
   const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState("");
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{
@@ -5304,6 +5553,10 @@ function Dashboard({
     metodoPago: "efectivo", // Nuevo campo para método de pago
   });
   const [newClientForm, setNewClientForm] = useState({ name: "", email: "" });
+  const [newOrderError, setNewOrderError] = useState("");
+  const [newClientError, setNewClientError] = useState("");
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
 
   const showFeedbackModal = useCallback(
     (
@@ -5323,7 +5576,13 @@ function Dashboard({
     {
       icon: DollarSign,
       label: "Ingresos Totales",
-      value: `${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString("es-MX")}`,
+      value: orders
+        .filter(isRevenueOrder)
+        .reduce((sum, order) => sum + order.total, 0)
+        .toLocaleString("es-MX", {
+          style: "currency",
+          currency: "MXN",
+        }),
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
@@ -5343,7 +5602,7 @@ function Dashboard({
     },
     {
       icon: Users,
-      label: "Clientes Nuevos",
+      label: "Clientes",
       value: String(clientes.length),
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -5360,12 +5619,26 @@ function Dashboard({
     orders.find((order) => order.id === selectedInvoiceOrderId) ?? null;
 
   const handleViewChange = (view: DashboardView) => {
+    if (view === vistaActiva) return;
+    if (viewTransitionTimerRef.current) {
+      clearTimeout(viewTransitionTimerRef.current);
+    }
     setIsTransitioning(true);
-    setTimeout(() => {
+    viewTransitionTimerRef.current = setTimeout(() => {
       setVistaActiva(view);
       setIsTransitioning(false);
-    }, 150);
+      viewTransitionTimerRef.current = null;
+    }, 120);
   };
+
+  useEffect(
+    () => () => {
+      if (viewTransitionTimerRef.current) {
+        clearTimeout(viewTransitionTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const openOrderDetail = (orderId: string) => {
     setSelectedOrderId(orderId);
@@ -5510,11 +5783,22 @@ function Dashboard({
     setModalActivo(null);
     setIsUpdatingStatus(false);
 
+    if (!order.email) {
+      showFeedbackModal("success", {
+        badge: "Cambio guardado",
+        title: "Estado actualizado",
+        subtitle: `El pedido quedó como ${estadoMap[newStatus].toLowerCase()}.`,
+        message:
+          "El pedido no tiene correo registrado, por lo que no se envió una notificación al cliente.",
+      });
+      return;
+    }
+
     showFeedbackModal("success", {
       badge: "Correo en proceso",
       title: "Estado actualizado",
       subtitle: `El pedido quedó como ${estadoMap[newStatus].toLowerCase()}.`,
-      message: `Se inicio el envio del correo para ${order.customer} en ${order.email}. El cambio ya quedo reflejado en el panel y la notificacion se esta procesando en segundo plano.`,
+      message: `Se inició el envío del correo para ${order.customer}. El cambio ya quedó reflejado en el panel y la notificación se está procesando en segundo plano.`,
     });
 
     void enviarCorreoEstadoPedidoEnSegundoPlano(emailPayload)
@@ -5621,8 +5905,10 @@ function Dashboard({
     setVistaActiva("facturas");
   };
 
-  const generateInvoice = () => {
+  const generateInvoice = async () => {
     if (!selectedInvoiceOrder) return;
+
+    setIsGeneratingInvoice(true);
 
     // Mapear correctamente los datos del pedido al formato InvoiceData
     const customerData = {
@@ -5632,10 +5918,7 @@ function Dashboard({
       address: selectedInvoiceOrder.address,
     };
 
-    const invoiceNumber = buildInvoiceNumber(
-      facturas.length + 124,
-      selectedInvoiceOrder.createdAt || new Date().toISOString(),
-    );
+    const invoiceNumber = buildInvoiceNumberForOrder(selectedInvoiceOrder);
     const orderTotal = Number(selectedInvoiceOrder.total) || 0;
     const shippingFee = Number(selectedInvoiceOrder.shippingFee) || 0;
     const taxableTotal = Math.max(orderTotal - shippingFee, 0);
@@ -5696,17 +5979,38 @@ function Dashboard({
       orderId: selectedInvoiceOrder.id,
     };
 
-    console.log(
-      "[generateInvoice] 📄 Generando factura para pedido:",
-      selectedInvoiceOrder.id,
-    );
-    console.log("[generateInvoice] 👤 Cliente:", nextInvoice.customer);
-    console.log("[generateInvoice] 💰 Total:", nextInvoice.total);
-    console.log("[generateInvoice] 📦 Items:", nextInvoice.items);
-
-    setFacturas((current) => [nextInvoice, ...current]);
-    setSelectedInvoiceId(nextInvoice.invoiceNumber);
-    setModalActivo("verFactura");
+    try {
+      await setDoc(
+        doc(db, "invoices", selectedInvoiceOrder.id),
+        {
+          ...nextInvoice,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      setFacturasGuardadas((current) => [
+        nextInvoice,
+        ...current.filter(
+          (invoice) => invoice.orderId !== selectedInvoiceOrder.id,
+        ),
+      ]);
+      setSelectedInvoiceId(nextInvoice.invoiceNumber);
+      setModalActivo("verFactura");
+      toast({
+        title: "Factura guardada",
+        description: `El folio ${invoiceNumber} quedó vinculado al pedido.`,
+      });
+    } catch (error) {
+      console.error("[generateInvoice] Error saving invoice:", error);
+      toast({
+        title: "No se pudo guardar la factura",
+        description: "Revisa la conexión y vuelve a intentarlo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
   };
 
   // Hook para generar PDF de facturas
@@ -5722,15 +6026,30 @@ function Dashboard({
   };
 
   const createOrderFromModal = async () => {
+    setNewOrderError("");
+
     if (
       !newOrderForm.customer.trim() ||
       !newOrderForm.products.trim() ||
       !newOrderForm.total.trim()
-    )
+    ) {
+      setNewOrderError("Completa cliente, productos y total para continuar.");
       return;
+    }
+
+    if (
+      newOrderForm.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newOrderForm.email.trim())
+    ) {
+      setNewOrderError("Ingresa un correo válido o deja el campo vacío.");
+      return;
+    }
 
     const total = Number(newOrderForm.total);
-    if (Number.isNaN(total)) return;
+    if (!Number.isFinite(total) || total <= 0) {
+      setNewOrderError("El total debe ser mayor a cero.");
+      return;
+    }
 
     const productNames = newOrderForm.products
       .split(",")
@@ -5753,7 +6072,7 @@ function Dashboard({
 
       const createdOrder = await createOrderDB({
         customerName: newOrderForm.customer.trim(),
-        customerEmail: newOrderForm.email.trim() || "sin-correo@cliente.com",
+        customerEmail: newOrderForm.email.trim(),
         customerPhone: newOrderForm.phone?.trim() || "",
         shippingAddress:
           newOrderForm.address.trim() || "Dirección pendiente de captura",
@@ -5790,7 +6109,7 @@ function Dashboard({
         orderNumber: createdOrder.displayOrderId,
         trackingToken: createdOrder.trackingToken,
         customer: newOrderForm.customer.trim(),
-        email: newOrderForm.email.trim() || "sin-correo@cliente.com",
+        email: newOrderForm.email.trim(),
         address:
           newOrderForm.address.trim() || "Dirección pendiente de captura",
         subtotal: total,
@@ -5811,7 +6130,7 @@ function Dashboard({
       setOrders((current) => [nextOrder, ...current]);
     } catch (error) {
       console.error("Error al guardar el pedido:", error);
-      alert("Error al guardar el pedido. Intenta de nuevo.");
+      setNewOrderError("No se pudo guardar el pedido. Intenta nuevamente.");
       return;
     }
 
@@ -5828,20 +6147,52 @@ function Dashboard({
     setModalActivo(null);
   };
 
-  const createClientFromModal = () => {
-    if (!newClientForm.name.trim() || !newClientForm.email.trim()) return;
+  const createClientFromModal = async () => {
+    setNewClientError("");
 
-    const nextClient: AdminClient = {
-      id: `CL-${String(clientes.length + 1).padStart(3, "0")}`,
-      name: newClientForm.name.trim(),
-      email: newClientForm.email.trim(),
-      orders: 0,
-    };
+    if (!newClientForm.name.trim() || !newClientForm.email.trim()) {
+      setNewClientError("Nombre y correo son obligatorios.");
+      return;
+    }
 
-    setClientes((current) => [nextClient, ...current]);
-    setNewClientForm({ name: "", email: "" });
-    setVistaActiva("clientes");
-    setModalActivo(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClientForm.email.trim())) {
+      setNewClientError("Ingresa un correo electrónico válido.");
+      return;
+    }
+
+    if (
+      clientes.some(
+        (client) =>
+          client.email.trim().toLowerCase() ===
+          newClientForm.email.trim().toLowerCase(),
+      )
+    ) {
+      setNewClientError("Ya existe un cliente registrado con ese correo.");
+      return;
+    }
+
+    setIsCreatingClient(true);
+    try {
+      await addDoc(collection(db, "clients"), {
+        name: newClientForm.name.trim(),
+        email: newClientForm.email.trim().toLowerCase(),
+        orders: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      setNewClientForm({ name: "", email: "" });
+      setVistaActiva("clientes");
+      setModalActivo(null);
+      toast({
+        title: "Cliente guardado",
+        description: "El registro ya está disponible en el panel.",
+      });
+    } catch (error) {
+      console.error("[Admin] Error saving client:", error);
+      setNewClientError("No se pudo guardar el cliente. Intenta nuevamente.");
+    } finally {
+      setIsCreatingClient(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -6018,16 +6369,41 @@ function Dashboard({
   const desktopNavigationTabs = [
     { key: "resumen", label: "Resumen", icon: LayoutDashboard },
     { key: "pedidos", label: "Pedidos", icon: Package },
+    { key: "clientes", label: "Clientes", icon: Users },
     { key: "facturas", label: "Facturas", icon: FileText },
     { key: "productos", label: "Productos", icon: ShoppingBag },
     { key: "referencias", label: "Referencias", icon: Star },
+    { key: "estadisticas", label: "Estadísticas", icon: BarChart3 },
     { key: "notificaciones", label: "Notificaciones", icon: Bell },
     {
       key: "configuracion",
-      label: "Configuracion",
+      label: "Configuración",
       icon: Settings,
     },
   ] as const;
+
+  const desktopNavigationGroups = [
+    {
+      label: "Operación",
+      items: desktopNavigationTabs.filter((tab) =>
+        ["resumen", "pedidos", "clientes"].includes(tab.key),
+      ),
+    },
+    {
+      label: "Comercial",
+      items: desktopNavigationTabs.filter((tab) =>
+        ["facturas", "productos", "referencias", "estadisticas"].includes(
+          tab.key,
+        ),
+      ),
+    },
+    {
+      label: "Sistema",
+      items: desktopNavigationTabs.filter((tab) =>
+        ["notificaciones", "configuracion"].includes(tab.key),
+      ),
+    },
+  ];
 
   const mobilePrimaryTabs = [
     { key: "resumen", shortLabel: "Panel", icon: LayoutDashboard },
@@ -6068,7 +6444,7 @@ function Dashboard({
                     Admin
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
                     Sesión activa
                   </span>
                 </div>
@@ -6196,8 +6572,64 @@ function Dashboard({
           </div>
         ) : null}
 
+        <div className="lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:items-start lg:gap-5">
+          <aside className="sticky top-28 hidden overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-3 shadow-[0_18px_45px_rgba(15,23,42,0.07)] lg:block">
+            <div className="rounded-2xl bg-[linear-gradient(145deg,#071a34_0%,#0f172a_52%,#003f91_100%)] px-4 py-4 text-white">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-cyan-100/70">
+                Centro de control
+              </p>
+              <p className="mt-2 font-display text-lg font-bold">
+                {currentViewMeta.label}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                {currentViewMeta.description}
+              </p>
+            </div>
+
+            <nav aria-label="Navegación principal del panel" className="mt-3 space-y-4">
+              {desktopNavigationGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
+                    {group.label}
+                  </p>
+                  <div className="mt-1.5 space-y-1">
+                    {group.items.map((tab) => {
+                      const TabIcon = tab.icon;
+                      const isActive = vistaActiva === tab.key;
+                      const showBadge =
+                        tab.key === "notificaciones" && unreadCount > 0;
+
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => handleViewChange(tab.key)}
+                          aria-current={isActive ? "page" : undefined}
+                          className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                            isActive
+                              ? "bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_72%,#14b8a6_100%)] text-white shadow-[0_10px_22px_rgba(29,78,216,0.22)]"
+                              : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                          }`}
+                        >
+                          <TabIcon size={17} aria-hidden="true" />
+                          <span className="flex-1">{tab.label}</span>
+                          {showBadge ? (
+                            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              {unreadCount > 99 ? "99+" : unreadCount}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </aside>
+
+          <div className="min-w-0">
         {/* Tabs */}
-        <div className="mb-4 hidden rounded-[26px] border border-white/70 bg-white/75 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:block sm:rounded-[28px]">
+        <div className="mb-4 hidden rounded-[26px] border border-white/70 bg-white/75 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:block sm:rounded-[28px] lg:hidden">
           <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
@@ -6212,9 +6644,11 @@ function Dashboard({
             {desktopNavigationTabs.map((tab) => (
               <button
                 key={tab.key}
+                type="button"
                 onClick={() => handleViewChange(tab.key)}
+                aria-current={vistaActiva === tab.key ? "page" : undefined}
                 className={`
-                relative isolate flex min-h-12 min-w-[148px] flex-none items-center justify-center gap-2 rounded-xl px-4 py-3 text-center text-sm font-bold transition-all duration-300 sm:min-h-0 sm:min-w-0 sm:justify-start sm:px-6
+                relative isolate flex min-h-12 min-w-[148px] flex-none items-center justify-center gap-2 rounded-xl px-4 py-3 text-center text-sm font-bold transition-[background-color,color,box-shadow] duration-200 sm:min-h-0 sm:min-w-0 sm:justify-start sm:px-6
                 ${
                   vistaActiva === tab.key
                     ? "bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_70%,#14b8a6_100%)] text-white shadow-[0_12px_30px_rgba(29,78,216,0.24)]"
@@ -6244,8 +6678,8 @@ function Dashboard({
         <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/80 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:rounded-[32px]">
           <div
             className={`
-            transition-all duration-300
-            ${isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"}
+            transition-[opacity,transform] duration-200 motion-reduce:transition-none
+            ${isTransitioning ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"}
           `}
           >
             {vistaActiva === "resumen" && (
@@ -6276,9 +6710,12 @@ function Dashboard({
                   setModalActivo("verFactura");
                 }}
                 onDownloadInvoice={(invoiceId) => {
-                  // Abrir modal primero para renderizar el componente Invoice
-                  setSelectedInvoiceId(invoiceId);
-                  setModalActivo("verFactura");
+                  const invoice = facturas.find(
+                    (candidate) => candidate.invoiceNumber === invoiceId,
+                  );
+                  if (invoice) {
+                    void downloadPDF(invoice);
+                  }
                 }}
               />
             )}
@@ -6358,7 +6795,7 @@ function Dashboard({
                 className={`
                   p-4 rounded-2xl bg-gradient-to-br ${action.color} 
                   text-white font-bold text-sm flex items-center justify-center gap-2
-                  hover:shadow-xl hover:scale-[1.02] transition-all duration-200
+                  transition-[box-shadow,filter] duration-200 hover:brightness-105 hover:shadow-xl
                   animate-fade-in-up
                 `}
                 style={{ animationDelay: `${i * 100 + 600}ms` }}
@@ -6370,10 +6807,12 @@ function Dashboard({
             ))}
           </div>
         )}
+          </div>
+        </div>
 
         {isMobile ? (
           <div
-            className={`pointer-events-none fixed inset-x-0 bottom-0 z-30 px-5 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] transition-all duration-300 sm:hidden ${
+            className={`pointer-events-none fixed inset-x-0 bottom-0 z-30 px-5 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] transition-[opacity,transform] duration-200 motion-reduce:transition-none sm:hidden ${
               isMobileDockVisible
                 ? "translate-y-0 opacity-100"
                 : "translate-y-24 opacity-0"
@@ -6399,7 +6838,8 @@ function Dashboard({
                       key={tab.key}
                       type="button"
                       onClick={() => handleViewChange(tab.key)}
-                      className={`relative flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 py-2 text-center transition-all duration-300 ${
+                      aria-current={isActive ? "page" : undefined}
+                      className={`relative flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 py-2 text-center transition-[background-color,color,border-color,box-shadow] duration-200 motion-reduce:transition-none ${
                         isActive
                           ? "border border-white/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(178,247,255,0.72)_100%)] text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl"
                           : "border border-transparent text-slate-300/92"
@@ -6623,7 +7063,7 @@ function Dashboard({
                   onClick={() => setModalActivo(null)}
                   className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Actualizar status
+                  Cerrar detalle
                 </button>
               </div>
             </div>
@@ -6651,7 +7091,7 @@ function Dashboard({
             >
               {orders.map((order) => (
                 <option key={order.id} value={order.id}>
-                  {order.id} · {order.customer}
+                  {getOrderDisplayNumber(order)} · {order.customer}
                 </option>
               ))}
             </select>
@@ -6698,10 +7138,16 @@ function Dashboard({
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={generateInvoice}
-              className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:-translate-y-0.5 hover:shadow-xl"
+              onClick={() => void generateInvoice()}
+              disabled={!selectedInvoiceOrder || isGeneratingInvoice}
+              className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-colors hover:from-amber-600 hover:to-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Generar factura
+              {isGeneratingInvoice ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Receipt size={16} />
+              )}
+              {isGeneratingInvoice ? "Guardando..." : "Generar factura"}
             </button>
           </div>
         </div>
@@ -6797,6 +7243,14 @@ function Dashboard({
         onClose={() => setModalActivo(null)}
       >
         <div className="grid gap-4 sm:grid-cols-2">
+          {newOrderError ? (
+            <div
+              role="alert"
+              className="sm:col-span-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+            >
+              {newOrderError}
+            </div>
+          ) : null}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-900">
               Cliente
@@ -6928,6 +7382,14 @@ function Dashboard({
         onClose={() => setModalActivo(null)}
       >
         <div className="grid gap-4 sm:grid-cols-2">
+          {newClientError ? (
+            <div
+              role="alert"
+              className="sm:col-span-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+            >
+              {newClientError}
+            </div>
+          ) : null}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-900">
               Nombre
@@ -6963,10 +7425,16 @@ function Dashboard({
           <div className="sm:col-span-2 flex justify-end">
             <button
               type="button"
-              onClick={createClientFromModal}
-              className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition hover:-translate-y-0.5 hover:shadow-xl"
+              onClick={() => void createClientFromModal()}
+              disabled={isCreatingClient}
+              className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-colors hover:from-purple-700 hover:to-fuchsia-600 disabled:cursor-wait disabled:opacity-60"
             >
-              Guardar cliente
+              {isCreatingClient ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <UserPlus size={16} />
+              )}
+              {isCreatingClient ? "Guardando..." : "Guardar cliente"}
             </button>
           </div>
         </div>
@@ -7280,13 +7748,8 @@ export default function Admin() {
 
   const handleViewSite = useCallback(async () => {
     setIsLeavingAdmin(true);
-
-    try {
-      await logout();
-    } finally {
-      setLocation("/");
-    }
-  }, [logout, setLocation]);
+    setLocation("/");
+  }, [setLocation]);
 
   useEffect(() => {
     if (isAuthenticated && !isInventoryUser) {

@@ -15,13 +15,7 @@ export type ClienteAgrupado = {
 export function buildClientesFromOrders(
   orders: AdminOrder[],
 ): ClienteAgrupado[] {
-  console.log("[useClientesFromOrders] 🔄 Agrupando pedidos por cliente...");
-  console.log(
-    `[useClientesFromOrders] 📦 Total de pedidos recibidos: ${orders.length}`,
-  );
-
   if (!orders || orders.length === 0) {
-    console.log("[useClientesFromOrders] ⚠️ No hay pedidos para procesar");
     return [];
   }
 
@@ -41,7 +35,6 @@ export function buildClientesFromOrders(
       .trim();
 
     if (!emailKey) {
-      console.warn(`[useClientesFromOrders] ⚠️ Pedido sin cliente: ${order.id}`);
       return;
     }
 
@@ -77,11 +70,6 @@ export function buildClientesFromOrders(
   }));
 
   clientesAgrupados.sort((a, b) => b.pedidos - a.pedidos);
-
-  console.log(
-    `[useClientesFromOrders] ✅ Clientes agrupados: ${clientesAgrupados.length}`,
-  );
-  console.log("[useClientesFromOrders] 📋 Lista de clientes:", clientesAgrupados);
 
   return clientesAgrupados;
 }
